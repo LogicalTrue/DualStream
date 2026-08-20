@@ -349,20 +349,8 @@
   }
 
   function syncUrlParams() {
-    const url = new URL(window.location.href);
-
-    if (AppState.streamer && AppState.streamer !== DEFAULT_STREAMER) {
-      url.searchParams.set('streamer', AppState.streamer);
-    } else {
-      url.searchParams.delete('streamer');
-    }
-
-    if (AppState.videoUrl && AppState.videoUrl.trim() !== '') {
-      url.searchParams.set('video', AppState.videoUrl);
-    } else {
-      url.searchParams.delete('video');
-    }
-
+    // Como la persistencia ahora es 100% en la nube (Upstash Redis), mantenemos la URL totalmente limpia
+    const url = new URL(window.location.origin + window.location.pathname);
     window.history.replaceState({}, '', url.toString());
   }
 
@@ -1047,9 +1035,7 @@
    * Genera la URL pública súper limpia para los espectadores
    */
   function generatePublicViewerUrl() {
-    const url = new URL(window.location.origin + window.location.pathname);
-    url.searchParams.set('mode', 'viewer');
-    return url.toString();
+    return window.location.origin + window.location.pathname;
   }
 
   /**
