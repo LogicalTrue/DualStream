@@ -1147,7 +1147,15 @@
     };
 
     fetchLatestCloudState();
-    setInterval(fetchLatestCloudState, 1000);
+    setInterval(fetchLatestCloudState, 800);
+
+    // Cuando el usuario en el celular vuelve a la pestaña o desbloquea la pantalla, sincronizar de inmediato
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') {
+        fetchLatestCloudState();
+      }
+    });
+    window.addEventListener('focus', fetchLatestCloudState);
   }
 
   // Variables globales de PeerJS
