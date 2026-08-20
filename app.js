@@ -734,15 +734,10 @@
     const ytId = extractYouTubeId(url);
 
     if (ytId) {
-      // Contenedor e Iframe directo para asegurar que el video se renderice inmediatamente al 100%
-      const ytIframe = document.createElement('iframe');
-      ytIframe.id = 'yt-player-target';
-      ytIframe.className = 'media-frame';
-      ytIframe.src = `https://www.youtube-nocookie.com/embed/${ytId}?enablejsapi=1&autoplay=1&mute=1&playsinline=1&controls=${AppState.isAdmin ? 1 : 0}&rel=0`;
-      ytIframe.setAttribute('allow', 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share');
-      ytIframe.setAttribute('allowfullscreen', 'true');
-      ytIframe.setAttribute('title', 'YouTube Video Player');
-      DOM.movieMediaWrapper.appendChild(ytIframe);
+      const ytContainer = document.createElement('div');
+      ytContainer.id = 'yt-player-target';
+      ytContainer.className = 'media-frame';
+      DOM.movieMediaWrapper.appendChild(ytContainer);
 
       if (window.YT && window.YT.Player) {
         initYouTubePlayer(ytId);
@@ -771,6 +766,14 @@
     pendingYtVideoId = null;
     try {
       ytPlayerInstance = new YT.Player('yt-player-target', {
+        videoId: videoId,
+        playerVars: {
+          autoplay: 1,
+          controls: AppState.isAdmin ? 1 : 0,
+          playsinline: 1,
+          rel: 0,
+          enablejsapi: 1
+        },
         events: {
           onReady: (e) => {
             if (AppState.isAdmin) {
