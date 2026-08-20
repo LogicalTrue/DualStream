@@ -1078,13 +1078,28 @@
   let viewerConnections = [];
   let adminConnToMaster = null;
 
+  // Configuración STUN global para atravesar NAT y firewalls de celulares (4G/5G/WiFi)
+  const PEER_CONFIG = {
+    debug: 0,
+    config: {
+      iceServers: [
+        { urls: 'stun:stun.l.google.com:19302' },
+        { urls: 'stun:stun1.l.google.com:19302' },
+        { urls: 'stun:stun2.l.google.com:19302' },
+        { urls: 'stun:stun3.l.google.com:19302' },
+        { urls: 'stun:stun4.l.google.com:19302' },
+        { urls: 'stun:stun.cloudflare.com:3478' }
+      ]
+    }
+  };
+
   function getStreamerRoomId(streamer) {
     return 'dualstream_room_' + (streamer || DEFAULT_STREAMER).toLowerCase().replace(/[^a-z0-9]/g, '');
   }
 
   function initPeerSignaling() {
     if (typeof Peer === 'undefined') {
-      setTimeout(initPeerSignaling, 400);
+      setTimeout(initPeerSignaling, 300);
       return;
     }
 
@@ -1099,20 +1114,25 @@
     if (AppState.isAdmin) {
       // STREAMER HOST: Recibe conexiones directas de los espectadores
       try {
-        peerInstance = new Peer(roomId, { debug: 0 });
+        peerInstance = new Peer(roomId, PEER_CONFIG);
 
         peerInstance.on('open', (id) => {
-          console.log('📡 [Admin WebRTC Host] Sala abierta y lista:', id);
+          console.log('📡 [Admin WebRTC Host] Sala abierta y lista para móviles y PC:', id);
         });
 
         peerInstance.on('connection', (conn) => {
-          console.log('👥 [Admin WebRTC Host] Nuevo espectador conectado');
           viewerConnections.push(conn);
 
           conn.on('open', () => {
             // Enviar inmediatamente el estado maestro actual al nuevo espectador
             const state = getCurrentMasterState();
-            conn.send(state);
+            try { conn.send(state); } catch(e) {}
+          });
+
+          conn.on('data', (msg) => {
+            if (msg && msg.type === 'REQUEST_STATE') {
+              try { conn.send(getCurrentMasterState()); } catch(e) {}
+            }
           });
 
           conn.on('close', () => {
@@ -1131,14 +1151,14 @@
     } else {
       // ESPECTADOR CLIENTE: Se conecta directamente al Host del Streamer
       try {
-        peerInstance = new Peer(null, { debug: 0 });
+        peerInstance = new Peer(null, PEER_CONFIG);
 
         peerInstance.on('open', () => {
           connectToStreamerHost();
         });
 
         peerInstance.on('error', () => {
-          setTimeout(connectToStreamerHost, 2000);
+          setTimeout(connectToStreamerHost, 1500);
         });
       } catch (e) {
         console.warn('Error iniciando PeerJS Client', e);
@@ -1156,7 +1176,8 @@
       adminConnToMaster = peerInstance.connect(roomId, { reliable: true });
 
       adminConnToMaster.on('open', () => {
-        console.log('🟢 [Viewer] Conectado en directo al Streamer');
+        console.log('🟢 [Viewer] Conectado en directo al Streamer por WebRTC');
+        try { adminConnToMaster.send({ type: 'REQUEST_STATE' }); } catch(e) {}
       });
 
       adminConnToMaster.on('data', (data) => {
@@ -1166,10 +1187,14 @@
       });
 
       adminConnToMaster.on('close', () => {
-        setTimeout(connectToStreamerHost, 2500);
+        setTimeout(connectToStreamerHost, 1500);
+      });
+
+      adminConnToMaster.on('error', () => {
+        setTimeout(connectToStreamerHost, 1500);
       });
     } catch(e) {
-      setTimeout(connectToStreamerHost, 3000);
+      setTimeout(connectToStreamerHost, 2000);
     }
   }
 
