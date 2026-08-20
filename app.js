@@ -87,8 +87,10 @@
     };
   }
 
+  const SYNC_API_ENDPOINT = '/api/sync';
+
   /**
-   * Guarda y difunde la configuración a todos los espectadores en tiempo real por WebRTC
+   * Guarda y difunde la configuración a todos los espectadores en tiempo real por WebRTC y Vercel API
    */
   function saveAndBroadcastConfig() {
     const configToSave = getCurrentMasterState();
@@ -103,7 +105,16 @@
       console.warn('Error en storage local', e);
     }
 
-    // 2. Transmitir por WebRTC DataChannel directo (0ms a todos los espectadores)
+    // 2. Enviar a backend Vercel Cloud
+    try {
+      fetch(SYNC_API_ENDPOINT, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(configToSave)
+      }).catch(() => {});
+    } catch (e) {}
+
+    // 3. Transmitir por WebRTC DataChannel directo (0ms a todos los espectadores)
     if (viewerConnections && viewerConnections.length > 0) {
       viewerConnections.forEach(conn => {
         if (conn && conn.open) {
@@ -584,7 +595,16 @@
       }
     } catch (e) {}
 
-    // 2. Emitir directo por WebRTC DataChannel (0ms latencia)
+    // 2. Enviar a backend Vercel Cloud
+    try {
+      fetch(SYNC_API_ENDPOINT, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      }).catch(() => {});
+    } catch (e) {}
+
+    // 3. Emitir directo por WebRTC DataChannel (0ms latencia)
     if (viewerConnections && viewerConnections.length > 0) {
       viewerConnections.forEach(conn => {
         if (conn && conn.open) {
@@ -1071,6 +1091,28 @@
 
     // 3. Sistema WebRTC Directo PeerJS (0ms latencia directa entre Admin y Espectadores)
     initPeerSignaling();
+
+    // 4. Polling continuo de alta velocidad a Vercel Cloud (/api/sync) para celulares y móviles
+    const fetchLatestCloudState = async () => {
+      if (document.body.classList.contains('mode-viewer') || !AppState.isAdmin) {
+        try {
+          const res = await fetch(SYNC_API_ENDPOINT, { cache: 'no-store' });
+          if (res.ok) {
+            const config = await res.json();
+            if (config && (config.streamer || config.videoUrl !== undefined || config.currentTime !== undefined)) {
+              const cfgTime = config.updatedAt || 0;
+              if (cfgTime > lastProcessedTimestamp) {
+                lastProcessedTimestamp = cfgTime;
+                applyIncomingConfig(config);
+              }
+            }
+          }
+        } catch (e) {}
+      }
+    };
+
+    fetchLatestCloudState();
+    setInterval(fetchLatestCloudState, 1200);
   }
 
   // Variables globales de PeerJS
