@@ -104,19 +104,27 @@
       console.warn('Error en storage local', e);
     }
 
-    // 2. Enviar a backend Vercel Cloud con autorización
+    // 2. Enviar a backend Vercel Cloud con autorización y token de sesión único
     try {
       const adminSecret = sessionStorage.getItem('kick_dual_admin_secret') || '';
+      const sessionToken = sessionStorage.getItem('kick_dual_admin_session_token') || '';
       fetch(SYNC_API_ENDPOINT, {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
-          'Authorization': adminSecret ? `Bearer ${adminSecret}` : ''
+          'Authorization': adminSecret ? `Bearer ${adminSecret}` : '',
+          'x-admin-session': sessionToken
         },
         body: JSON.stringify(configToSave)
-      }).then(res => {
+      }).then(async res => {
         if (res.status === 401) {
           showToast('Error: No autorizado. La clave secreta de admin es incorrecta.', 'error');
+        } else if (res.status === 403) {
+          // Sesión revocada por inicio en otro lugar
+          sessionStorage.removeItem('kick_dual_admin_secret');
+          sessionStorage.removeItem('kick_dual_admin_session_token');
+          setMode(false);
+          showToast('⚠️ Se ha iniciado sesión desde otro dispositivo. Tu sesión de admin se ha cerrado.', 'error');
         }
       }).catch(() => {});
     } catch (e) {}
@@ -276,14 +284,35 @@
     if (modeParam === 'viewer') {
       setMode(false);
       sessionStorage.removeItem('kick_dual_admin_secret');
+      sessionStorage.removeItem('kick_dual_admin_session_token');
     } else if (secretParam) {
-      // Guardar el secret en la sesión del navegador
+      // Guardar el secret en la sesión del navegador y registrar sesión
       sessionStorage.setItem('kick_dual_admin_secret', secretParam);
       setMode(true);
+      try {
+        const res = await fetch(SYNC_API_ENDPOINT, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${secretParam}`
+          },
+          body: JSON.stringify({ type: 'VERIFY_AUTH' })
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data && data.sessionToken) {
+            sessionStorage.setItem('kick_dual_admin_session_token', data.sessionToken);
+            startAdminSessionChecker();
+          }
+        }
+      } catch (e) {}
     } else {
       // Por defecto para cualquier visitante: modo espectador (salvo si esta pestaña específica tiene el secret guardado)
       const storedAdmin = sessionStorage.getItem('kick_dual_is_admin') === 'true' && !!sessionStorage.getItem('kick_dual_admin_secret');
       setMode(storedAdmin);
+      if (storedAdmin && sessionStorage.getItem('kick_dual_admin_session_token')) {
+        startAdminSessionChecker();
+      }
     }
 
     // Si viene algún parámetro explícito en la URL, sobrescribe la persistencia
@@ -1301,6 +1330,47 @@
   }
 
   // --------------------------------------------------------------------------
+  // 10.5 SINGLE ACTIVE ADMIN SESSION CHECKER
+  // --------------------------------------------------------------------------
+  let sessionCheckInterval = null;
+
+  function startAdminSessionChecker() {
+    if (sessionCheckInterval) clearInterval(sessionCheckInterval);
+
+    sessionCheckInterval = setInterval(async () => {
+      if (!AppState.isAdmin) {
+        clearInterval(sessionCheckInterval);
+        return;
+      }
+
+      const adminSecret = sessionStorage.getItem('kick_dual_admin_secret');
+      const sessionToken = sessionStorage.getItem('kick_dual_admin_session_token');
+      if (!adminSecret || !sessionToken) return;
+
+      try {
+        const res = await fetch(SYNC_API_ENDPOINT, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${adminSecret}`,
+            'x-admin-session': sessionToken
+          },
+          body: JSON.stringify({ type: 'CHECK_SESSION' })
+        });
+
+        if (res.status === 403) {
+          // Sesión revocada desde otro dispositivo
+          clearInterval(sessionCheckInterval);
+          sessionStorage.removeItem('kick_dual_admin_secret');
+          sessionStorage.removeItem('kick_dual_admin_session_token');
+          setMode(false);
+          showToast('⚠️ Se ha iniciado sesión desde otro dispositivo. Tu sesión de admin se ha cerrado.', 'error');
+        }
+      } catch (e) {}
+    }, 6000);
+  }
+
+  // --------------------------------------------------------------------------
   // 11. EVENT LISTENERS
   // --------------------------------------------------------------------------
 
@@ -1347,10 +1417,15 @@
           });
 
           if (res.ok) {
+            const data = await res.json();
             sessionStorage.setItem('kick_dual_admin_secret', enteredSecret);
+            if (data && data.sessionToken) {
+              sessionStorage.setItem('kick_dual_admin_session_token', data.sessionToken);
+            }
             setMode(true);
             closeModal(DOM.modalAuth);
             showToast('¡Modo Streamer / Admin desbloqueado exitosamente!', 'success');
+            startAdminSessionChecker();
           } else {
             showToast('Clave secreta incorrecta. Inténtalo de nuevo.', 'error');
             if (DOM.inputAdminPin) {
@@ -1371,6 +1446,7 @@
     if (DOM.btnExitAdmin) {
       DOM.btnExitAdmin.addEventListener('click', () => {
         sessionStorage.removeItem('kick_dual_admin_secret');
+        sessionStorage.removeItem('kick_dual_admin_session_token');
         setMode(false);
         showToast('Has salido del modo Streamer', 'info');
       });

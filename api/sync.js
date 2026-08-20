@@ -76,41 +76,111 @@ async function saveToRedis(state) {
   }
 }
 
+const REDIS_SESSION_KEY = 'dualstream_active_admin_session';
+let memoryActiveSessionToken = null;
+
+async function getActiveSessionFromRedis() {
+  if (!KV_URL || !KV_TOKEN) return memoryActiveSessionToken;
+  try {
+    const cleanUrl = KV_URL.replace(/\/$/, '');
+    const res = await fetch(`${cleanUrl}/get/${REDIS_SESSION_KEY}`, {
+      headers: { Authorization: `Bearer ${KV_TOKEN}` }
+    });
+    if (res.ok) {
+      const data = await res.json();
+      if (data && data.result !== null && data.result !== undefined) {
+        return typeof data.result === 'string' ? data.result : String(data.result);
+      }
+    }
+  } catch (err) {
+    console.error('Error leyendo sesión de Upstash Redis:', err);
+  }
+  return memoryActiveSessionToken;
+}
+
+async function setActiveSessionInRedis(token) {
+  memoryActiveSessionToken = token;
+  if (!KV_URL || !KV_TOKEN) return true;
+  try {
+    const cleanUrl = KV_URL.replace(/\/$/, '');
+    const res = await fetch(`${cleanUrl}`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${KV_TOKEN}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(["SET", REDIS_SESSION_KEY, token])
+    });
+    return res.ok;
+  } catch (err) {
+    console.error('Error guardando sesión en Upstash Redis:', err);
+    return false;
+  }
+}
+
 const EXPECTED_ADMIN_SECRET = process.env.ADMIN_SECRET;
 
 module.exports = async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, x-admin-secret');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, x-admin-secret, x-admin-session');
 
   if (req.method === 'OPTIONS') {
     return res.status(200).end();
   }
 
-  // --- POST: Guardar nuevo estado del streamer (Protegido por ADMIN_SECRET) ---
+  // --- POST: Login, Verificación o Guardado ---
   if (req.method === 'POST') {
     try {
       const incomingData = typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
-      
+      const authHeader = req.headers['authorization'] || '';
+      const customHeader = req.headers['x-admin-secret'] || '';
+      const sessionHeader = req.headers['x-admin-session'] || (incomingData && incomingData.sessionToken);
+      const token = authHeader.replace(/^Bearer\s+/i, '').trim() || customHeader || (incomingData && incomingData.adminSecret);
+
       // Validación de autenticación si ADMIN_SECRET está configurado en Vercel
       if (EXPECTED_ADMIN_SECRET) {
-        const authHeader = req.headers['authorization'] || '';
-        const customHeader = req.headers['x-admin-secret'] || '';
-        const token = authHeader.replace(/^Bearer\s+/i, '').trim() || customHeader || (incomingData && incomingData.adminSecret);
-
         if (!token || token !== EXPECTED_ADMIN_SECRET) {
           return res.status(401).json({ error: 'No autorizado: ADMIN_SECRET inválido o ausente' });
         }
       }
 
-      // Si es solo una verificación de login
+      // 1. Caso: Login / Inicio de Sesión nuevo -> Genera y registra nueva sesión única
       if (incomingData && incomingData.type === 'VERIFY_AUTH') {
-        return res.status(200).json({ ok: true, message: 'Autenticación exitosa' });
+        const newSessionToken = 'sess_' + Math.random().toString(36).substring(2) + Date.now().toString(36);
+        await setActiveSessionInRedis(newSessionToken);
+        return res.status(200).json({ 
+          ok: true, 
+          message: 'Autenticación exitosa',
+          sessionToken: newSessionToken 
+        });
       }
 
+      // 2. Caso: Verificación de sesión activa (Heartbeat / polling)
+      if (incomingData && incomingData.type === 'CHECK_SESSION') {
+        const currentActive = await getActiveSessionFromRedis();
+        if (currentActive && sessionHeader && currentActive !== sessionHeader) {
+          return res.status(403).json({ 
+            error: 'SESSION_TERMINATED', 
+            message: 'Se ha iniciado sesión desde otro dispositivo' 
+          });
+        }
+        return res.status(200).json({ ok: true, active: true });
+      }
+
+      // 3. Caso: Guardar nuevo estado del streamer
       if (incomingData) {
-        // Limpiar el campo adminSecret antes de persistir
-        const { adminSecret, ...cleanDataToSave } = incomingData;
+        // Verificar que la sesión que intenta guardar siga siendo la sesión activa
+        const currentActive = await getActiveSessionFromRedis();
+        if (currentActive && sessionHeader && currentActive !== sessionHeader) {
+          return res.status(403).json({ 
+            error: 'SESSION_TERMINATED', 
+            message: 'Tu sesión ha expirado porque se inició sesión desde otro dispositivo' 
+          });
+        }
+
+        // Limpiar campos internos antes de persistir
+        const { adminSecret, sessionToken, ...cleanDataToSave } = incomingData;
 
         // Leer estado actual existente
         const currentState = (await getFromRedis()) || memoryStateStore;
