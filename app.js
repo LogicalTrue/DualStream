@@ -1241,23 +1241,27 @@
       viewerShield.addEventListener('click', unlockViewerMobileAudio);
     }
 
-    // --- Botón Flotante de Chat en Modo Horizontal / Rotado ---
+    // --- Funciones de Control de Chat (Vertical y Horizontal) ---
+    function openChat() {
+      if (DOM.chatColumn) DOM.chatColumn.classList.remove('collapsed');
+      document.body.classList.remove('chat-is-closed');
+      document.body.classList.add('landscape-chat-open');
+    }
+
+    function closeChat() {
+      if (DOM.chatColumn) DOM.chatColumn.classList.add('collapsed');
+      document.body.classList.add('chat-is-closed');
+      document.body.classList.remove('landscape-chat-open');
+    }
+
     const btnFloatingChat = document.getElementById('btn-floating-chat-toggle');
     if (btnFloatingChat) {
-      btnFloatingChat.addEventListener('click', () => {
-        if (DOM.chatColumn) {
-          DOM.chatColumn.classList.toggle('show-landscape');
-        }
-      });
+      btnFloatingChat.addEventListener('click', openChat);
     }
 
     const btnCloseChatMobile = document.getElementById('btn-close-chat-mobile');
     if (btnCloseChatMobile) {
-      btnCloseChatMobile.addEventListener('click', () => {
-        if (DOM.chatColumn) {
-          DOM.chatColumn.classList.remove('show-landscape');
-        }
-      });
+      btnCloseChatMobile.addEventListener('click', closeChat);
     }
 
     // --- Sync Guide Modal ---

@@ -923,26 +923,47 @@ body.mode-viewer .webcam-resize-handle {
   box-sizing: border-box;
 }
 
-.chat-close-btn {
-  display: inline-flex !important;
+.btn-floating-chat-toggle {
+  display: none;
+  position: fixed;
+  bottom: 22px;
+  right: 22px;
+  z-index: 45;
   align-items: center;
-  gap: 4px;
-  padding: 4px 8px !important;
-  width: auto !important;
-  height: 26px !important;
-  background: rgba(255, 68, 68, 0.15) !important;
-  border: 1px solid rgba(255, 68, 68, 0.4) !important;
-  border-radius: 4px;
-  color: #ff6666 !important;
+  gap: 8px;
+  padding: 10px 18px;
+  background: rgba(14, 17, 19, 0.94);
+  backdrop-filter: blur(12px);
+  border: 1.5px solid var(--kick-green);
+  border-radius: var(--radius-full);
+  color: var(--text-primary);
+  font-size: 12px;
+  font-weight: 700;
   cursor: pointer;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.8), 0 0 16px rgba(83, 252, 24, 0.35);
   transition: all var(--transition-fast);
 }
 
-.chat-close-btn:hover {
-  background: rgba(255, 68, 68, 0.3) !important;
-  border-color: #ff4444 !important;
-  color: #ffffff !important;
-  transform: scale(1.03);
+.btn-floating-chat-toggle:hover {
+  transform: scale(1.05);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.9), 0 0 22px rgba(83, 252, 24, 0.5);
+}
+
+.btn-floating-chat-toggle svg {
+  color: var(--kick-green);
+}
+
+/* En vertical: si el chat está colapsado, mostrar el botón para reabrirlo */
+@media (max-width: 768px) and (orientation: portrait) {
+  body.chat-is-closed .btn-floating-chat-toggle {
+    display: inline-flex !important;
+  }
+
+  body.chat-is-closed .stage-section {
+    max-height: 100vh !important;
+    height: 100% !important;
+    flex: 1 1 auto !important;
+  }
 }
 
 /* Mobile Landscape / Rotado (max-height: 520px) */
@@ -987,31 +1008,33 @@ body.mode-viewer .webcam-resize-handle {
     display: none !important;
   }
 
-  /* Mostrar botón flotante en horizontal */
-  .btn-floating-chat-landscape {
+  /* Mostrar botón flotante en horizontal si el chat no está abierto */
+  body:not(.landscape-chat-open) .btn-floating-chat-toggle {
     display: inline-flex !important;
+    bottom: 24px !important;
+    right: 28px !important;
   }
 
   /* En horizontal el chat viene CERRADO por defecto (Cine Fullscreen) */
   .chat-section {
     display: none !important;
-    position: absolute !important;
+    position: fixed !important;
     right: 0 !important;
     top: 0 !important;
-    width: 280px !important;
-    min-width: 280px !important;
-    max-width: 280px !important;
+    width: 290px !important;
+    min-width: 290px !important;
+    max-width: 290px !important;
     height: 100dvh !important;
-    z-index: 35 !important;
+    z-index: 50 !important;
     background: rgba(14, 17, 19, 0.98) !important;
     backdrop-filter: blur(14px) !important;
     border-left: 1px solid var(--border-subtle) !important;
-    box-shadow: -10px 0 30px rgba(0, 0, 0, 0.8) !important;
+    box-shadow: -10px 0 30px rgba(0, 0, 0, 0.85) !important;
     flex-direction: column !important;
   }
 
-  /* Se abre al pulsar el botón flotante */
-  .chat-section.show-landscape {
+  /* Se abre cuando el body tiene la clase */
+  body.landscape-chat-open .chat-section {
     display: flex !important;
   }
 
