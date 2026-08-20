@@ -1004,29 +1004,35 @@
 
     initCloudSync();
 
-    // 4. Polling de respaldo a la Base de Datos Global en la Nube
-    const pollCloudDatabase = async () => {
+    // 4. Carga inmediata del último estado activo en la Nube (para usuarios nuevos o modo incógnito)
+    const fetchLatestCloudState = async () => {
       if (document.body.classList.contains('mode-viewer') || !AppState.isAdmin) {
         try {
-          const res = await fetch(CLOUD_CONFIG_URL, { cache: 'no-store' });
-          if (res.ok) {
-            const json = await res.json();
-            const config = (json && json.data) ? json.data : json;
-            if (config && config.streamer) {
-              const configTime = config.updatedAt || 1;
-              if (configTime > lastProcessedTimestamp) {
-                lastProcessedTimestamp = configTime;
-                applyIncomingConfig(config);
-              }
+          const cloudRes = await fetch(`${CLOUD_SYNC_TOPIC}/json?poll=1`, { cache: 'no-store' });
+          if (cloudRes.ok) {
+            const text = await cloudRes.text();
+            const lines = text.trim().split('\n');
+            for (let i = lines.length - 1; i >= 0; i--) {
+              if (!lines[i] || !lines[i].trim()) continue;
+              try {
+                const item = JSON.parse(lines[i]);
+                if (item.event && item.event !== 'message') continue;
+                const rawMessage = item.message || item;
+                const config = typeof rawMessage === 'string' ? JSON.parse(rawMessage) : rawMessage;
+                if (config && (config.streamer || config.videoUrl !== undefined)) {
+                  applyIncomingConfig(config);
+                  return;
+                }
+              } catch (e) {}
             }
           }
-        } catch (err) { }
+        } catch (err) {}
       }
     };
 
-    // Consulta inicial inmediata para que el viewer cargue todo lo que dejó el admin
-    pollCloudDatabase();
-    setInterval(pollCloudDatabase, 5000);
+    // Consulta inicial inmediata para que el nuevo viewer cargue el streamer y video exacto del admin
+    fetchLatestCloudState();
+    setInterval(fetchLatestCloudState, 3500);
   }
 
   // --------------------------------------------------------------------------
