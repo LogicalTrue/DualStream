@@ -14,31 +14,37 @@ let memoryStateStore = {
   updatedAt: Date.now()
 };
 
+// Resuelve cualquier combinación de nombres de variables inyectadas por Vercel / Upstash
 const KV_URL = 
   process.env.KV_REST_API_URL || 
   process.env.UPSTASH_REDIS_REST_URL ||
   process.env.STORAGE_REST_API_URL ||
   process.env.STORAGE_KV_REST_API_URL ||
-  process.env.UPSTASH_REDIS_REST_URL;
+  process.env.STORAGE_UPSTASH_REDIS_REST_URL ||
+  process.env.STORAGE_URL;
 
 const KV_TOKEN = 
   process.env.KV_REST_API_TOKEN || 
   process.env.UPSTASH_REDIS_REST_TOKEN ||
   process.env.STORAGE_REST_API_TOKEN ||
   process.env.STORAGE_KV_REST_API_TOKEN ||
-  process.env.UPSTASH_REDIS_REST_TOKEN;
+  process.env.STORAGE_UPSTASH_REDIS_REST_TOKEN ||
+  process.env.STORAGE_TOKEN;
 
 const REDIS_KEY = 'dualstream_latest_state';
 
 async function getFromRedis() {
-  if (!KV_URL || !KV_TOKEN) return null;
+  if (!KV_URL || !KV_TOKEN) {
+    return null;
+  }
   try {
-    const res = await fetch(`${KV_URL}/get/${REDIS_KEY}`, {
+    const cleanUrl = KV_URL.replace(/\/$/, '');
+    const res = await fetch(`${cleanUrl}/get/${REDIS_KEY}`, {
       headers: { Authorization: `Bearer ${KV_TOKEN}` }
     });
     if (res.ok) {
       const data = await res.json();
-      if (data && data.result) {
+      if (data && data.result !== null && data.result !== undefined) {
         return typeof data.result === 'string' ? JSON.parse(data.result) : data.result;
       }
     }
@@ -49,15 +55,19 @@ async function getFromRedis() {
 }
 
 async function saveToRedis(state) {
-  if (!KV_URL || !KV_TOKEN) return false;
+  if (!KV_URL || !KV_TOKEN) {
+    return false;
+  }
   try {
-    const res = await fetch(`${KV_URL}/set/${REDIS_KEY}`, {
+    const cleanUrl = KV_URL.replace(/\/$/, '');
+    // Upstash REST API acepta POST con array de comandos: ["SET", key, value]
+    const res = await fetch(`${cleanUrl}`, {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${KV_TOKEN}`,
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify(state)
+      body: JSON.stringify(["SET", REDIS_KEY, JSON.stringify(state)])
     });
     return res.ok;
   } catch (err) {
