@@ -381,8 +381,9 @@
       DOM.btnOpenKickExternal.href = `https://kick.com/${channel}`;
     }
 
-    // Kick Stream Player
-    const playerUrl = `https://player.kick.com/${encodeURIComponent(channel)}?autoplay=true&muted=false`;
+    // Kick Stream Player con parent domain para autorización de embed
+    const currentHost = window.location.hostname || 'dual-stream-five.vercel.app';
+    const playerUrl = `https://player.kick.com/${encodeURIComponent(channel)}?autoplay=true&muted=true&parent=${currentHost}`;
     if (DOM.kickPlayerFrame.src !== playerUrl) {
       DOM.kickPlayerFrame.src = playerUrl;
     }
