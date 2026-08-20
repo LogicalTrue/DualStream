@@ -900,9 +900,31 @@
     videoElem.controls = AppState.isAdmin;
     videoElem.autoplay = true;
     videoElem.playsInline = true;
+    videoElem.setAttribute('playsinline', 'true');
+    videoElem.setAttribute('webkit-playsinline', 'true');
+    videoElem.preload = 'auto';
+    videoElem.crossOrigin = 'anonymous';
+
+    // Para espectadores en móvil: iniciar muteado para garantizar autoplay sin bloqueo de navegador
+    if (!AppState.isAdmin) {
+      videoElem.muted = true;
+    }
+
     videoElem.src = url;
 
     activeNativeVideo = videoElem;
+
+    // Sincronizar segundo inicial al cargar metadatos
+    videoElem.addEventListener('loadedmetadata', () => {
+      if (!AppState.isAdmin && latestSyncPlaybackState) {
+        const latency = Math.max(0, (Date.now() - (latestSyncPlaybackState.updatedAt || Date.now())) / 1000);
+        const target = (latestSyncPlaybackState.currentTime || 0) + (latestSyncPlaybackState.isPlaying ? latency : 0);
+        videoElem.currentTime = target;
+        if (latestSyncPlaybackState.isPlaying) {
+          videoElem.play().catch(() => {});
+        }
+      }
+    });
 
     if (AppState.isAdmin) {
       videoElem.addEventListener('play', () => emitPlaybackSync(videoElem.currentTime, true));
