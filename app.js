@@ -61,12 +61,28 @@
    * Guarda y difunde la configuración a todos los espectadores en tiempo real (Local + Nube)
    */
   function saveAndBroadcastConfig() {
+    let currentSec = 0;
+    let isCurrentlyPlaying = false;
+    if (typeof ytPlayerInstance !== 'undefined' && ytPlayerInstance && typeof ytPlayerInstance.getCurrentTime === 'function') {
+      try {
+        currentSec = ytPlayerInstance.getCurrentTime() || 0;
+        const st = ytPlayerInstance.getPlayerState();
+        isCurrentlyPlaying = (st === 1 || st === 3);
+      } catch(e) {}
+    } else if (typeof activeNativeVideo !== 'undefined' && activeNativeVideo) {
+      currentSec = activeNativeVideo.currentTime || 0;
+      isCurrentlyPlaying = !activeNativeVideo.paused;
+    }
+
     const configToSave = {
+      type: 'CONFIG_UPDATED',
       streamer: AppState.streamer,
       videoUrl: AppState.videoUrl,
       camX: AppState.camX,
       camY: AppState.camY,
       camW: AppState.camW,
+      currentTime: parseFloat(currentSec.toFixed(2)),
+      isPlaying: isCurrentlyPlaying,
       updatedAt: Date.now()
     };
 
@@ -74,7 +90,7 @@
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(configToSave));
       if (syncChannel) {
-        syncChannel.postMessage({ type: 'CONFIG_UPDATED', config: configToSave });
+        syncChannel.postMessage(configToSave);
       }
     } catch (e) {
       console.warn('Error en storage local', e);
@@ -700,17 +716,20 @@
         },
         events: {
           onReady: (e) => {
-            if (!AppState.isAdmin) {
+            if (AppState.isAdmin) {
+              e.target.playVideo();
+            } else {
               // Mute preventivo en móvil para no ser bloqueado por el navegador
               try { e.target.mute(); } catch (err) {}
 
               // Si el streamer estaba reproduciendo, iniciar; si estaba pausado, QUEDARSE EN PAUSA
               if (latestSyncPlaybackState && latestSyncPlaybackState.isPlaying) {
                 const latency = Math.max(0, (Date.now() - latestSyncPlaybackState.updatedAt) / 1000);
-                e.target.seekTo(latestSyncPlaybackState.currentTime + latency, true);
+                const target = (latestSyncPlaybackState.currentTime || 0) + latency;
+                e.target.seekTo(target, true);
                 e.target.playVideo();
               } else {
-                const target = latestSyncPlaybackState ? latestSyncPlaybackState.currentTime : 0;
+                const target = latestSyncPlaybackState ? (latestSyncPlaybackState.currentTime || 0) : 0;
                 e.target.seekTo(target, true);
                 e.target.pauseVideo();
               }
@@ -981,6 +1000,7 @@
         // 2. Actualizar Video si cambió
         if (config.videoUrl !== undefined && config.videoUrl !== AppState.videoUrl) {
           AppState.videoUrl = config.videoUrl;
+          latestSyncPlaybackState = config;
           if (AppState.videoUrl && AppState.videoUrl.trim() !== '') {
             loadVideoSource(AppState.videoUrl);
           } else {
