@@ -1,4 +1,9 @@
-let stateStore = {
+/**
+ * DualStream Cloud Sync API
+ * Persistencia en tiempo real mediante Upstash Redis / Vercel KV REST API
+ */
+
+let memoryStateStore = {
   streamer: 'blackozutr',
   videoUrl: 'https://www.youtube.com/watch?v=A8qw5r6aDYo',
   camX: 2,
@@ -9,7 +14,47 @@ let stateStore = {
   updatedAt: Date.now()
 };
 
-module.exports = (req, res) => {
+const KV_URL = process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL;
+const KV_TOKEN = process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN;
+const REDIS_KEY = 'dualstream_latest_state';
+
+async function getFromRedis() {
+  if (!KV_URL || !KV_TOKEN) return null;
+  try {
+    const res = await fetch(`${KV_URL}/get/${REDIS_KEY}`, {
+      headers: { Authorization: `Bearer ${KV_TOKEN}` }
+    });
+    if (res.ok) {
+      const data = await res.json();
+      if (data && data.result) {
+        return typeof data.result === 'string' ? JSON.parse(data.result) : data.result;
+      }
+    }
+  } catch (err) {
+    console.error('Error leyendo de Upstash Redis:', err);
+  }
+  return null;
+}
+
+async function saveToRedis(state) {
+  if (!KV_URL || !KV_TOKEN) return false;
+  try {
+    const res = await fetch(`${KV_URL}/set/${REDIS_KEY}`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${KV_TOKEN}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(state)
+    });
+    return res.ok;
+  } catch (err) {
+    console.error('Error guardando en Upstash Redis:', err);
+    return false;
+  }
+}
+
+module.exports = async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
@@ -18,21 +63,35 @@ module.exports = (req, res) => {
     return res.status(200).end();
   }
 
+  // --- POST: Guardar nuevo estado del streamer ---
   if (req.method === 'POST') {
     try {
-      const data = typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
-      if (data) {
-        stateStore = {
-          ...stateStore,
-          ...data,
+      const incomingData = typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
+      if (incomingData) {
+        // Leer estado actual existente
+        const currentState = (await getFromRedis()) || memoryStateStore;
+        const updatedState = {
+          ...currentState,
+          ...incomingData,
           updatedAt: Date.now()
         };
+
+        memoryStateStore = updatedState;
+        await saveToRedis(updatedState);
+
+        return res.status(200).json(updatedState);
       }
-      return res.status(200).json(stateStore);
+      return res.status(400).json({ error: 'No data provided' });
     } catch (e) {
-      return res.status(400).json({ error: 'Invalid JSON' });
+      return res.status(400).json({ error: 'Invalid JSON payload' });
     }
   }
 
-  return res.status(200).json(stateStore);
+  // --- GET: Obtener el estado actual más reciente ---
+  const cloudState = await getFromRedis();
+  if (cloudState) {
+    return res.status(200).json(cloudState);
+  }
+
+  return res.status(200).json(memoryStateStore);
 };
