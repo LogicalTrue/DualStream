@@ -15,6 +15,7 @@
   // Clave de almacenamiento persistente
   const STORAGE_KEY = 'kick_dual_streamer_config';
   const SYNC_CHANNEL_NAME = 'kick_dual_watch_party_sync';
+  const ADMIN_PIN = '1234';
 
   // Canal de difusión en tiempo real entre pestañas / navegadores
   let syncChannel = null;
@@ -26,8 +27,11 @@
     console.warn('BroadcastChannel no soportado, usando fallback StorageEvent', e);
   }
 
-  // PIN de seguridad para acceder como Streamer / Dueño (configurable)
-  const ADMIN_PIN = '1234';
+  // URL del Relay de Sincronización Global en la Nube (Sin backend propio, 100% serverless)
+  function getCloudSyncTopic(streamer) {
+    const cleanName = (streamer || 'default').toLowerCase().replace(/[^a-z0-9]/g, '_');
+    return `https://ntfy.sh/kick_dual_${cleanName}_sync`;
+  }
 
   // Configuración inicial / por defecto
   const DEFAULT_CONFIG = {
@@ -54,7 +58,7 @@
   }
 
   /**
-   * Guarda y difunde la configuración a todos los espectadores en tiempo real
+   * Guarda y difunde la configuración a todos los espectadores en tiempo real (Local + Nube)
    */
   function saveAndBroadcastConfig() {
     const configToSave = {
@@ -65,14 +69,30 @@
       camW: AppState.camW,
       updatedAt: Date.now()
     };
+    
+    // 1. Guardar local
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(configToSave));
-      // Transmitir en vivo por el canal de sincronización
       if (syncChannel) {
         syncChannel.postMessage({ type: 'CONFIG_UPDATED', config: configToSave });
       }
     } catch (e) {
-      console.warn('Error guardando/difundiendo configuración', e);
+      console.warn('Error en storage local', e);
+    }
+
+    // 2. Transmitir a la Nube en tiempo real (para todos los viewers en Vercel/Internet)
+    try {
+      const cloudUrl = getCloudSyncTopic(AppState.streamer);
+      fetch(cloudUrl, {
+        method: 'POST',
+        body: JSON.stringify(configToSave),
+        headers: {
+          'Title': 'DualStream Sync',
+          'Tags': 'tv,movie_camera'
+        }
+      }).catch(err => console.warn('Error en broadcast a la nube', err));
+    } catch (err) {
+      console.warn('Fallo al emitir a la nube', err);
     }
   }
 
@@ -725,6 +745,7 @@
         if (config.streamer && config.streamer !== AppState.streamer) {
           AppState.streamer = config.streamer;
           updateKickViews();
+          reconnectCloudSync(); // Reconectar al topic del nuevo streamer
           changed = true;
         }
 
@@ -751,7 +772,7 @@
       }
     };
 
-    // 1. Escuchar por BroadcastChannel (0ms latencia)
+    // 1. Escuchar por BroadcastChannel (local 0ms latencia)
     if (syncChannel) {
       syncChannel.onmessage = (event) => {
         if (event && event.data && event.data.type === 'CONFIG_UPDATED') {
@@ -761,7 +782,7 @@
       };
     }
 
-    // 2. Escuchar por StorageEvent (compatibilidad entre todas las pestañas)
+    // 2. Escuchar por StorageEvent (compatibilidad entre pestañas del mismo navegador)
     window.addEventListener('storage', (e) => {
       if (e.key === STORAGE_KEY && e.newValue) {
         try {
@@ -774,23 +795,72 @@
       }
     });
 
-    // 3. Chequeo continuo cada 800ms para asegurar sincronización 100% infalible
-    setInterval(() => {
-      if (document.body.classList.contains('mode-viewer') || !AppState.isAdmin) {
-        try {
-          const raw = localStorage.getItem(STORAGE_KEY);
-          if (raw) {
-            const config = JSON.parse(raw);
-            if (config.updatedAt && config.updatedAt > lastProcessedTimestamp) {
+    // 3. Escuchar EventSource en la Nube (para Vercel y todos los espectadores en internet)
+    let cloudEventSource = null;
+
+    function reconnectCloudSync() {
+      if (cloudEventSource) {
+        try { cloudEventSource.close(); } catch (e) {}
+      }
+
+      try {
+        const sseUrl = `${getCloudSyncTopic(AppState.streamer)}/sse`;
+        cloudEventSource = new EventSource(sseUrl);
+
+        cloudEventSource.onmessage = (event) => {
+          try {
+            const data = JSON.parse(event.data);
+            // ntfy.sh envía el payload en data.message
+            const rawMessage = data.message || data;
+            const config = typeof rawMessage === 'string' ? JSON.parse(rawMessage) : rawMessage;
+            if (config && config.updatedAt && config.updatedAt > lastProcessedTimestamp) {
               lastProcessedTimestamp = config.updatedAt;
               applyIncomingConfig(config);
             }
+          } catch (e) {
+            // ignore non-json notifications
           }
-        } catch (e) {
-          // ignore
-        }
+        };
+
+        cloudEventSource.onerror = () => {
+          // Fallback silencioso si se desconecta
+        };
+      } catch (e) {
+        console.warn('EventSource cloud sync no disponible', e);
       }
-    }, 800);
+    }
+
+    reconnectCloudSync();
+
+    // 4. Polling inicial y de respaldo a la nube cada 2 segundos
+    const pollCloudState = async () => {
+      if (document.body.classList.contains('mode-viewer') || !AppState.isAdmin) {
+        try {
+          const pollUrl = `${getCloudSyncTopic(AppState.streamer)}/json?poll=1`;
+          const res = await fetch(pollUrl, { cache: 'no-store' });
+          if (res.ok) {
+            const text = await res.text();
+            const lines = text.trim().split('\n');
+            for (let i = lines.length - 1; i >= 0; i--) {
+              try {
+                const item = JSON.parse(lines[i]);
+                const rawMessage = item.message || item;
+                const config = typeof rawMessage === 'string' ? JSON.parse(rawMessage) : rawMessage;
+                if (config && config.updatedAt && config.updatedAt > lastProcessedTimestamp) {
+                  lastProcessedTimestamp = config.updatedAt;
+                  applyIncomingConfig(config);
+                  break;
+                }
+              } catch (e) {}
+            }
+          }
+        } catch (e) {}
+      }
+    };
+
+    // Consulta inicial rápida a la nube
+    pollCloudState();
+    setInterval(pollCloudState, 2500);
   }
 
   // --------------------------------------------------------------------------
