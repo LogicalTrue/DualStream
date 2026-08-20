@@ -692,6 +692,10 @@
         },
         events: {
           onReady: (e) => {
+            if (!AppState.isAdmin) {
+              // En modo viewer en móvil, iniciar en mute para saltar el bloqueo de autoplay
+              try { e.target.mute(); } catch (err) {}
+            }
             e.target.playVideo();
           },
           onStateChange: (e) => {
@@ -712,6 +716,28 @@
     } catch (e) {
       console.warn('Error inicializando YT.Player', e);
     }
+  }
+
+  // Desbloqueo de Audio y Sincronización en Móviles
+  function unlockViewerMobileAudio() {
+    const banner = document.getElementById('mobile-sync-unlock-banner');
+    if (banner) banner.classList.add('hidden');
+
+    if (ytPlayerInstance && typeof ytPlayerInstance.unMute === 'function') {
+      try {
+        ytPlayerInstance.unMute();
+        ytPlayerInstance.playVideo();
+      } catch (e) {}
+    }
+
+    if (activeNativeVideo) {
+      try {
+        activeNativeVideo.muted = false;
+        activeNativeVideo.play().catch(() => {});
+      } catch (e) {}
+    }
+
+    showToast('🔊 ¡Audio activado y sincronizado!', 'success');
   }
 
   // Detector instantáneo de saltos en el tiempo (Seek / Adelantar / Retroceder) para Admin
@@ -1244,6 +1270,16 @@
         const publicUrl = DOM.inputPublishUrl.value;
         window.open(publicUrl, '_blank');
       });
+    }
+
+    // --- Desbloqueo de Audio & Sync en Móviles / Viewers ---
+    const btnUnlockSync = document.getElementById('btn-unlock-sync');
+    if (btnUnlockSync) {
+      btnUnlockSync.addEventListener('click', unlockViewerMobileAudio);
+    }
+    const viewerShield = document.getElementById('viewer-video-shield');
+    if (viewerShield) {
+      viewerShield.addEventListener('click', unlockViewerMobileAudio);
     }
 
     // --- Sync Guide Modal ---

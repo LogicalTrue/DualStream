@@ -21,7 +21,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 
-  <link rel="stylesheet" href="styles.css?v=2.3">
+  <link rel="stylesheet" href="styles.css?v=2.5">
   <!-- YouTube IFrame API -->
   <script src="https://www.youtube.com/iframe_api"></script>
 </head>
@@ -130,6 +130,14 @@
         <div class="movie-player-box" id="movie-player-box">
           <!-- Shield Overlay para Espectadores (Bloquea clics/pausa manual de viewers) -->
           <div class="viewer-video-shield" id="viewer-video-shield" title="Sincronizado con el streamer"></div>
+
+          <!-- Banner para Móviles: Desbloqueo de Audio y Autoplay (Política de navegadores móviles) -->
+          <div class="mobile-sync-unlock-banner" id="mobile-sync-unlock-banner">
+            <button class="btn-unlock-sync" id="btn-unlock-sync" type="button">
+              <span class="unlock-icon">▶</span>
+              <span class="unlock-text">Toca para Unirte a la Watch Party</span>
+            </button>
+          </div>
 
           <!-- Placeholder State (Admin vs Viewer) -->
           <div class="player-placeholder" id="movie-placeholder">
@@ -525,6 +533,6 @@
   <!-- TOAST NOTIFICATION CONTAINER -->
   <div class="toast-container" id="toast-container" aria-live="polite"></div>
 
-  <script src="app.js?v=2.4"></script>
+  <script src="app.js?v=2.5"></script>
 </body>
 </html>

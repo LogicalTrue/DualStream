@@ -440,12 +440,77 @@ body.mode-admin .viewer-only {
 
 body.mode-viewer .viewer-video-shield {
   display: block !important;
-  pointer-events: auto; /* Bloquea clics sobre el iframe */
+  pointer-events: auto;
 }
 
 body.mode-admin .viewer-video-shield {
   display: none !important;
   pointer-events: none;
+}
+
+/* Banner de Desbloqueo Móvil / Audio para Espectadores */
+.mobile-sync-unlock-banner {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 12;
+  display: none;
+}
+
+body.mode-viewer .mobile-sync-unlock-banner {
+  display: flex;
+}
+
+body.mode-admin .mobile-sync-unlock-banner,
+.mobile-sync-unlock-banner.hidden {
+  display: none !important;
+}
+
+.btn-unlock-sync {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 22px;
+  background: rgba(14, 17, 19, 0.92);
+  backdrop-filter: blur(12px);
+  border: 1px solid var(--kick-green);
+  border-radius: var(--radius-full);
+  color: var(--text-primary);
+  font-family: var(--font-body);
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.8), 0 0 20px rgba(83, 252, 24, 0.25);
+  animation: pulse-glow 2s infinite ease-in-out;
+  transition: all var(--transition-fast);
+}
+
+.btn-unlock-sync:hover {
+  transform: scale(1.04);
+  box-shadow: 0 12px 35px rgba(0, 0, 0, 0.9), 0 0 25px rgba(83, 252, 24, 0.4);
+}
+
+.unlock-icon {
+  width: 24px;
+  height: 24px;
+  background: var(--kick-green);
+  color: #000000;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 900;
+}
+
+@keyframes pulse-glow {
+  0%, 100% {
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.8), 0 0 15px rgba(83, 252, 24, 0.2);
+  }
+  50% {
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.9), 0 0 25px rgba(83, 252, 24, 0.45);
+  }
 }
 
 /* Media Element Containers */
