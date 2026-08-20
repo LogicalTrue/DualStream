@@ -1100,6 +1100,42 @@ body.mode-viewer .webcam-resize-handle {
   display: none !important;
 }
 
+.chat-collapsed-trigger {
+  display: none;
+  position: fixed;
+  right: 14px;
+  bottom: 18px;
+  z-index: 50;
+  background: var(--bg-surface-elevated);
+  color: var(--text-primary);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-full);
+  padding: 8px 14px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+  align-items: center;
+  gap: 6px;
+  transition: all var(--transition-fast);
+}
+
+.chat-collapsed-trigger:hover {
+  background: var(--bg-surface);
+  border-color: var(--kick-green);
+  color: var(--kick-green);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px var(--kick-green-glow);
+}
+
+.chat-collapsed-trigger svg {
+  color: var(--kick-green);
+}
+
+body.chat-is-hidden .chat-collapsed-trigger {
+  display: inline-flex !important;
+}
+
 .chat-header {
   height: var(--topbar-height);
   min-height: var(--topbar-height);

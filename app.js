@@ -182,6 +182,7 @@
     chatResizer: document.getElementById('chat-resizer'),
     kickChatFrame: document.getElementById('kick-chat-frame'),
     btnToggleChat: document.getElementById('btn-toggle-chat'),
+    btnReopenChat: document.getElementById('btn-reopen-chat'),
     btnReloadChat: document.getElementById('btn-reload-chat'),
     btnCloseChatMobile: document.getElementById('btn-close-chat-mobile'),
 
@@ -954,13 +955,15 @@
     AppState.chatVisible = !AppState.chatVisible;
     if (AppState.chatVisible) {
       DOM.chatColumn.classList.remove('collapsed');
+      document.body.classList.remove('chat-is-hidden');
       DOM.chatResizer.style.display = 'flex';
-      DOM.btnToggleChat.classList.add('active');
+      if (DOM.btnToggleChat) DOM.btnToggleChat.classList.add('active');
       showToast('Chat visible', 'info');
     } else {
       DOM.chatColumn.classList.add('collapsed');
+      document.body.classList.add('chat-is-hidden');
       DOM.chatResizer.style.display = 'none';
-      DOM.btnToggleChat.classList.remove('active');
+      if (DOM.btnToggleChat) DOM.btnToggleChat.classList.remove('active');
       showToast('Chat ocultado (máximo tamaño de video)', 'info');
     }
   }
@@ -1458,6 +1461,7 @@
     // --- Chat Actions ---
     if (DOM.btnReloadChat) DOM.btnReloadChat.addEventListener('click', reloadKickChat);
     if (DOM.btnToggleChat) DOM.btnToggleChat.addEventListener('click', toggleChatColumn);
+    if (DOM.btnReopenChat) DOM.btnReopenChat.addEventListener('click', toggleChatColumn);
     if (DOM.btnCloseChatMobile) DOM.btnCloseChatMobile.addEventListener('click', toggleChatColumn);
 
     // --- Save & Publish Public Link ---
