@@ -946,12 +946,17 @@
 
     activeNativeVideo = videoElem;
 
-    // Sincronizar segundo inicial al cargar metadatos
+    // Sincronizar segundo inicial al cargar metadatos solo una vez
+    let initialSynced = false;
     const syncInitialTime = () => {
+      if (initialSynced) return;
       if (!AppState.isAdmin && latestSyncPlaybackState) {
+        initialSynced = true;
         const latency = Math.max(0, (Date.now() - (latestSyncPlaybackState.updatedAt || Date.now())) / 1000);
         const target = (latestSyncPlaybackState.currentTime || 0) + (latestSyncPlaybackState.isPlaying ? latency : 0);
-        if (target > 0) videoElem.currentTime = target;
+        if (target > 0) {
+          try { videoElem.currentTime = target; } catch(e) {}
+        }
         if (latestSyncPlaybackState.isPlaying) {
           videoElem.play().catch(() => {});
         } else {
@@ -960,8 +965,8 @@
       }
     };
 
-    videoElem.addEventListener('loadeddata', syncInitialTime);
-    videoElem.addEventListener('canplay', syncInitialTime);
+    videoElem.addEventListener('loadedmetadata', syncInitialTime, { once: true });
+    videoElem.addEventListener('canplay', syncInitialTime, { once: true });
 
     if (AppState.isAdmin) {
       videoElem.addEventListener('play', () => emitPlaybackSync(videoElem.currentTime, true));
