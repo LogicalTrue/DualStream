@@ -836,44 +836,55 @@
 
     initCloudSync();
 
-    // 4. Polling inicial y periódico a /api/sync de Vercel (cada 2 segundos)
+    // 4. Polling inicial y periódico a /api/sync de Vercel y Relay de nube (cada 1.5s)
     const pollServerlessState = async () => {
       if (document.body.classList.contains('mode-viewer') || !AppState.isAdmin) {
+        // Intentar primero endpoint de nube ntfy (alta velocidad)
+        try {
+          const cloudRes = await fetch(`${CLOUD_SYNC_TOPIC}/json?poll=1`, { cache: 'no-store' });
+          if (cloudRes.ok) {
+            const text = await cloudRes.text();
+            const lines = text.trim().split('\n');
+            for (let i = lines.length - 1; i >= 0; i--) {
+              if (!lines[i] || !lines[i].trim()) continue;
+              try {
+                const item = JSON.parse(lines[i]);
+                if (item.event && item.event !== 'message') continue;
+                const rawMessage = item.message || item;
+                const config = typeof rawMessage === 'string' ? JSON.parse(rawMessage) : rawMessage;
+                if (config && config.streamer) {
+                  const configTime = config.updatedAt || 1;
+                  if (configTime > lastProcessedTimestamp) {
+                    lastProcessedTimestamp = configTime;
+                    applyIncomingConfig(config);
+                    return;
+                  }
+                }
+              } catch (e) {}
+            }
+          }
+        } catch (err) {}
+
+        // Fallback a /api/sync de Vercel
         try {
           const res = await fetch(API_SYNC_ENDPOINT, { cache: 'no-store' });
           if (res.ok) {
             const config = await res.json();
-            if (config && config.updatedAt && config.updatedAt > lastProcessedTimestamp) {
-              lastProcessedTimestamp = config.updatedAt;
-              applyIncomingConfig(config);
-            }
-          }
-        } catch (e) {
-          // Si falla /api/sync en local, consultar nube de respaldo
-          try {
-            const cloudRes = await fetch(`${CLOUD_SYNC_TOPIC}/json?poll=1`, { cache: 'no-store' });
-            if (cloudRes.ok) {
-              const text = await cloudRes.text();
-              const lines = text.trim().split('\n');
-              for (let i = lines.length - 1; i >= 0; i--) {
-                const item = JSON.parse(lines[i]);
-                const rawMessage = item.message || item;
-                const config = typeof rawMessage === 'string' ? JSON.parse(rawMessage) : rawMessage;
-                if (config && config.updatedAt && config.updatedAt > lastProcessedTimestamp) {
-                  lastProcessedTimestamp = config.updatedAt;
-                  applyIncomingConfig(config);
-                  break;
-                }
+            if (config && config.streamer) {
+              const configTime = config.updatedAt || 1;
+              if (configTime > lastProcessedTimestamp) {
+                lastProcessedTimestamp = configTime;
+                applyIncomingConfig(config);
               }
             }
-          } catch (err) {}
-        }
+          }
+        } catch (e) {}
       }
     };
 
     // Consulta inicial inmediata para que el viewer cargue todo lo que dejó el admin
     pollServerlessState();
-    setInterval(pollServerlessState, 2000);
+    setInterval(pollServerlessState, 1500);
   }
 
   // --------------------------------------------------------------------------
