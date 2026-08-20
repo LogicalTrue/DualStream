@@ -87,22 +87,27 @@ async function run() {
       bots.map(async (bot) => {
         try {
           const metrics = await bot.page.evaluate(() => {
+            if (window.__DualStreamState__) {
+              const state = window.__DualStreamState__.getCurrentState();
+              const iframe = document.querySelector('#movie-media-wrapper iframe');
+              const videoElem = document.querySelector('#movie-media-wrapper video');
+              let videoId = 'N/A';
+              if (iframe && iframe.src) {
+                const m = iframe.src.match(/embed\/([^?]+)/);
+                videoId = m ? m[1] : iframe.src.substring(0, 15);
+              }
+              return {
+                streamer: state.streamer || 'N/A',
+                videoId,
+                isPlaying: state.isPlaying,
+                currentTime: state.currentTime,
+                hasMedia: !!(iframe || videoElem)
+              };
+            }
+
             const streamerLabel = document.getElementById('current-streamer-label');
             const streamer = streamerLabel ? streamerLabel.textContent.trim() : 'N/A';
             
-            // Detectar estado de reproducción
-            let isPlaying = false;
-            let currentTime = 0;
-
-            if (window.ytPlayerInstance && typeof window.ytPlayerInstance.getPlayerState === 'function') {
-              const state = window.ytPlayerInstance.getPlayerState();
-              isPlaying = (state === 1 || state === 3);
-              currentTime = window.ytPlayerInstance.getCurrentTime() || 0;
-            } else if (window.latestSyncPlaybackState) {
-              isPlaying = !!window.latestSyncPlaybackState.isPlaying;
-              currentTime = window.latestSyncPlaybackState.currentTime || 0;
-            }
-
             const iframe = document.querySelector('#movie-media-wrapper iframe');
             const videoElem = document.querySelector('#movie-media-wrapper video');
             let videoId = 'N/A';
@@ -114,8 +119,8 @@ async function run() {
             return {
               streamer,
               videoId,
-              isPlaying,
-              currentTime: parseFloat(currentTime.toFixed(1)),
+              isPlaying: false,
+              currentTime: 0,
               hasMedia: !!(iframe || videoElem)
             };
           });

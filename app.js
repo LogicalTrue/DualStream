@@ -1766,6 +1766,31 @@
     }
   }
 
+  // Exponer getter de telemetría para tests y monitores externos
+  window.__DualStreamState__ = {
+    getAppState: () => AppState,
+    getPlayer: () => ytPlayerInstance,
+    getLatestSync: () => latestSyncPlaybackState,
+    getCurrentState: () => {
+      let isPlaying = false;
+      let currentTime = 0;
+      if (ytPlayerInstance && typeof ytPlayerInstance.getPlayerState === 'function') {
+        const s = ytPlayerInstance.getPlayerState();
+        isPlaying = (s === 1 || s === 3);
+        currentTime = ytPlayerInstance.getCurrentTime() || 0;
+      } else if (latestSyncPlaybackState) {
+        isPlaying = Boolean(latestSyncPlaybackState.isPlaying);
+        currentTime = latestSyncPlaybackState.currentTime || 0;
+      }
+      return {
+        streamer: AppState.streamer,
+        videoUrl: AppState.videoUrl,
+        isPlaying,
+        currentTime: parseFloat(currentTime.toFixed(2))
+      };
+    }
+  };
+
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', init);
   } else {
