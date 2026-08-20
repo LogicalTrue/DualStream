@@ -714,7 +714,9 @@
           activeNativeVideo.pause();
         }
 
-        if (Math.abs(activeNativeVideo.currentTime - targetTime) > 1.2) {
+        // Solo hacer seek si la diferencia de tiempo es significativa (>2.5s) para no entrecortar el audio/video en celulares
+        const diff = Math.abs(activeNativeVideo.currentTime - targetTime);
+        if (diff > 2.5) {
           activeNativeVideo.currentTime = targetTime;
         }
       } catch (e) {}
@@ -860,40 +862,59 @@
     showToast('🔊 ¡Watch Party sincronizada con audio!', 'success');
   }
 
-  // Detector instantáneo de saltos en el tiempo (Seek / Adelantar / Retroceder) para Admin
+  // Detector instantáneo de saltos en el tiempo (Seek / Adelantar / Retroceder / Play / Pausa) para Admin
   let lastTrackedAdminTime = 0;
+  let lastTrackedAdminPlaying = false;
 
   setInterval(() => {
-    if (AppState.isAdmin && ytPlayerInstance && typeof ytPlayerInstance.getCurrentTime === 'function') {
+    if (!AppState.isAdmin) return;
+
+    let currentTime = 0;
+    let isPlaying = false;
+    let hasSource = false;
+
+    if (ytPlayerInstance && typeof ytPlayerInstance.getCurrentTime === 'function') {
       try {
-        const currentTime = ytPlayerInstance.getCurrentTime();
+        currentTime = ytPlayerInstance.getCurrentTime() || 0;
         const playerState = ytPlayerInstance.getPlayerState();
-        const isPlaying = (playerState === 1 || playerState === 3);
-
-        if (currentTime !== undefined) {
-          // Detectar saltos manuales en la barra de tiempo (Adelantar o Retroceder)
-          const diff = Math.abs(currentTime - lastTrackedAdminTime);
-
-          if (diff > 1.8) {
-            // ¡El admin acaba de adelantar o retroceder el video!
-            emitPlaybackSync(currentTime, isPlaying);
-          } else if (isPlaying && Date.now() - lastAdminSyncEmit > 1200) {
-            // Heartbeat de sincronización continua
-            emitPlaybackSync(currentTime, true);
-          }
-
-          lastTrackedAdminTime = currentTime;
-        }
+        isPlaying = (playerState === 1 || playerState === 3);
+        hasSource = true;
+      } catch (e) {}
+    } else if (activeNativeVideo) {
+      try {
+        currentTime = activeNativeVideo.currentTime || 0;
+        isPlaying = !activeNativeVideo.paused && !activeNativeVideo.ended;
+        hasSource = true;
       } catch (e) {}
     }
-  }, 350);
+
+    if (hasSource) {
+      const timeDiff = Math.abs(currentTime - lastTrackedAdminTime);
+      const stateChanged = (isPlaying !== lastTrackedAdminPlaying);
+
+      // Si hubo Pausa/Play o salto de tiempo manual (>1.5s)
+      if (stateChanged || timeDiff > 1.5) {
+        emitPlaybackSync(currentTime, isPlaying);
+      } else if (isPlaying && (Date.now() - lastAdminSyncEmit > 2000)) {
+        // Heartbeat periódico cada 2 segundos mientras reproduce
+        emitPlaybackSync(currentTime, true);
+      }
+
+      lastTrackedAdminTime = currentTime;
+      lastTrackedAdminPlaying = isPlaying;
+    }
+  }, 300);
 
   function isDirectVideoFile(url) {
+    if (!url) return false;
     const cleanUrl = url.split('?')[0].toLowerCase();
     return cleanUrl.endsWith('.mp4') ||
       cleanUrl.endsWith('.webm') ||
       cleanUrl.endsWith('.ogg') ||
-      cleanUrl.endsWith('.mkv');
+      cleanUrl.endsWith('.mkv') ||
+      cleanUrl.includes('.mp4?') ||
+      cleanUrl.includes('blob.vercel-storage') ||
+      cleanUrl.includes('catbox.moe');
   }
 
   function renderNativeVideo(url) {
@@ -916,26 +937,26 @@
     activeNativeVideo = videoElem;
 
     // Sincronizar segundo inicial al cargar metadatos
-    videoElem.addEventListener('loadeddata', () => {
+    const syncInitialTime = () => {
       if (!AppState.isAdmin && latestSyncPlaybackState) {
         const latency = Math.max(0, (Date.now() - (latestSyncPlaybackState.updatedAt || Date.now())) / 1000);
         const target = (latestSyncPlaybackState.currentTime || 0) + (latestSyncPlaybackState.isPlaying ? latency : 0);
-        videoElem.currentTime = target;
+        if (target > 0) videoElem.currentTime = target;
         if (latestSyncPlaybackState.isPlaying) {
           videoElem.play().catch(() => {});
+        } else {
+          videoElem.pause();
         }
       }
-    });
+    };
+
+    videoElem.addEventListener('loadeddata', syncInitialTime);
+    videoElem.addEventListener('canplay', syncInitialTime);
 
     if (AppState.isAdmin) {
       videoElem.addEventListener('play', () => emitPlaybackSync(videoElem.currentTime, true));
       videoElem.addEventListener('pause', () => emitPlaybackSync(videoElem.currentTime, false));
       videoElem.addEventListener('seeked', () => emitPlaybackSync(videoElem.currentTime, !videoElem.paused));
-      videoElem.addEventListener('timeupdate', () => {
-        if (!videoElem.paused && Date.now() - lastAdminSyncEmit > 1500) {
-          emitPlaybackSync(videoElem.currentTime, true);
-        }
-      });
     }
 
     DOM.movieMediaWrapper.appendChild(videoElem);
