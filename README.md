@@ -2,8 +2,6 @@
 
 **Kick Dual Viewer** es una aplicación web responsiva de una sola página (SPA) moderna, ligera y de alto rendimiento diseñada para ver películas, series o videos externos simultáneamente con la reacción en vivo de un streamer en **Kick** y su chat oficial incrustado.
 
-![Kick Dual Viewer Preview](https://images.unsplash.com/photo-1578632767115-351597cf2477?w=1200&auto=format&fit=crop&q=80)
-
 ---
 
 ## 🌟 Características Principales
