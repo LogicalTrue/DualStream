@@ -617,7 +617,7 @@
   let latestSyncPlaybackState = null;
 
   function applyViewerPlaybackSync(data) {
-    if (AppState.isAdmin || !document.body.classList.contains('mode-viewer')) return;
+    if (AppState.isAdmin) return; // Solo los espectadores se sincronizan
 
     latestSyncPlaybackState = data;
 
@@ -1022,45 +1022,42 @@
 
     // Función que aplica la configuración recibida
     const applyIncomingConfig = (config) => {
-      if (!config) return;
+      if (!config || AppState.isAdmin) return;
 
-      // Solo aplicar a espectadores
-      if (document.body.classList.contains('mode-viewer') || !AppState.isAdmin) {
-        let changed = false;
+      let changed = false;
 
-        // 1. Actualizar Streamer si cambió
-        if (config.streamer && config.streamer !== AppState.streamer) {
-          AppState.streamer = config.streamer;
-          updateKickViews();
-          changed = true;
+      // 1. Actualizar Streamer si cambió
+      if (config.streamer && config.streamer !== AppState.streamer) {
+        AppState.streamer = config.streamer;
+        updateKickViews();
+        changed = true;
+      }
+
+      // 2. Actualizar Video si cambió
+      if (config.videoUrl !== undefined && config.videoUrl !== AppState.videoUrl) {
+        AppState.videoUrl = config.videoUrl;
+        latestSyncPlaybackState = config;
+        if (AppState.videoUrl && AppState.videoUrl.trim() !== '') {
+          loadVideoSource(AppState.videoUrl);
+        } else {
+          unloadVideo();
         }
+        changed = true;
+      }
 
-        // 2. Actualizar Video si cambió
-        if (config.videoUrl !== undefined && config.videoUrl !== AppState.videoUrl) {
-          AppState.videoUrl = config.videoUrl;
-          latestSyncPlaybackState = config;
-          if (AppState.videoUrl && AppState.videoUrl.trim() !== '') {
-            loadVideoSource(AppState.videoUrl);
-          } else {
-            unloadVideo();
-          }
-          changed = true;
-        }
+      // 3. Actualizar Posición y Tamaño de la Webcam
+      if (config.camX !== undefined) AppState.camX = config.camX;
+      if (config.camY !== undefined) AppState.camY = config.camY;
+      if (config.camW !== undefined) AppState.camW = config.camW;
+      applyWebcamPosition();
 
-        // 3. Actualizar Posición y Tamaño de la Webcam
-        if (config.camX !== undefined) AppState.camX = config.camX;
-        if (config.camY !== undefined) AppState.camY = config.camY;
-        if (config.camW !== undefined) AppState.camW = config.camW;
-        applyWebcamPosition();
+      // 4. Sincronización segundo a segundo de reproducción
+      if (config.type === 'PLAYBACK_SYNC' || config.currentTime !== undefined || config.type === 'MASTER_STATE') {
+        applyViewerPlaybackSync(config);
+      }
 
-        // 4. Sincronización segundo a segundo de reproducción
-        if (config.type === 'PLAYBACK_SYNC' || config.currentTime !== undefined) {
-          applyViewerPlaybackSync(config);
-        }
-
-        if (changed) {
-          showToast('🎬 ¡El streamer ha actualizado la Watch Party en vivo!', 'info');
-        }
+      if (changed) {
+        showToast('🎬 ¡El streamer ha actualizado la Watch Party en vivo!', 'info');
       }
     };
 
@@ -1094,25 +1091,20 @@
 
     // 4. Polling continuo de alta velocidad a Vercel Cloud (/api/sync) para celulares y móviles
     const fetchLatestCloudState = async () => {
-      if (document.body.classList.contains('mode-viewer') || !AppState.isAdmin) {
-        try {
-          const res = await fetch(SYNC_API_ENDPOINT, { cache: 'no-store' });
-          if (res.ok) {
-            const config = await res.json();
-            if (config && (config.streamer || config.videoUrl !== undefined || config.currentTime !== undefined)) {
-              const cfgTime = config.updatedAt || 0;
-              if (cfgTime > lastProcessedTimestamp) {
-                lastProcessedTimestamp = cfgTime;
-                applyIncomingConfig(config);
-              }
-            }
+      if (AppState.isAdmin) return;
+      try {
+        const res = await fetch(SYNC_API_ENDPOINT + '?t=' + Date.now(), { cache: 'no-store' });
+        if (res.ok) {
+          const config = await res.json();
+          if (config) {
+            applyIncomingConfig(config);
           }
-        } catch (e) {}
-      }
+        }
+      } catch (e) {}
     };
 
     fetchLatestCloudState();
-    setInterval(fetchLatestCloudState, 1200);
+    setInterval(fetchLatestCloudState, 1000);
   }
 
   // Variables globales de PeerJS
