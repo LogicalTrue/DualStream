@@ -117,7 +117,9 @@
         },
         body: JSON.stringify(configToSave)
       }).then(async res => {
-        if (res.status === 401) {
+        if (res.ok) {
+          showToast('¡Configuración guardada y transmitida en vivo a todos los espectadores!', 'success');
+        } else if (res.status === 401) {
           showToast('Error: No autorizado. La clave secreta de admin es incorrecta.', 'error');
         } else if (res.status === 403) {
           // Sesión revocada por inicio en otro lugar
@@ -1481,7 +1483,7 @@
     if (DOM.btnCancelConfigModal) DOM.btnCancelConfigModal.addEventListener('click', () => closeModal(DOM.modalConfig));
 
     if (DOM.formConfig) {
-      DOM.formConfig.addEventListener('submit', (e) => {
+      DOM.formConfig.addEventListener('submit', async (e) => {
         e.preventDefault();
         const streamerVal = DOM.inputConfigStreamer ? DOM.inputConfigStreamer.value.trim() : '';
         const videoVal = DOM.inputConfigVideo ? DOM.inputConfigVideo.value.trim() : '';
@@ -1502,7 +1504,6 @@
         syncUrlParams();
         saveAndBroadcastConfig(); // Auto-guardado y transmisión en tiempo real a todos los viewers
         closeModal(DOM.modalConfig);
-        showToast('¡Configuración guardada y transmitida en vivo a todos los espectadores!', 'success');
       });
     }
 
