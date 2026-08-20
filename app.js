@@ -357,8 +357,8 @@
       DOM.btnOpenKickExternal.href = `https://kick.com/${channel}`;
     }
 
-    // Kick Stream Player
-    const playerUrl = `https://player.kick.com/${encodeURIComponent(channel)}?autoplay=true&muted=true`;
+    // Kick Stream Player (permitir audio)
+    const playerUrl = `https://player.kick.com/${encodeURIComponent(channel)}?autoplay=true&muted=false`;
     if (DOM.kickPlayerFrame.src !== playerUrl) {
       DOM.kickPlayerFrame.src = playerUrl;
     }
