@@ -592,7 +592,7 @@ body.mode-admin .mobile-sync-unlock-banner,
   transition: box-shadow var(--transition-fast);
 }
 
-/* El iframe de Kick no debe capturar el mouse para no mostrar el overlay de pausa */
+/* El iframe de Kick permite interactuar para activar audio y volumen */
 .webcam-frame {
   position: absolute;
   top: 0;
@@ -600,7 +600,7 @@ body.mode-admin .mobile-sync-unlock-banner,
   width: 100%;
   height: 100%;
   border: none;
-  pointer-events: none; /* Deshabilita controles de pausa al pasar el cursor */
+  pointer-events: auto; /* Permite al espectador hacer clic para desmutear el stream de Kick */
 }
 
 /* Overlay transparente para arrastrar en Admin */
