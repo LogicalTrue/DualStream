@@ -569,8 +569,12 @@
     } catch (e) {}
   }
 
+  let latestSyncPlaybackState = null;
+
   function applyViewerPlaybackSync(data) {
     if (AppState.isAdmin || !document.body.classList.contains('mode-viewer')) return;
+
+    latestSyncPlaybackState = data;
 
     const { currentTime, isPlaying, updatedAt } = data;
     if (currentTime === undefined) return;
@@ -596,7 +600,7 @@
           if (playerState === 1 || playerState === 3) {
             ytPlayerInstance.pauseVideo();
           }
-          if (Math.abs(currentYtTime - targetTime) > 1.0) {
+          if (Math.abs(currentYtTime - targetTime) > 0.8) {
             ytPlayerInstance.seekTo(targetTime, true);
           }
         }
@@ -621,68 +625,13 @@
     }
   }
 
-  function loadVideoSource(rawInput) {
-    if (!rawInput || rawInput.trim() === '') {
-      unloadVideo();
-      return;
-    }
-
-    let url = rawInput.trim();
-
-    // Extraer src si pegaron un <iframe>
-    const iframeSrcMatch = url.match(/<iframe.*?src=["'](.*?)["']/i);
-    if (iframeSrcMatch && iframeSrcMatch[1]) {
-      url = iframeSrcMatch[1];
-    }
-
-    AppState.videoUrl = url;
-    syncUrlParams();
-
-    DOM.movieMediaWrapper.innerHTML = '';
-    activeNativeVideo = null;
-    if (ytPlayerInstance && typeof ytPlayerInstance.destroy === 'function') {
-      try { ytPlayerInstance.destroy(); } catch (e) {}
-      ytPlayerInstance = null;
-    }
-
-    const ytId = extractYouTubeId(url);
-
-    if (ytId) {
-      // Contenedor dedicado para YouTube API
-      const ytContainer = document.createElement('div');
-      ytContainer.id = 'yt-player-target';
-      ytContainer.className = 'media-frame';
-      DOM.movieMediaWrapper.appendChild(ytContainer);
-
-      if (window.YT && window.YT.Player) {
-        initYouTubePlayer(ytId);
-      } else {
-        pendingYtVideoId = ytId;
-      }
-    } else if (isDirectVideoFile(url)) {
-      renderNativeVideo(url);
-    } else {
-      renderIframeVideo(url);
-    }
-
-    DOM.moviePlaceholder.style.display = 'none';
-    DOM.movieMediaWrapper.style.display = 'block';
-
-    updateVideoInfoBadge(url);
-  }
-
-  function extractYouTubeId(url) {
-    const ytMatch = url.match(/(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/i);
-    return (ytMatch && ytMatch[1]) ? ytMatch[1] : null;
-  }
-
   function initYouTubePlayer(videoId) {
     pendingYtVideoId = null;
     try {
       ytPlayerInstance = new YT.Player('yt-player-target', {
         videoId: videoId,
         playerVars: {
-          autoplay: 1,
+          autoplay: 0, // No reproducir automáticamente por su cuenta
           controls: AppState.isAdmin ? 1 : 0, // Solo admin tiene controles
           rel: 0,
           modestbranding: 1,
@@ -693,10 +642,20 @@
         events: {
           onReady: (e) => {
             if (!AppState.isAdmin) {
-              // En modo viewer en móvil, iniciar en mute para saltar el bloqueo de autoplay
+              // Mute preventivo en móvil para no ser bloqueado por el navegador
               try { e.target.mute(); } catch (err) {}
+
+              // Si el streamer estaba reproduciendo, iniciar; si estaba pausado, QUEDARSE EN PAUSA
+              if (latestSyncPlaybackState && latestSyncPlaybackState.isPlaying) {
+                const latency = Math.max(0, (Date.now() - latestSyncPlaybackState.updatedAt) / 1000);
+                e.target.seekTo(latestSyncPlaybackState.currentTime + latency, true);
+                e.target.playVideo();
+              } else {
+                const target = latestSyncPlaybackState ? latestSyncPlaybackState.currentTime : 0;
+                e.target.seekTo(target, true);
+                e.target.pauseVideo();
+              }
             }
-            e.target.playVideo();
           },
           onStateChange: (e) => {
             if (AppState.isAdmin) {
@@ -1280,6 +1239,25 @@
     const viewerShield = document.getElementById('viewer-video-shield');
     if (viewerShield) {
       viewerShield.addEventListener('click', unlockViewerMobileAudio);
+    }
+
+    // --- Botón Flotante de Chat en Modo Horizontal / Rotado ---
+    const btnFloatingChat = document.getElementById('btn-floating-chat-toggle');
+    if (btnFloatingChat) {
+      btnFloatingChat.addEventListener('click', () => {
+        if (DOM.chatColumn) {
+          DOM.chatColumn.classList.toggle('show-landscape');
+        }
+      });
+    }
+
+    const btnCloseChatMobile = document.getElementById('btn-close-chat-mobile');
+    if (btnCloseChatMobile) {
+      btnCloseChatMobile.addEventListener('click', () => {
+        if (DOM.chatColumn) {
+          DOM.chatColumn.classList.remove('show-landscape');
+        }
+      });
     }
 
     // --- Sync Guide Modal ---
