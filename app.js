@@ -705,19 +705,27 @@
       }
     }
 
-    // 2. Sincronización para Video Nativo HTML5
+    // 2. Sincronización para Video Nativo HTML5 (.mp4, etc.)
     if (activeNativeVideo) {
       try {
-        if (isPlaying && activeNativeVideo.paused) {
-          activeNativeVideo.play().catch(() => {});
-        } else if (!isPlaying && !activeNativeVideo.paused) {
-          activeNativeVideo.pause();
-        }
-
-        // Solo hacer seek si la diferencia de tiempo es significativa (>2.5s) para no entrecortar el audio/video en celulares
-        const diff = Math.abs(activeNativeVideo.currentTime - targetTime);
-        if (diff > 2.5) {
-          activeNativeVideo.currentTime = targetTime;
+        // Si el estado del streamer es Pausa
+        if (!isPlaying) {
+          if (!activeNativeVideo.paused) {
+            activeNativeVideo.pause();
+          }
+          if (Math.abs(activeNativeVideo.currentTime - targetTime) > 0.4) {
+            activeNativeVideo.currentTime = targetTime;
+          }
+        } else {
+          // Si el estado del streamer es Play
+          if (activeNativeVideo.paused) {
+            activeNativeVideo.play().catch(() => {});
+          }
+          const diff = Math.abs(activeNativeVideo.currentTime - targetTime);
+          // Si el celular va desfasado por más de 1.5s, corregir el segundo
+          if (diff > 1.5) {
+            activeNativeVideo.currentTime = targetTime;
+          }
         }
       } catch (e) {}
     }
@@ -995,13 +1003,26 @@
     if (DOM.currentVideoTitle) DOM.currentVideoTitle.textContent = hostname;
   }
 
-  function reloadMoviePlayer() {
+  async function reloadMoviePlayer() {
+    showToast('Sincronizando con el streamer...', 'info');
+    try {
+      const res = await fetch(SYNC_API_ENDPOINT + '?t=' + Date.now(), { cache: 'no-store' });
+      if (res.ok) {
+        const cloudState = await res.json();
+        if (cloudState) {
+          latestSyncPlaybackState = cloudState;
+          if (cloudState.videoUrl) AppState.videoUrl = cloudState.videoUrl;
+        }
+      }
+    } catch (e) {}
+
     if (!AppState.videoUrl) {
-      showToast('No hay video cargado para recargar', 'info');
+      showToast('No hay video cargado', 'info');
       return;
     }
+
     loadVideoSource(AppState.videoUrl);
-    showToast('Reproductor de video recargado', 'success');
+    showToast('¡Reproductor resincronizado con el streamer!', 'success');
   }
 
   // --------------------------------------------------------------------------
