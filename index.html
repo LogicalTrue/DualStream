@@ -60,15 +60,6 @@
         <span>Configuración</span>
       </button>
 
-      <!-- Botón de Acceso para el Streamer / Dueño (Si está en modo espectador) -->
-      <button class="btn btn-glass btn-sm viewer-only" id="btn-open-admin-auth" title="Ingresar como Streamer/Admin">
-        <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
-          <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
-        </svg>
-        <span class="hide-mobile">Soy Streamer</span>
-      </button>
-
       <!-- Botón Salir de Modo Admin -->
       <button class="btn btn-glass btn-sm admin-only" id="btn-exit-admin" title="Salir del modo Streamer">
         <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -583,8 +574,8 @@
           <div class="sync-tip-item">
             <span class="tip-number">3</span>
             <div class="tip-content">
-              <h4>PIN de Seguridad Configurable</h4>
-              <p>Por defecto el PIN de acceso como streamer es <code>1234</code>. Puedes cambiarlo en la constante <code>ADMIN_PIN</code> de <code>app.js</code>.</p>
+              <h4>Acceso Exclusivo y Seguro para el Streamer</h4>
+              <p>El modo administrador está protegido mediante tu variable <code>ADMIN_SECRET</code> en Vercel. Solo tú puedes acceder al panel de control usando tu enlace secreto de administración (<code>?key=TU_CLAVE</code>).</p>
             </div>
           </div>
         </div>

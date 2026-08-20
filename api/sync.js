@@ -76,25 +76,47 @@ async function saveToRedis(state) {
   }
 }
 
+const EXPECTED_ADMIN_SECRET = process.env.ADMIN_SECRET;
+
 module.exports = async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, x-admin-secret');
 
   if (req.method === 'OPTIONS') {
     return res.status(200).end();
   }
 
-  // --- POST: Guardar nuevo estado del streamer ---
+  // --- POST: Guardar nuevo estado del streamer (Protegido por ADMIN_SECRET) ---
   if (req.method === 'POST') {
     try {
       const incomingData = typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
+      
+      // Validación de autenticación si ADMIN_SECRET está configurado en Vercel
+      if (EXPECTED_ADMIN_SECRET) {
+        const authHeader = req.headers['authorization'] || '';
+        const customHeader = req.headers['x-admin-secret'] || '';
+        const token = authHeader.replace(/^Bearer\s+/i, '').trim() || customHeader || (incomingData && incomingData.adminSecret);
+
+        if (!token || token !== EXPECTED_ADMIN_SECRET) {
+          return res.status(401).json({ error: 'No autorizado: ADMIN_SECRET inválido o ausente' });
+        }
+      }
+
+      // Si es solo una verificación de login
+      if (incomingData && incomingData.type === 'VERIFY_AUTH') {
+        return res.status(200).json({ ok: true, message: 'Autenticación exitosa' });
+      }
+
       if (incomingData) {
+        // Limpiar el campo adminSecret antes de persistir
+        const { adminSecret, ...cleanDataToSave } = incomingData;
+
         // Leer estado actual existente
         const currentState = (await getFromRedis()) || memoryStateStore;
         const updatedState = {
           ...currentState,
-          ...incomingData,
+          ...cleanDataToSave,
           updatedAt: Date.now()
         };
 

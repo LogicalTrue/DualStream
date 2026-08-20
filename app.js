@@ -15,7 +15,6 @@
   // Clave de almacenamiento persistente
   const STORAGE_KEY = 'kick_dual_streamer_config';
   const SYNC_CHANNEL_NAME = 'kick_dual_watch_party_sync';
-  const ADMIN_PIN = '1234';
 
   // Canal de difusión en tiempo real entre pestañas / navegadores
   let syncChannel = null;
@@ -105,12 +104,20 @@
       console.warn('Error en storage local', e);
     }
 
-    // 2. Enviar a backend Vercel Cloud
+    // 2. Enviar a backend Vercel Cloud con autorización
     try {
+      const adminSecret = sessionStorage.getItem('kick_dual_admin_secret') || '';
       fetch(SYNC_API_ENDPOINT, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': adminSecret ? `Bearer ${adminSecret}` : ''
+        },
         body: JSON.stringify(configToSave)
+      }).then(res => {
+        if (res.status === 401) {
+          showToast('Error: No autorizado. La clave secreta de admin es incorrecta.', 'error');
+        }
       }).catch(() => {});
     } catch (e) {}
 
@@ -259,20 +266,23 @@
   // 4. URL PARAMETERS
   // --------------------------------------------------------------------------
 
-  function parseUrlParams() {
+  async function parseUrlParams() {
     const searchParams = new URLSearchParams(window.location.search);
 
-    // Check mode
+    // Check secret token parameter (?admin_secret=..., ?secret=..., ?key=...)
+    const secretParam = searchParams.get('admin_secret') || searchParams.get('secret') || searchParams.get('key') || searchParams.get('admin_key');
     const modeParam = searchParams.get('mode');
-    const adminParam = searchParams.get('admin');
 
     if (modeParam === 'viewer') {
       setMode(false);
-    } else if (adminParam === '1' || adminParam === 'true') {
+      sessionStorage.removeItem('kick_dual_admin_secret');
+    } else if (secretParam) {
+      // Guardar el secret en la sesión del navegador
+      sessionStorage.setItem('kick_dual_admin_secret', secretParam);
       setMode(true);
     } else {
-      // Por defecto para cualquier visitante: modo espectador (salvo si esta pestaña específica inició sesión como admin)
-      const storedAdmin = sessionStorage.getItem('kick_dual_is_admin') === 'true';
+      // Por defecto para cualquier visitante: modo espectador (salvo si esta pestaña específica tiene el secret guardado)
+      const storedAdmin = sessionStorage.getItem('kick_dual_is_admin') === 'true' && !!sessionStorage.getItem('kick_dual_admin_secret');
       setMode(storedAdmin);
     }
 
@@ -1326,6 +1336,7 @@
 
     if (DOM.btnExitAdmin) {
       DOM.btnExitAdmin.addEventListener('click', () => {
+        sessionStorage.removeItem('kick_dual_admin_secret');
         setMode(false);
         showToast('Has salido del modo Streamer', 'info');
       });
