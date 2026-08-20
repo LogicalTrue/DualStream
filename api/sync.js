@@ -14,8 +14,20 @@ let memoryStateStore = {
   updatedAt: Date.now()
 };
 
-const KV_URL = process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL;
-const KV_TOKEN = process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN;
+const KV_URL = 
+  process.env.KV_REST_API_URL || 
+  process.env.UPSTASH_REDIS_REST_URL ||
+  process.env.STORAGE_REST_API_URL ||
+  process.env.STORAGE_KV_REST_API_URL ||
+  process.env.UPSTASH_REDIS_REST_URL;
+
+const KV_TOKEN = 
+  process.env.KV_REST_API_TOKEN || 
+  process.env.UPSTASH_REDIS_REST_TOKEN ||
+  process.env.STORAGE_REST_API_TOKEN ||
+  process.env.STORAGE_KV_REST_API_TOKEN ||
+  process.env.UPSTASH_REDIS_REST_TOKEN;
+
 const REDIS_KEY = 'dualstream_latest_state';
 
 async function getFromRedis() {
