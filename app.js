@@ -1489,6 +1489,97 @@
       });
     }
 
+    // --- Subida de Archivos MP4 Directos desde la PC ---
+    const inputMp4File = document.getElementById('input-mp4-file');
+    const uploadDropzone = document.getElementById('upload-dropzone');
+    const btnBrowseFile = document.getElementById('btn-browse-file');
+    const uploadProgressContainer = document.getElementById('upload-progress-container');
+    const uploadFilename = document.getElementById('upload-filename');
+    const uploadPercentage = document.getElementById('upload-percentage');
+    const uploadProgressBar = document.getElementById('upload-progress-bar');
+
+    if (btnBrowseFile && inputMp4File) {
+      btnBrowseFile.addEventListener('click', () => inputMp4File.click());
+    }
+
+    if (uploadDropzone && inputMp4File) {
+      uploadDropzone.addEventListener('click', (e) => {
+        if (e.target !== btnBrowseFile) inputMp4File.click();
+      });
+
+      uploadDropzone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        uploadDropzone.classList.add('dragover');
+      });
+
+      uploadDropzone.addEventListener('dragleave', () => {
+        uploadDropzone.classList.remove('dragover');
+      });
+
+      uploadDropzone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        uploadDropzone.classList.remove('dragover');
+        if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+          handleMp4FileUpload(e.dataTransfer.files[0]);
+        }
+      });
+
+      inputMp4File.addEventListener('change', (e) => {
+        if (e.target.files && e.target.files.length > 0) {
+          handleMp4FileUpload(e.target.files[0]);
+        }
+      });
+    }
+
+    function handleMp4FileUpload(file) {
+      if (!file) return;
+
+      const adminSecret = sessionStorage.getItem('kick_dual_admin_secret') || '';
+      const sessionToken = sessionStorage.getItem('kick_dual_admin_session_token') || '';
+
+      if (uploadProgressContainer) uploadProgressContainer.style.display = 'block';
+      if (uploadFilename) uploadFilename.textContent = `Subiendo: ${file.name} (${(file.size / (1024 * 1024)).toFixed(1)} MB)...`;
+      if (uploadPercentage) uploadPercentage.textContent = '0%';
+      if (uploadProgressBar) uploadProgressBar.style.width = '0%';
+
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('reqtype', 'fileupload');
+
+      const xhr = new XMLHttpRequest();
+      xhr.open('POST', 'https://catbox.moe/user/api.php', true);
+
+      xhr.upload.onprogress = (e) => {
+        if (e.lengthComputable) {
+          const percent = Math.round((e.loaded / e.total) * 100);
+          if (uploadPercentage) uploadPercentage.textContent = `${percent}%`;
+          if (uploadProgressBar) uploadProgressBar.style.width = `${percent}%`;
+        }
+      };
+
+      xhr.onload = () => {
+        if (xhr.status === 200) {
+          const directUrl = xhr.responseText.trim();
+          if (DOM.inputConfigVideo) {
+            DOM.inputConfigVideo.value = directUrl;
+          }
+          if (uploadFilename) uploadFilename.textContent = `✅ ¡Video subido con éxito! Enlace generado.`;
+          if (uploadPercentage) uploadPercentage.textContent = '100%';
+          showToast(`¡Video "${file.name}" subido exitosamente! Enlace listo para guardar.`, 'success');
+        } else {
+          if (uploadFilename) uploadFilename.textContent = `❌ Error al subir el video (${xhr.status})`;
+          showToast('Error al subir el archivo. Intenta de nuevo.', 'error');
+        }
+      };
+
+      xhr.onerror = () => {
+        if (uploadFilename) uploadFilename.textContent = '❌ Error de red durante la subida';
+        showToast('Error de conexión al subir el video.', 'error');
+      };
+
+      xhr.send(formData);
+    }
+
     document.querySelectorAll('.config-video-preset').forEach(chip => {
       chip.addEventListener('click', () => {
         const url = chip.getAttribute('data-url');

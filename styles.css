@@ -1482,6 +1482,93 @@ body.chat-is-hidden .chat-collapsed-trigger {
   padding-left: 0;
 }
 
+/* Upload Dropzone & MP4 Uploader Box */
+.upload-mp4-box {
+  margin-bottom: 14px;
+}
+
+.upload-dropzone {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1.5px dashed var(--border-focus);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.upload-dropzone:hover,
+.upload-dropzone.dragover {
+  background: var(--kick-green-subtle);
+  border-color: var(--kick-green);
+}
+
+.upload-icon-wrapper {
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-sm);
+  background: var(--kick-green-subtle);
+  color: var(--kick-green);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.upload-texts {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.upload-main-text {
+  font-size: 12px;
+  color: var(--text-primary);
+}
+
+.upload-main-text strong {
+  color: var(--kick-green);
+}
+
+.upload-sub-text {
+  font-size: 10px;
+  color: var(--text-muted);
+}
+
+.upload-progress-container {
+  margin-top: 8px;
+  padding: 10px 12px;
+  background: var(--bg-surface-elevated);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+}
+
+.upload-progress-info {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  color: var(--text-secondary);
+  margin-bottom: 6px;
+}
+
+.upload-progress-track {
+  width: 100%;
+  height: 6px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: var(--radius-full);
+  overflow: hidden;
+}
+
+.upload-progress-bar {
+  width: 0%;
+  height: 100%;
+  background: var(--kick-green);
+  transition: width 0.2s ease;
+}
+
 .quick-presets {
   display: flex;
   align-items: center;
