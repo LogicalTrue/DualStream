@@ -1305,31 +1305,65 @@
   // --------------------------------------------------------------------------
 
   function initEventListeners() {
-    // --- Streamer Auth (PIN) ---
-    if (DOM.btnOpenAdminAuth) {
-      DOM.btnOpenAdminAuth.addEventListener('click', () => {
+    // --- Streamer Secret Auth (Doble clic en Logo o Alt+A) ---
+    const brandElement = document.querySelector('.brand');
+    if (brandElement) {
+      brandElement.style.cursor = 'pointer';
+      brandElement.title = 'Kick Dual Viewer';
+      brandElement.addEventListener('dblclick', () => {
         if (DOM.inputAdminPin) DOM.inputAdminPin.value = '';
         openModal(DOM.modalAuth);
       });
     }
 
+    // Atajo de teclado: Alt + A o Ctrl + Shift + A
+    document.addEventListener('keydown', (e) => {
+      if ((e.altKey && (e.key === 'a' || e.key === 'A')) || (e.ctrlKey && e.shiftKey && (e.key === 'a' || e.key === 'A'))) {
+        e.preventDefault();
+        if (DOM.inputAdminPin) DOM.inputAdminPin.value = '';
+        openModal(DOM.modalAuth);
+      }
+    });
+
     if (DOM.btnCloseAuthModal) DOM.btnCloseAuthModal.addEventListener('click', () => closeModal(DOM.modalAuth));
     if (DOM.btnCancelAuthModal) DOM.btnCancelAuthModal.addEventListener('click', () => closeModal(DOM.modalAuth));
 
     if (DOM.formAuth) {
-      DOM.formAuth.addEventListener('submit', (e) => {
+      DOM.formAuth.addEventListener('submit', async (e) => {
         e.preventDefault();
-        const enteredPin = DOM.inputAdminPin ? DOM.inputAdminPin.value.trim() : '';
-        if (enteredPin === ADMIN_PIN) {
+        const enteredSecret = DOM.inputAdminPin ? DOM.inputAdminPin.value.trim() : '';
+        if (!enteredSecret) return;
+
+        // Verificar la clave con el backend de Vercel
+        showToast('Verificando clave...', 'info');
+        try {
+          const res = await fetch(SYNC_API_ENDPOINT, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${enteredSecret}`
+            },
+            body: JSON.stringify({ type: 'VERIFY_AUTH' })
+          });
+
+          if (res.ok) {
+            sessionStorage.setItem('kick_dual_admin_secret', enteredSecret);
+            setMode(true);
+            closeModal(DOM.modalAuth);
+            showToast('¡Modo Streamer / Admin desbloqueado exitosamente!', 'success');
+          } else {
+            showToast('Clave secreta incorrecta. Inténtalo de nuevo.', 'error');
+            if (DOM.inputAdminPin) {
+              DOM.inputAdminPin.value = '';
+              DOM.inputAdminPin.focus();
+            }
+          }
+        } catch (err) {
+          // Fallback offline / local
+          sessionStorage.setItem('kick_dual_admin_secret', enteredSecret);
           setMode(true);
           closeModal(DOM.modalAuth);
-          showToast('¡Modo Streamer / Admin desbloqueado!', 'success');
-        } else {
-          showToast('PIN incorrecto. Inténtalo de nuevo.', 'error');
-          if (DOM.inputAdminPin) {
-            DOM.inputAdminPin.value = '';
-            DOM.inputAdminPin.focus();
-          }
+          showToast('Modo Streamer activado', 'success');
         }
       });
     }

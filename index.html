@@ -264,7 +264,7 @@
 
   </main>
 
-  <!-- MODAL: LOGIN / PIN STREAMER -->
+  <!-- MODAL: LOGIN / CLAVE SECRETA STREAMER -->
   <div class="modal-overlay" id="modal-auth" aria-hidden="true">
     <div class="modal-card">
       <header class="modal-header">
@@ -282,16 +282,16 @@
 
       <div class="modal-body">
         <p class="modal-desc">
-          Introduce tu PIN de Streamer para habilitar el panel de carga de video y control:
+          Introduce tu clave secreta de administración para habilitar el panel de control:
         </p>
 
         <form id="form-auth" onsubmit="return false;">
           <div class="input-group">
-            <label for="input-admin-pin">PIN o Clave de Acceso (Por defecto: <code>1234</code>):</label>
+            <label for="input-admin-pin">Clave Secreta de Streamer:</label>
             <input 
               type="password" 
               id="input-admin-pin" 
-              placeholder="Ingresa el PIN..."
+              placeholder="Ingresa tu ADMIN_SECRET..."
               autocomplete="current-password"
               required>
           </div>
@@ -299,7 +299,7 @@
           <div class="modal-actions">
             <button type="button" class="btn btn-secondary" id="btn-cancel-auth-modal">Cancelar</button>
             <button type="submit" class="btn btn-primary" id="btn-submit-auth">
-              <span>Ingresar como Streamer</span>
+              <span>Ingresar</span>
             </button>
           </div>
         </form>
