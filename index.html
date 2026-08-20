@@ -1,0 +1,558 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Kick Dual Viewer — Watch Party Sincronizado</title>
+  
+  <!-- SEO Meta Tags -->
+  <meta name="description" content="Kick Dual Viewer: Mira películas, series y videos externos con la webcam del streamer y chat oficial de Kick estilo MiluLive Watch Party.">
+  <meta name="keywords" content="Kick, Watch Party, MiluLive, Dual Viewer, Stream, Streaming, Películas, Kick Chat">
+  <meta name="author" content="Kick Dual Viewer">
+  <meta name="theme-color" content="#53fc18">
+
+  <!-- Open Graph -->
+  <meta property="og:title" content="Kick Dual Viewer — Watch Party">
+  <meta property="og:description" content="Video principal en pantalla grande con la webcam del streamer y chat en vivo de Kick.">
+  <meta property="og:type" content="website">
+
+  <!-- Google Fonts: Outfit & Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="styles.css?v=1.2">
+</head>
+<body class="theme-streamer">
+
+  <!-- TOP BAR / HEADER -->
+  <header class="topbar" id="app-header">
+    <div class="topbar-left">
+      <div class="brand">
+        <div class="brand-badge">
+          <span class="kick-k">K</span>
+        </div>
+        <div class="brand-text">
+          <h1 class="app-title">Kick Dual<span>Viewer</span></h1>
+          <span class="badge-tag" id="app-mode-badge">Watch Party</span>
+        </div>
+      </div>
+
+      <div class="streamer-pill" id="streamer-pill" title="Canal de Kick actual">
+        <span class="live-dot" aria-label="En Vivo"></span>
+        <span class="streamer-name" id="current-streamer-label">Cargando...</span>
+        <!-- Solo visible para Admin -->
+        <button class="icon-btn-pill admin-only" id="btn-change-streamer" title="Cambiar canal de Kick (Admin)">
+          <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+          </svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- Center Video Info Indicator -->
+    <div class="topbar-center">
+      <div class="video-info-pill" id="video-info-pill">
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polygon points="5 3 19 12 5 21 5 3"></polygon>
+        </svg>
+        <span id="current-video-title">Sin video cargado</span>
+      </div>
+    </div>
+
+    <!-- Topbar Right Actions -->
+    <div class="topbar-right">
+      
+      <!-- Botones de Admin (Solo visibles en modo streamer/admin) -->
+      <button class="btn btn-secondary btn-sm admin-only" id="btn-open-video-modal" title="Cargar película o video">
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="2" y="2" width="20" height="20" rx="2.18" ry="2.18"></rect>
+          <line x1="7" y1="2" x2="7" y2="22"></line>
+          <line x1="17" y1="2" x2="17" y2="22"></line>
+          <line x1="2" y1="12" x2="22" y2="12"></line>
+        </svg>
+        <span>Cargar Video</span>
+      </button>
+
+      <button class="btn btn-primary btn-sm admin-only" id="btn-save-publish" title="Guardar posición y generar enlace para viewers">
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
+          <polyline points="17 21 17 13 7 13 7 21"></polyline>
+          <polyline points="7 3 7 8 15 8"></polyline>
+        </svg>
+        <span>Guardar y Publicar</span>
+      </button>
+
+      <!-- Botón de Acceso para el Streamer / Dueño (Si está en modo espectador) -->
+      <button class="btn btn-glass btn-sm viewer-only" id="btn-open-admin-auth" title="Ingresar como Streamer/Admin">
+        <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+          <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+        </svg>
+        <span class="hide-mobile">Soy Streamer</span>
+      </button>
+
+      <!-- Botón Salir de Modo Admin -->
+      <button class="btn btn-glass btn-sm admin-only" id="btn-exit-admin" title="Salir del modo Streamer">
+        <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+          <polyline points="16 17 21 12 16 7"></polyline>
+          <line x1="21" y1="12" x2="9" y2="12"></line>
+        </svg>
+        <span class="hide-mobile">Salir Admin</span>
+      </button>
+
+      <!-- Botón de Guía -->
+      <button class="btn-icon" id="btn-sync-guide" title="Guía y Tips de sincronización">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"></circle>
+          <line x1="12" y1="16" x2="12" y2="12"></line>
+          <line x1="12" y1="8" x2="12.01" y2="8"></line>
+        </svg>
+      </button>
+    </div>
+  </header>
+
+  <!-- MAIN WATCH CONTAINER -->
+  <main class="watch-container" id="watch-container">
+    
+    <!-- LEFT / CENTER: MAIN VIDEO STAGE (WITH OVERLAY WEBCAM) -->
+    <section class="stage-section" id="stage-section">
+      
+      <!-- Video Wrapper (16:9 ratio centered with ambient backdrop) -->
+      <div class="video-theater" id="video-theater">
+        <div class="ambient-glow" id="ambient-glow"></div>
+
+        <!-- Movie Viewport -->
+        <div class="movie-player-box" id="movie-player-box">
+          <!-- Placeholder State (Admin vs Viewer) -->
+          <div class="player-placeholder" id="movie-placeholder">
+            <div class="placeholder-glow"></div>
+            
+            <!-- Contenido para el Administrador / Streamer -->
+            <div class="placeholder-content admin-only">
+              <div class="placeholder-icon-wrapper">
+                <svg viewBox="0 0 24 24" width="44" height="44" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                  <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                </svg>
+              </div>
+              <h2 class="placeholder-title">Panel de Transmisión</h2>
+              <p class="placeholder-desc">
+                Carga la película o video para comenzar la Watch Party con tu comunidad. Los espectadores verán este video sincronizado.
+              </p>
+              <div class="placeholder-actions">
+                <button class="btn btn-primary" id="btn-placeholder-load">
+                  <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="12" y1="5" x2="12" y2="19"></line>
+                    <line x1="5" y1="12" x2="19" y2="12"></line>
+                  </svg>
+                  <span>Cargar Película o Video</span>
+                </button>
+                <button class="btn btn-glass" id="btn-load-demo">
+                  <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                  </svg>
+                  <span>Probar Video Demo</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- Contenido para el Espectador (Público General) -->
+            <div class="placeholder-content viewer-only">
+              <div class="placeholder-icon-wrapper pulse-anim">
+                <svg viewBox="0 0 24 24" width="44" height="44" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                  <rect x="2" y="2" width="20" height="20" rx="2.18" ry="2.18"></rect>
+                  <line x1="7" y1="2" x2="7" y2="22"></line>
+                  <line x1="17" y1="2" x2="17" y2="22"></line>
+                  <line x1="2" y1="12" x2="22" y2="12"></line>
+                </svg>
+              </div>
+              <h2 class="placeholder-title">¡Watch Party en Vivo!</h2>
+              <p class="placeholder-desc">
+                Esperando que el streamer inicie la reproducción de la película o serie. Mientras tanto, ¡puedes interactuar en el chat oficial de Kick!
+              </p>
+            </div>
+
+          </div>
+
+          <!-- Video Element Container (iframe or video) -->
+          <div class="media-container" id="movie-media-wrapper" style="display: none;"></div>
+
+          <!-- Floating Video Controls (Top Right of Video) -->
+          <div class="floating-video-controls" id="floating-video-controls">
+            <button class="control-badge-btn" id="btn-reload-movie" title="Recargar reproductor de video">
+              <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="23 4 23 10 17 10"></polyline>
+                <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
+              </svg>
+            </button>
+            <button class="control-badge-btn" id="btn-fullscreen-movie" title="Pantalla Completa Película">
+              <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"></path>
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <!-- WEBCAM / STREAMER CAMERA OVERLAY -->
+        <div class="webcam-card" id="webcam-card">
+          <!-- Transparent Drag & Resize Overlay for Admin (no interfiere con el reproductor de Kick) -->
+          <div class="webcam-drag-overlay" id="webcam-drag-overlay" title="Arrastra para mover la cámara"></div>
+
+          <!-- Webcam Iframe Frame -->
+          <div class="webcam-frame-wrapper">
+            <iframe 
+              id="kick-player-frame"
+              class="webcam-frame"
+              src="about:blank"
+              allow="autoplay; fullscreen; encrypted-media; picture-in-picture; clipboard-write"
+              sandbox="allow-scripts allow-same-origin allow-popups allow-forms allow-presentation"
+              referrerpolicy="no-referrer-when-downgrade"
+              title="Streamer Webcam">
+            </iframe>
+          </div>
+
+          <!-- Resize handle for Admin -->
+          <div class="webcam-resize-handle" id="webcam-resize-handle" title="Arrastra para cambiar el tamaño"></div>
+        </div>
+
+      </div>
+
+      <!-- FOOTER / TOOLBAR -->
+      <footer class="stage-footer">
+        <div class="footer-left">
+          <button class="footer-action-btn active" id="btn-webcam-toggle-footer" title="Mostrar/Ocultar Webcam">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M23 7l-7 5 7 5V7z"></path>
+              <rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect>
+            </svg>
+            <span>Webcam</span>
+          </button>
+
+          <a href="#" target="_blank" rel="noopener noreferrer" class="footer-action-btn" id="btn-open-kick-external">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+              <polyline points="15 3 21 3 21 9"></polyline>
+              <line x1="10" y1="14" x2="21" y2="3"></line>
+            </svg>
+            <span>Abrir en Kick.com</span>
+          </a>
+        </div>
+
+        <div class="footer-right">
+          <button class="footer-action-btn active" id="btn-toggle-chat" title="Mostrar/Ocultar Chat">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+            </svg>
+            <span>Chat</span>
+          </button>
+        </div>
+      </footer>
+
+    </section>
+
+    <!-- DRAGGABLE RESIZE SEPARATOR -->
+    <div class="chat-resizer" id="chat-resizer" title="Arrastra para redimensionar el chat">
+      <div class="resizer-handle"></div>
+    </div>
+
+    <!-- RIGHT: KICK LIVE CHATROOM -->
+    <aside class="chat-section" id="chat-column">
+      <header class="chat-header">
+        <div class="chat-header-title">
+          <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+          </svg>
+          <span>Chat de Kick</span>
+          <span class="chat-online-badge">EN VIVO</span>
+        </div>
+
+        <div class="chat-header-actions">
+          <button class="player-action-btn" id="btn-reload-chat" title="Recargar chat">
+            <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="23 4 23 10 17 10"></polyline>
+              <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
+            </svg>
+          </button>
+          <button class="player-action-btn hide-desktop" id="btn-close-chat-mobile" title="Cerrar chat">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          </button>
+        </div>
+      </header>
+
+      <!-- Chat Frame Container -->
+      <div class="chat-viewport">
+        <iframe
+          id="kick-chat-frame"
+          class="chat-frame"
+          src="about:blank"
+          allow="autoplay; encrypted-media; clipboard-write; picture-in-picture"
+          sandbox="allow-scripts allow-same-origin allow-popups allow-forms allow-modals allow-top-navigation-by-user-activation"
+          referrerpolicy="no-referrer-when-downgrade"
+          title="Kick Live Chat">
+        </iframe>
+      </div>
+    </aside>
+
+  </main>
+
+  <!-- MODAL: LOGIN / PIN STREAMER -->
+  <div class="modal-overlay" id="modal-auth" aria-hidden="true">
+    <div class="modal-card">
+      <header class="modal-header">
+        <div class="modal-title-group">
+          <div class="modal-icon-badge kick-bg">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+              <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+            </svg>
+          </div>
+          <h3>Acceso Streamer / Dueño</h3>
+        </div>
+        <button class="modal-close-btn" id="btn-close-auth-modal" aria-label="Cerrar ventana">&times;</button>
+      </header>
+
+      <div class="modal-body">
+        <p class="modal-desc">
+          Introduce tu PIN de Streamer para habilitar el panel de carga de video y control:
+        </p>
+
+        <form id="form-auth" onsubmit="return false;">
+          <div class="input-group">
+            <label for="input-admin-pin">PIN o Clave de Acceso (Por defecto: <code>1234</code>):</label>
+            <input 
+              type="password" 
+              id="input-admin-pin" 
+              placeholder="Ingresa el PIN..."
+              autocomplete="current-password"
+              required>
+          </div>
+
+          <div class="modal-actions">
+            <button type="button" class="btn btn-secondary" id="btn-cancel-auth-modal">Cancelar</button>
+            <button type="submit" class="btn btn-primary" id="btn-submit-auth">
+              <span>Ingresar como Streamer</span>
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: CARGAR / CAMBIAR VIDEO -->
+  <div class="modal-overlay" id="modal-video" aria-hidden="true">
+    <div class="modal-card">
+      <header class="modal-header">
+        <div class="modal-title-group">
+          <div class="modal-icon-badge">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
+              <polygon points="5 3 19 12 5 21 5 3"></polygon>
+            </svg>
+          </div>
+          <h3>Cargar Película o Video</h3>
+        </div>
+        <button class="modal-close-btn" id="btn-close-video-modal" aria-label="Cerrar ventana">&times;</button>
+      </header>
+
+      <div class="modal-body">
+        <p class="modal-desc">
+          Introduce la URL directa, enlace de YouTube, servidor de streaming (Streamwish, Doodstream, etc.) o código embed <code>&lt;iframe&gt;</code>:
+        </p>
+
+        <form id="form-load-video" onsubmit="return false;">
+          <div class="input-group">
+            <label for="input-video-url">URL o Código Embed del Video:</label>
+            <textarea 
+              id="input-video-url" 
+              rows="3" 
+              placeholder="Ejemplos:&#10;• https://www.youtube.com/watch?v=aqz-KE-bpKQ&#10;• https://streamwish.to/e/abc123xyz&#10;• https://tuservidor.com/video.mp4&#10;• <iframe src='...'></iframe>"
+              spellcheck="false"
+              required></textarea>
+          </div>
+
+          <div class="quick-presets">
+            <span class="presets-label">Prueba rápida:</span>
+            <button type="button" class="preset-chip" data-url="https://www.youtube.com/watch?v=aqz-KE-bpKQ">
+              🌌 4K Nature (YouTube)
+            </button>
+            <button type="button" class="preset-chip" data-url="https://www.youtube.com/watch?v=dQw4w9WgXcQ">
+              🎵 Rick Astley (YouTube)
+            </button>
+            <button type="button" class="preset-chip" data-url="https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4">
+              🎬 Big Buck Bunny (MP4)
+            </button>
+          </div>
+
+          <div class="modal-actions">
+            <button type="button" class="btn btn-secondary" id="btn-cancel-video-modal">Cancelar</button>
+            <button type="submit" class="btn btn-primary" id="btn-submit-video">
+              <span>Reproducir Video</span>
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: CAMBIAR STREAMER -->
+  <div class="modal-overlay" id="modal-streamer" aria-hidden="true">
+    <div class="modal-card">
+      <header class="modal-header">
+        <div class="modal-title-group">
+          <div class="modal-icon-badge kick-bg">
+            <span class="kick-k-small">K</span>
+          </div>
+          <h3>Cambiar Canal de Kick</h3>
+        </div>
+        <button class="modal-close-btn" id="btn-close-streamer-modal" aria-label="Cerrar ventana">&times;</button>
+      </header>
+
+      <div class="modal-body">
+        <p class="modal-desc">
+          Ingresa el nombre del streamer o la URL del canal de Kick:
+        </p>
+
+        <form id="form-change-streamer" onsubmit="return false;">
+          <div class="input-group">
+            <label for="input-streamer-name">Canal de Kick:</label>
+            <div class="input-prefix-wrapper">
+              <span class="input-prefix">kick.com/</span>
+              <input 
+                type="text" 
+                id="input-streamer-name" 
+                placeholder="ej: losfutbolitos, westcol, xqc"
+                spellcheck="false"
+                autocomplete="off"
+                required>
+            </div>
+          </div>
+
+          <div class="quick-presets">
+            <span class="presets-label">Sugeridos:</span>
+            <button type="button" class="preset-chip streamer-preset" data-streamer="losfutbolitos">losfutbolitos</button>
+            <button type="button" class="preset-chip streamer-preset" data-streamer="westcol">westcol</button>
+            <button type="button" class="preset-chip streamer-preset" data-streamer="xqc">xqc</button>
+            <button type="button" class="preset-chip streamer-preset" data-streamer="adinross">adinross</button>
+          </div>
+
+          <div class="modal-actions">
+            <button type="button" class="btn btn-secondary" id="btn-cancel-streamer-modal">Cancelar</button>
+            <button type="submit" class="btn btn-primary" id="btn-submit-streamer">
+              <span>Actualizar Stream</span>
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: GUARDAR Y PUBLICAR ENLACE -->
+  <div class="modal-overlay" id="modal-publish" aria-hidden="true">
+    <div class="modal-card">
+      <header class="modal-header">
+        <div class="modal-title-group">
+          <div class="modal-icon-badge kick-bg">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5">
+              <polyline points="20 6 9 17 4 12"></polyline>
+            </svg>
+          </div>
+          <h3>¡Watch Party Guardada y Lista!</h3>
+        </div>
+        <button class="modal-close-btn" id="btn-close-publish-modal" aria-label="Cerrar ventana">&times;</button>
+      </header>
+
+      <div class="modal-body">
+        <p class="modal-desc">
+          Tu pantalla, cámara y video han quedado guardados. Comparte este enlace con tu comunidad para que lo vean exactamente como lo configuraste:
+        </p>
+
+        <div class="input-group">
+          <label for="input-publish-url">Enlace público para tus espectadores:</label>
+          <input 
+            type="text" 
+            id="input-publish-url" 
+            readonly 
+            spellcheck="false">
+        </div>
+
+        <div class="publish-modal-actions">
+          <button type="button" class="btn btn-secondary" id="btn-preview-viewer">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+              <circle cx="12" cy="12" r="3"></circle>
+            </svg>
+            <span>Ver como Espectador</span>
+          </button>
+          
+          <button type="button" class="btn btn-primary" id="btn-copy-publish-url">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+              <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+            </svg>
+            <span>Copiar Enlace</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: GUÍA DE SINCRONIZACIÓN -->
+  <div class="modal-overlay" id="modal-sync" aria-hidden="true">
+    <div class="modal-card modal-card-lg">
+      <header class="modal-header">
+        <div class="modal-title-group">
+          <div class="modal-icon-badge">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="10"></circle>
+              <polyline points="12 6 12 12 16 14"></polyline>
+            </svg>
+          </div>
+          <h3>Guía de Watch Party & Sincronización</h3>
+        </div>
+        <button class="modal-close-btn" id="btn-close-sync-modal" aria-label="Cerrar ventana">&times;</button>
+      </header>
+
+      <div class="modal-body">
+        <div class="sync-tips-list">
+          <div class="sync-tip-item">
+            <span class="tip-number">1</span>
+            <div class="tip-content">
+              <h4>¿Cómo funciona para el Streamer y la Audiencia?</h4>
+              <p>El streamer ingresa con su PIN y carga la película. Luego pulsa <strong>"Enlace Público"</strong> y comparte ese enlace en el chat de Kick o Discord. Los espectadores entran directamente a ver la película sin botones de edición.</p>
+            </div>
+          </div>
+
+          <div class="sync-tip-item">
+            <span class="tip-number">2</span>
+            <div class="tip-content">
+              <h4>Modo Espectador Automático</h4>
+              <p>Cualquier espectador que abra el enlace verá la película en pantalla grande, la reacción en vivo del streamer y el chat oficial en tiempo real.</p>
+            </div>
+          </div>
+
+          <div class="sync-tip-item">
+            <span class="tip-number">3</span>
+            <div class="tip-content">
+              <h4>PIN de Seguridad Configurable</h4>
+              <p>Por defecto el PIN de acceso como streamer es <code>1234</code>. Puedes cambiarlo en la constante <code>ADMIN_PIN</code> de <code>app.js</code>.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="modal-actions">
+          <button type="button" class="btn btn-primary" id="btn-dismiss-sync-modal">Entendido</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TOAST NOTIFICATION CONTAINER -->
+  <div class="toast-container" id="toast-container" aria-live="polite"></div>
+
+  <script src="app.js?v=1.3"></script>
+</body>
+</html>
