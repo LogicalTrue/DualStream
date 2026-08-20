@@ -357,8 +357,8 @@
       DOM.btnOpenKickExternal.href = `https://kick.com/${channel}`;
     }
 
-    // Kick Stream Player (permitir audio)
-    const playerUrl = `https://player.kick.com/${encodeURIComponent(channel)}?autoplay=true&muted=false`;
+    // Kick Stream Player oficial
+    const playerUrl = `https://player.kick.com/${encodeURIComponent(channel)}?autoplay=true`;
     if (DOM.kickPlayerFrame.src !== playerUrl) {
       DOM.kickPlayerFrame.src = playerUrl;
     }
@@ -1734,23 +1734,40 @@
 
     const updateVideoVolume = (val) => {
       const vol = Math.max(0, Math.min(100, parseInt(val, 10)));
-      if (activeNativeVideo) {
+      
+      // 1. Video Nativo (.mp4)
+      const nativeVid = DOM.movieMediaWrapper ? DOM.movieMediaWrapper.querySelector('video') : activeNativeVideo;
+      if (nativeVid) {
         if (vol > 0) {
-          activeNativeVideo.muted = false;
-          activeNativeVideo.volume = vol / 100;
+          nativeVid.muted = false;
+          nativeVid.volume = vol / 100;
         } else {
-          activeNativeVideo.muted = true;
-          activeNativeVideo.volume = 0;
+          nativeVid.muted = true;
+          nativeVid.volume = 0;
         }
       }
+
+      // 2. Reproductor de YouTube
       if (ytPlayerInstance && typeof ytPlayerInstance.setVolume === 'function') {
-        ytPlayerInstance.setVolume(vol);
-        if (vol === 0) {
-          ytPlayerInstance.mute();
-        } else {
-          ytPlayerInstance.unMute();
-        }
+        try {
+          ytPlayerInstance.setVolume(vol);
+          if (vol === 0) {
+            ytPlayerInstance.mute();
+          } else {
+            ytPlayerInstance.unMute();
+          }
+        } catch (e) {}
       }
+
+      // 3. Iframe genérico
+      const iframeVid = DOM.movieMediaWrapper ? DOM.movieMediaWrapper.querySelector('iframe') : null;
+      if (iframeVid && iframeVid.contentWindow) {
+        try {
+          iframeVid.contentWindow.postMessage(JSON.stringify({ event: 'command', func: 'setVolume', args: [vol] }), '*');
+          if (vol > 0) iframeVid.contentWindow.postMessage(JSON.stringify({ event: 'command', func: 'unMute', args: [] }), '*');
+        } catch (e) {}
+      }
+
       if (vol === 0) {
         if (iconVolHigh) iconVolHigh.classList.add('hidden');
         if (iconVolMute) iconVolMute.classList.remove('hidden');
@@ -1761,43 +1778,28 @@
     };
 
     if (sliderVideoVolume) {
-      sliderVideoVolume.addEventListener('input', (e) => {
-        updateVideoVolume(e.target.value);
-      });
-      sliderVideoVolume.addEventListener('change', (e) => {
-        updateVideoVolume(e.target.value);
+      ['input', 'change', 'touchmove'].forEach(evt => {
+        sliderVideoVolume.addEventListener(evt, (e) => {
+          updateVideoVolume(e.target.value);
+        });
       });
     }
 
     if (btnToggleVideoMute) {
       btnToggleVideoMute.addEventListener('click', () => {
-        if (activeNativeVideo) {
-          if (activeNativeVideo.muted || activeNativeVideo.volume === 0) {
-            activeNativeVideo.muted = false;
-            activeNativeVideo.volume = 1;
-            if (sliderVideoVolume) sliderVideoVolume.value = 100;
-            updateVideoVolume(100);
-            showToast('🔊 Audio de película activado al 100%', 'success');
-          } else {
-            activeNativeVideo.muted = true;
-            activeNativeVideo.volume = 0;
-            if (sliderVideoVolume) sliderVideoVolume.value = 0;
-            updateVideoVolume(0);
-            showToast('🔇 Película silenciada', 'info');
-          }
-        } else if (ytPlayerInstance && typeof ytPlayerInstance.isMuted === 'function') {
-          if (ytPlayerInstance.isMuted() || (ytPlayerInstance.getVolume && ytPlayerInstance.getVolume() === 0)) {
-            ytPlayerInstance.unMute();
-            ytPlayerInstance.setVolume(100);
-            if (sliderVideoVolume) sliderVideoVolume.value = 100;
-            updateVideoVolume(100);
-            showToast('🔊 Audio de YouTube activado', 'success');
-          } else {
-            ytPlayerInstance.mute();
-            if (sliderVideoVolume) sliderVideoVolume.value = 0;
-            updateVideoVolume(0);
-            showToast('🔇 YouTube silenciado', 'info');
-          }
+        const nativeVid = DOM.movieMediaWrapper ? DOM.movieMediaWrapper.querySelector('video') : activeNativeVideo;
+        const currentSliderVal = sliderVideoVolume ? parseInt(sliderVideoVolume.value, 10) : 100;
+
+        if (currentSliderVal === 0 || (nativeVid && nativeVid.muted)) {
+          // Desmutear al 100%
+          if (sliderVideoVolume) sliderVideoVolume.value = 100;
+          updateVideoVolume(100);
+          showToast('🔊 Audio activado al 100%', 'success');
+        } else {
+          // Mutear a 0%
+          if (sliderVideoVolume) sliderVideoVolume.value = 0;
+          updateVideoVolume(0);
+          showToast('🔇 Audio silenciado', 'info');
         }
       });
     }
