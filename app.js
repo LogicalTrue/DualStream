@@ -272,49 +272,23 @@
     }
   }
 
-  // --------------------------------------------------------------------------
-  // 4. URL PARAMETERS
-  // --------------------------------------------------------------------------
-
   async function parseUrlParams() {
     const searchParams = new URLSearchParams(window.location.search);
 
-    // Check secret token parameter (?admin_secret=..., ?secret=..., ?key=...)
-    const secretParam = searchParams.get('admin_secret') || searchParams.get('secret') || searchParams.get('key') || searchParams.get('admin_key');
-    const modeParam = searchParams.get('mode');
+    // Por defecto para cualquier visitante: modo espectador estricto
+    // Solo se es admin si en ESTA pestaña específica existe un token de sesión autenticado
+    const storedSecret = sessionStorage.getItem('kick_dual_admin_secret');
+    const storedSessionToken = sessionStorage.getItem('kick_dual_admin_session_token');
+    const storedIsAdmin = sessionStorage.getItem('kick_dual_is_admin') === 'true';
 
-    if (modeParam === 'viewer') {
+    if (storedIsAdmin && storedSecret && storedSessionToken) {
+      setMode(true);
+      startAdminSessionChecker();
+    } else {
       setMode(false);
       sessionStorage.removeItem('kick_dual_admin_secret');
       sessionStorage.removeItem('kick_dual_admin_session_token');
-    } else if (secretParam) {
-      // Guardar el secret en la sesión del navegador y registrar sesión
-      sessionStorage.setItem('kick_dual_admin_secret', secretParam);
-      setMode(true);
-      try {
-        const res = await fetch(SYNC_API_ENDPOINT, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${secretParam}`
-          },
-          body: JSON.stringify({ type: 'VERIFY_AUTH' })
-        });
-        if (res.ok) {
-          const data = await res.json();
-          if (data && data.sessionToken) {
-            sessionStorage.setItem('kick_dual_admin_session_token', data.sessionToken);
-            startAdminSessionChecker();
-          }
-        }
-      } catch (e) {}
-    } else {
-      // Por defecto para cualquier visitante: modo espectador (salvo si esta pestaña específica tiene el secret guardado)
-      const storedAdmin = sessionStorage.getItem('kick_dual_is_admin') === 'true' && !!sessionStorage.getItem('kick_dual_admin_secret');
-      setMode(storedAdmin);
-      if (storedAdmin && sessionStorage.getItem('kick_dual_admin_session_token')) {
-        startAdminSessionChecker();
-      }
+      sessionStorage.removeItem('kick_dual_is_admin');
     }
 
     // Si viene algún parámetro explícito en la URL, sobrescribe la persistencia
@@ -1502,11 +1476,7 @@
             }
           }
         } catch (err) {
-          // Fallback offline / local
-          sessionStorage.setItem('kick_dual_admin_secret', enteredSecret);
-          setMode(true);
-          closeModal(DOM.modalAuth);
-          showToast('Modo Streamer activado', 'success');
+          showToast('Error de conexión al verificar la clave.', 'error');
         }
       });
     }
