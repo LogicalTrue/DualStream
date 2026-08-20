@@ -425,6 +425,29 @@ body.mode-admin .viewer-only {
   z-index: 2;
 }
 
+/* Shield Overlay: Bloquea que el espectador pause o altere el video */
+.viewer-video-shield {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 8;
+  display: none;
+  cursor: default;
+  background: transparent;
+}
+
+body.mode-viewer .viewer-video-shield {
+  display: block !important;
+  pointer-events: auto; /* Bloquea clics sobre el iframe */
+}
+
+body.mode-admin .viewer-video-shield {
+  display: none !important;
+  pointer-events: none;
+}
+
 /* Media Element Containers */
 .media-container,
 .media-frame,

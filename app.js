@@ -520,6 +520,92 @@
   // 7. MAIN VIDEO PLAYER
   // --------------------------------------------------------------------------
 
+  // --------------------------------------------------------------------------
+  // 7. MAIN VIDEO PLAYER & TIME SYNCHRONIZER
+  // --------------------------------------------------------------------------
+
+  let lastAdminSyncEmit = 0;
+  let activeNativeVideo = null;
+  let activeIframeVideo = null;
+
+  function emitPlaybackSync(currentTime, isPlaying) {
+    if (!AppState.isAdmin) return; // Solo el admin es el emisor máster
+
+    const now = Date.now();
+    lastAdminSyncEmit = now;
+
+    const payload = {
+      type: 'PLAYBACK_SYNC',
+      streamer: AppState.streamer,
+      videoUrl: AppState.videoUrl,
+      camX: AppState.camX,
+      camY: AppState.camY,
+      camW: AppState.camW,
+      currentTime: parseFloat(currentTime.toFixed(2)),
+      isPlaying: Boolean(isPlaying),
+      updatedAt: now
+    };
+
+    // Emitir localmente por BroadcastChannel y a la nube
+    try {
+      if (syncChannel) {
+        syncChannel.postMessage(payload);
+      }
+      fetch(CLOUD_SYNC_TOPIC, {
+        method: 'POST',
+        body: JSON.stringify(payload),
+        headers: { 'Title': 'Playback Sync', 'Tags': 'arrow_forward,play_or_pause_button' }
+      }).catch(() => {});
+    } catch (e) {}
+  }
+
+  function applyViewerPlaybackSync(data) {
+    if (AppState.isAdmin || !document.body.classList.contains('mode-viewer')) return;
+
+    const { currentTime, isPlaying, updatedAt } = data;
+    if (currentTime === undefined) return;
+
+    // Calcular el segundo exacto compensando latencia de red
+    const latencySec = (Date.now() - (updatedAt || Date.now())) / 1000;
+    const targetTime = isPlaying ? currentTime + Math.max(0, latencySec) : currentTime;
+
+    // 1. Control para Video Nativo HTML5
+    if (activeNativeVideo) {
+      if (isPlaying && activeNativeVideo.paused) {
+        activeNativeVideo.play().catch(() => {});
+      } else if (!isPlaying && !activeNativeVideo.paused) {
+        activeNativeVideo.pause();
+      }
+
+      if (Math.abs(activeNativeVideo.currentTime - targetTime) > 1.2) {
+        activeNativeVideo.currentTime = targetTime;
+      }
+    }
+
+    // 2. Control para YouTube Iframe Player
+    if (activeIframeVideo && activeIframeVideo.contentWindow) {
+      if (isPlaying) {
+        activeIframeVideo.contentWindow.postMessage(JSON.stringify({
+          event: 'command',
+          func: 'playVideo',
+          args: []
+        }), '*');
+      } else {
+        activeIframeVideo.contentWindow.postMessage(JSON.stringify({
+          event: 'command',
+          func: 'pauseVideo',
+          args: []
+        }), '*');
+      }
+
+      activeIframeVideo.contentWindow.postMessage(JSON.stringify({
+        event: 'command',
+        func: 'seekTo',
+        args: [targetTime, true]
+      }), '*');
+    }
+  }
+
   function loadVideoSource(rawInput) {
     if (!rawInput || rawInput.trim() === '') {
       unloadVideo();
@@ -538,6 +624,8 @@
     syncUrlParams();
 
     DOM.movieMediaWrapper.innerHTML = '';
+    activeNativeVideo = null;
+    activeIframeVideo = null;
 
     if (isDirectVideoFile(url)) {
       renderNativeVideo(url);
@@ -564,7 +652,7 @@
     // YouTube
     const ytMatch = url.match(/(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/i);
     if (ytMatch && ytMatch[1]) {
-      return `https://www.youtube-nocookie.com/embed/${ytMatch[1]}?autoplay=1&rel=0&enablejsapi=1`;
+      return `https://www.youtube-nocookie.com/embed/${ytMatch[1]}?autoplay=1&rel=0&enablejsapi=1&origin=${encodeURIComponent(window.location.origin)}`;
     }
 
     // Dailymotion
@@ -579,10 +667,24 @@
   function renderNativeVideo(url) {
     const videoElem = document.createElement('video');
     videoElem.className = 'native-video-player';
-    videoElem.controls = true;
+    videoElem.controls = AppState.isAdmin; // Solo el admin tiene barra de controles
     videoElem.autoplay = true;
     videoElem.playsInline = true;
     videoElem.src = url;
+
+    activeNativeVideo = videoElem;
+
+    // Detectores de eventos para el Admin máster
+    if (AppState.isAdmin) {
+      videoElem.addEventListener('play', () => emitPlaybackSync(videoElem.currentTime, true));
+      videoElem.addEventListener('pause', () => emitPlaybackSync(videoElem.currentTime, false));
+      videoElem.addEventListener('seeked', () => emitPlaybackSync(videoElem.currentTime, !videoElem.paused));
+      videoElem.addEventListener('timeupdate', () => {
+        if (!videoElem.paused && Date.now() - lastAdminSyncEmit > 1800) {
+          emitPlaybackSync(videoElem.currentTime, true);
+        }
+      });
+    }
 
     videoElem.addEventListener('error', () => {
       showToast('Error al reproducir el video. Verifica el enlace.', 'error');
@@ -601,8 +703,26 @@
     iframe.setAttribute('referrerpolicy', 'no-referrer-when-downgrade');
     iframe.setAttribute('title', 'Movie Player');
 
+    activeIframeVideo = iframe;
+
     DOM.movieMediaWrapper.appendChild(iframe);
   }
+
+  // Escuchar mensajes de YouTube Iframe API desde el iframe (para Admin)
+  window.addEventListener('message', (e) => {
+    if (!AppState.isAdmin || !e.data) return;
+    try {
+      const data = typeof e.data === 'string' ? JSON.parse(e.data) : e.data;
+      if (data && data.event === 'infoDelivery' && data.info) {
+        if (data.info.currentTime !== undefined) {
+          const isPlaying = data.info.playerState === 1;
+          if (Date.now() - lastAdminSyncEmit > 1800) {
+            emitPlaybackSync(data.info.currentTime, isPlaying);
+          }
+        }
+      }
+    } catch (err) {}
+  });
 
   function unloadVideo() {
     AppState.videoUrl = '';
@@ -765,6 +885,11 @@
         if (config.camW !== undefined) AppState.camW = config.camW;
         applyWebcamPosition();
 
+        // 4. Sincronización segundo a segundo de reproducción
+        if (config.type === 'PLAYBACK_SYNC' || config.currentTime !== undefined) {
+          applyViewerPlaybackSync(config);
+        }
+
         if (changed) {
           showToast('🎬 ¡El streamer ha actualizado la Watch Party en vivo!', 'info');
         }
@@ -774,9 +899,11 @@
     // 1. Escuchar por BroadcastChannel (local 0ms latencia)
     if (syncChannel) {
       syncChannel.onmessage = (event) => {
-        if (event && event.data && event.data.type === 'CONFIG_UPDATED') {
-          lastProcessedTimestamp = event.data.config.updatedAt || Date.now();
-          applyIncomingConfig(event.data.config);
+        if (event && event.data) {
+          const config = event.data.config || event.data;
+          if (config) {
+            applyIncomingConfig(config);
+          }
         }
       };
     }
@@ -811,12 +938,8 @@
             const data = JSON.parse(event.data);
             const rawMessage = data.message || data;
             const config = typeof rawMessage === 'string' ? JSON.parse(rawMessage) : rawMessage;
-            if (config && config.streamer) {
-              const configTime = config.updatedAt || 1;
-              if (configTime > lastProcessedTimestamp) {
-                lastProcessedTimestamp = configTime;
-                applyIncomingConfig(config);
-              }
+            if (config) {
+              applyIncomingConfig(config);
             }
           } catch (e) {}
         };

@@ -126,6 +126,9 @@
 
         <!-- Movie Viewport -->
         <div class="movie-player-box" id="movie-player-box">
+          <!-- Shield Overlay para Espectadores (Bloquea clics/pausa manual de viewers) -->
+          <div class="viewer-video-shield" id="viewer-video-shield" title="Sincronizado con el streamer"></div>
+
           <!-- Placeholder State (Admin vs Viewer) -->
           <div class="player-placeholder" id="movie-placeholder">
             <div class="placeholder-glow"></div>
@@ -520,6 +523,6 @@
   <!-- TOAST NOTIFICATION CONTAINER -->
   <div class="toast-container" id="toast-container" aria-live="polite"></div>
 
-  <script src="app.js?v=2.1"></script>
+  <script src="app.js?v=2.2"></script>
 </body>
 </html>
