@@ -42,6 +42,9 @@
     camW: 26 // %
   };
 
+  const DEFAULT_STREAMER = DEFAULT_CONFIG.streamer;
+  const DEFAULT_VIDEO = DEFAULT_CONFIG.videoUrl;
+
   /**
    * Obtiene la configuración guardada por el admin
    */
