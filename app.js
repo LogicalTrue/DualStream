@@ -26,6 +26,9 @@
     console.warn('BroadcastChannel no soportado, usando fallback StorageEvent', e);
   }
 
+  // PIN de seguridad para acceder como Streamer / Dueño (configurable)
+  const ADMIN_PIN = '1234';
+
   // Configuración inicial / por defecto
   const DEFAULT_CONFIG = {
     streamer: 'losfutbolitos',
