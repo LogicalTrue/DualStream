@@ -95,6 +95,9 @@ async function run() {
               if (iframe && iframe.src) {
                 const m = iframe.src.match(/embed\/([^?]+)/);
                 videoId = m ? m[1] : iframe.src.substring(0, 15);
+              } else if (videoElem && videoElem.src) {
+                const filename = videoElem.src.split('/').pop().split('?')[0];
+                videoId = filename || 'video.mp4';
               }
               return {
                 streamer: state.streamer || 'N/A',
