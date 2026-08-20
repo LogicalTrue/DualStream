@@ -794,28 +794,68 @@ body.mode-viewer .webcam-resize-handle {
 /* Tablet & Mobile Portrait (max-width: 768px) */
 @media (max-width: 768px) and (orientation: portrait) {
   :root {
-    --topbar-height: 44px;
+    --topbar-height: 38px;
   }
 
   .topbar {
-    padding: 0 10px;
+    height: var(--topbar-height);
+    min-height: var(--topbar-height);
+    padding: 0 8px;
+    gap: 6px;
   }
 
-  .brand-text .app-title {
-    font-size: 14px;
+  .brand {
+    gap: 6px;
   }
 
   .brand-badge {
-    width: 26px;
-    height: 26px;
-    font-size: 13px;
+    width: 22px;
+    height: 22px;
+    font-size: 11px;
+    border-radius: 4px;
   }
 
-  .mode-badge,
-  .topbar-center,
-  .btn-text,
-  .streamer-pill .streamer-name {
+  .brand-text .app-title {
     font-size: 11px;
+    letter-spacing: -0.2px;
+  }
+
+  /* Ocultar badge tag en móvil para que no ocupe espacio */
+  .badge-tag,
+  .mode-badge,
+  .topbar-center {
+    display: none !important;
+  }
+
+  .streamer-pill {
+    padding: 2px 6px;
+    gap: 4px;
+    border-radius: var(--radius-full);
+  }
+
+  .streamer-pill .streamer-name {
+    font-size: 10px;
+    max-width: 85px;
+  }
+
+  .live-dot {
+    width: 6px;
+    height: 6px;
+  }
+
+  .topbar-right {
+    gap: 4px;
+  }
+
+  .topbar-right .btn-icon {
+    width: 26px;
+    height: 26px;
+    padding: 4px;
+  }
+
+  .topbar-right .btn-icon svg {
+    width: 13px;
+    height: 13px;
   }
 
   .watch-container {
@@ -828,7 +868,7 @@ body.mode-viewer .webcam-resize-handle {
     flex: 0 0 auto !important;
     width: 100% !important;
     height: auto !important;
-    max-height: 42vh;
+    max-height: 40vh;
     aspect-ratio: 16 / 9;
   }
 
@@ -843,8 +883,8 @@ body.mode-viewer .webcam-resize-handle {
   }
 
   .webcam-card {
-    min-width: 105px !important;
-    max-width: 145px !important;
+    min-width: 100px !important;
+    max-width: 135px !important;
     border-radius: var(--radius-sm);
   }
 
@@ -864,10 +904,30 @@ body.mode-viewer .webcam-resize-handle {
   }
 
   .chat-header {
-    height: 38px;
-    min-height: 38px;
-    padding: 0 10px;
+    height: 36px;
+    min-height: 36px;
+    padding: 0 8px;
   }
+}
+
+.chat-close-btn {
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--border-subtle);
+  border-radius: 4px;
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.chat-close-btn:hover {
+  background: rgba(255, 68, 68, 0.2);
+  border-color: rgba(255, 68, 68, 0.5);
+  color: #ff4444;
 }
 
 .btn-floating-chat-landscape {
