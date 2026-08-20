@@ -458,59 +458,140 @@ body.mode-admin .viewer-video-shield {
   display: none;
 }
 
-body.mode-viewer .mobile-sync-unlock-banner {
+/* ==========================================================================
+   THEATER STANDBY SCREENS (OFFLINE & ONLINE COVER)
+   ========================================================================== */
+
+.theater-standby-screen {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 50;
   display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #000000;
+  overflow: hidden;
 }
 
-body.mode-admin .mobile-sync-unlock-banner,
-.mobile-sync-unlock-banner.hidden {
-  display: none !important;
+.standby-backdrop {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-size: cover;
+  background-position: center;
+  filter: blur(8px) brightness(0.4);
+  transform: scale(1.08);
+  transition: all 0.5s ease;
 }
 
-.btn-unlock-sync {
+.standby-card {
+  position: relative;
+  z-index: 2;
+  max-width: 480px;
+  width: 90%;
+  padding: 36px 28px;
+  background: rgba(14, 17, 19, 0.85);
+  backdrop-filter: blur(16px);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.8), 0 0 30px rgba(0, 0, 0, 0.5);
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+.standby-badge {
   display: inline-flex;
   align-items: center;
-  gap: 10px;
-  padding: 12px 22px;
-  background: rgba(14, 17, 19, 0.92);
-  backdrop-filter: blur(12px);
-  border: 1px solid var(--kick-green);
-  border-radius: var(--radius-full);
-  color: var(--text-primary);
-  font-family: var(--font-body);
-  font-size: 13px;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.8px;
+  padding: 4px 12px;
+  border-radius: 20px;
+  text-transform: uppercase;
+}
+
+.offline-badge {
+  background: rgba(255, 75, 75, 0.15);
+  color: #ff5252;
+  border: 1px solid rgba(255, 75, 75, 0.4);
+}
+
+.offline-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #ff5252;
+  box-shadow: 0 0 8px #ff5252;
+}
+
+.online-badge {
+  background: rgba(83, 252, 24, 0.15);
+  color: var(--kick-green);
+  border: 1px solid rgba(83, 252, 24, 0.4);
+}
+
+.standby-title {
+  font-family: var(--font-heading);
+  font-size: 22px;
   font-weight: 700;
-  cursor: pointer;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.8), 0 0 20px rgba(83, 252, 24, 0.25);
-  animation: pulse-glow 2s infinite ease-in-out;
-  transition: all var(--transition-fast);
+  color: var(--text-primary);
+  margin: 0;
 }
 
-.btn-unlock-sync:hover {
-  transform: scale(1.04);
-  box-shadow: 0 12px 35px rgba(0, 0, 0, 0.9), 0 0 25px rgba(83, 252, 24, 0.4);
+.standby-subtitle {
+  font-size: 13px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  margin: 0 0 8px 0;
 }
 
-.unlock-icon {
-  width: 24px;
-  height: 24px;
+.btn-connect-watchparty {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 28px;
   background: var(--kick-green);
   color: #000000;
+  font-family: var(--font-heading);
+  font-size: 14px;
+  font-weight: 800;
+  border: none;
+  border-radius: var(--radius-full);
+  cursor: pointer;
+  box-shadow: 0 10px 25px rgba(83, 252, 24, 0.4), 0 0 15px var(--kick-green-glow);
+  transition: all var(--transition-fast);
+  animation: pulse-glow 2.2s infinite ease-in-out;
+}
+
+.btn-connect-watchparty:hover {
+  transform: scale(1.05);
+  box-shadow: 0 14px 35px rgba(83, 252, 24, 0.6), 0 0 25px var(--kick-green-glow);
+}
+
+.connect-icon {
+  width: 22px;
+  height: 22px;
+  background: #000000;
+  color: var(--kick-green);
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 11px;
-  font-weight: 900;
+  font-size: 10px;
 }
 
-@keyframes pulse-glow {
-  0%, 100% {
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.8), 0 0 15px rgba(83, 252, 24, 0.2);
-  }
-  50% {
-    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.9), 0 0 25px rgba(83, 252, 24, 0.45);
-  }
+body.mode-admin #theater-offline-screen,
+body.mode-admin #theater-online-screen {
+  display: none !important;
 }
 
 /* Media Element Containers */

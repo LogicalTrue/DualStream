@@ -75,6 +75,9 @@
 
     return {
       type: 'MASTER_STATE',
+      isOnline: AppState.isAdmin || AppState.isOnline,
+      offlineImg: AppState.offlineImg || '',
+      onlineImg: AppState.onlineImg || '',
       streamer: AppState.streamer,
       videoUrl: AppState.videoUrl,
       camX: AppState.camX,
@@ -145,6 +148,10 @@
 
   const AppState = {
     isAdmin: false,
+    isOnline: false,
+    isViewerConnected: false,
+    offlineImg: persisted.offlineImg || '',
+    onlineImg: persisted.onlineImg || '',
     streamer: persisted.streamer || DEFAULT_STREAMER,
     videoUrl: '',
     chatVisible: true,
@@ -159,6 +166,15 @@
   // 2. DOM ELEMENTS
   // --------------------------------------------------------------------------
   const DOM = {
+    // Standby Screens
+    theaterOfflineScreen: document.getElementById('theater-offline-screen'),
+    offlineBackdrop: document.getElementById('offline-backdrop'),
+    theaterOnlineScreen: document.getElementById('theater-online-screen'),
+    onlineBackdrop: document.getElementById('online-backdrop'),
+    btnConnectWatchparty: document.getElementById('btn-connect-watchparty'),
+    inputConfigOfflineImg: document.getElementById('input-config-offline-img'),
+    inputConfigOnlineImg: document.getElementById('input-config-online-img'),
+
     // Header & Mode
     appHeader: document.getElementById('app-header'),
     appModeBadge: document.getElementById('app-mode-badge'),
@@ -1108,11 +1124,65 @@
   function initRealtimeSyncListener() {
     let lastProcessedTimestamp = 0;
 
+    // Actualizar pantallas de espera (Offline vs Online)
+    function updateTheaterStandbyScreens() {
+      if (AppState.isAdmin) {
+        if (DOM.theaterOfflineScreen) DOM.theaterOfflineScreen.style.display = 'none';
+        if (DOM.theaterOnlineScreen) DOM.theaterOnlineScreen.style.display = 'none';
+        return;
+      }
+
+      // Configurar fondos personalizados si existen
+      if (DOM.offlineBackdrop) {
+        if (AppState.offlineImg) {
+          DOM.offlineBackdrop.style.backgroundImage = `url('${AppState.offlineImg}')`;
+        } else {
+          DOM.offlineBackdrop.style.backgroundImage = 'none';
+        }
+      }
+
+      if (DOM.onlineBackdrop) {
+        if (AppState.onlineImg) {
+          DOM.onlineBackdrop.style.backgroundImage = `url('${AppState.onlineImg}')`;
+        } else if (AppState.offlineImg) {
+          DOM.onlineBackdrop.style.backgroundImage = `url('${AppState.offlineImg}')`;
+        } else {
+          DOM.onlineBackdrop.style.backgroundImage = 'none';
+        }
+      }
+
+      if (!AppState.isOnline) {
+        // Streamer Offline: Mostrar pantalla de fuera de línea
+        if (DOM.theaterOfflineScreen) DOM.theaterOfflineScreen.style.display = 'flex';
+        if (DOM.theaterOnlineScreen) DOM.theaterOnlineScreen.style.display = 'none';
+      } else {
+        // Streamer Online
+        if (DOM.theaterOfflineScreen) DOM.theaterOfflineScreen.style.display = 'none';
+        
+        if (!AppState.isViewerConnected) {
+          // El viewer aún no hizo clic en "Conectarse"
+          if (DOM.theaterOnlineScreen) DOM.theaterOnlineScreen.style.display = 'flex';
+        } else {
+          // El viewer ya está conectado a la transmisión
+          if (DOM.theaterOnlineScreen) DOM.theaterOnlineScreen.style.display = 'none';
+        }
+      }
+    }
+
     // Función que aplica la configuración recibida
     const applyIncomingConfig = (config) => {
       if (!config || AppState.isAdmin) return;
 
       let changed = false;
+
+      // 0. Actualizar estado Online/Offline y Banners
+      if (config.isOnline !== undefined) {
+        AppState.isOnline = Boolean(config.isOnline);
+      }
+      if (config.offlineImg !== undefined) AppState.offlineImg = config.offlineImg;
+      if (config.onlineImg !== undefined) AppState.onlineImg = config.onlineImg;
+
+      updateTheaterStandbyScreens();
 
       // 1. Actualizar Streamer si cambió
       if (config.streamer && config.streamer !== AppState.streamer) {
@@ -1126,7 +1196,9 @@
         AppState.videoUrl = config.videoUrl;
         latestSyncPlaybackState = config;
         if (AppState.videoUrl && AppState.videoUrl.trim() !== '') {
-          loadVideoSource(AppState.videoUrl);
+          if (AppState.isViewerConnected) {
+            loadVideoSource(AppState.videoUrl);
+          }
         } else {
           unloadVideo();
         }
@@ -1140,11 +1212,11 @@
       applyWebcamPosition();
 
       // 4. Sincronización segundo a segundo de reproducción
-      if (config.type === 'PLAYBACK_SYNC' || config.currentTime !== undefined || config.type === 'MASTER_STATE') {
+      if (AppState.isViewerConnected && (config.type === 'PLAYBACK_SYNC' || config.currentTime !== undefined || config.type === 'MASTER_STATE')) {
         applyViewerPlaybackSync(config);
       }
 
-      if (changed) {
+      if (changed && AppState.isViewerConnected) {
         showToast('🎬 ¡El streamer ha actualizado la Watch Party en vivo!', 'info');
       }
     };
@@ -1485,11 +1557,26 @@
     }
 
     if (DOM.btnExitAdmin) {
-      DOM.btnExitAdmin.addEventListener('click', () => {
+      DOM.btnExitAdmin.addEventListener('click', async () => {
+        const adminSecret = sessionStorage.getItem('kick_dual_admin_secret') || '';
+        const sessionToken = sessionStorage.getItem('kick_dual_admin_session_token') || '';
+        try {
+          await fetch(SYNC_API_ENDPOINT, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': adminSecret ? `Bearer ${adminSecret}` : '',
+              'x-admin-session': sessionToken
+            },
+            body: JSON.stringify({ type: 'LOGOUT' })
+          });
+        } catch (e) {}
+
         sessionStorage.removeItem('kick_dual_admin_secret');
         sessionStorage.removeItem('kick_dual_admin_session_token');
         setMode(false);
-        showToast('Has salido del modo Streamer', 'info');
+        AppState.isOnline = false;
+        showToast('Has salido del modo Streamer. La Watch Party ahora está fuera de línea.', 'info');
       });
     }
 
@@ -1497,6 +1584,8 @@
     const openConfigModalHandler = () => {
       if (DOM.inputConfigStreamer) DOM.inputConfigStreamer.value = AppState.streamer || '';
       if (DOM.inputConfigVideo) DOM.inputConfigVideo.value = AppState.videoUrl || '';
+      if (DOM.inputConfigOfflineImg) DOM.inputConfigOfflineImg.value = AppState.offlineImg || '';
+      if (DOM.inputConfigOnlineImg) DOM.inputConfigOnlineImg.value = AppState.onlineImg || '';
       openModal(DOM.modalConfig);
     };
 
@@ -1509,6 +1598,8 @@
         e.preventDefault();
         const streamerVal = DOM.inputConfigStreamer ? DOM.inputConfigStreamer.value.trim() : '';
         const videoVal = DOM.inputConfigVideo ? DOM.inputConfigVideo.value.trim() : '';
+        const offlineVal = DOM.inputConfigOfflineImg ? DOM.inputConfigOfflineImg.value.trim() : '';
+        const onlineVal = DOM.inputConfigOnlineImg ? DOM.inputConfigOnlineImg.value.trim() : '';
 
         // 1. Actualizar Streamer si se indicó
         if (streamerVal) {
@@ -1522,6 +1613,11 @@
         } else if (AppState.videoUrl && !videoVal) {
           unloadVideo();
         }
+
+        // 3. Actualizar Portadas / Banners
+        AppState.offlineImg = offlineVal;
+        AppState.onlineImg = onlineVal;
+        AppState.isOnline = true; // Al guardar el streamer está activamente online
 
         syncUrlParams();
         saveAndBroadcastConfig(); // Auto-guardado y transmisión en tiempo real a todos los viewers
@@ -1842,6 +1938,27 @@
       });
     }
 
+    // --- Botón de Conectarse a la Watch Party (Espectadores) ---
+    if (DOM.btnConnectWatchparty) {
+      DOM.btnConnectWatchparty.addEventListener('click', () => {
+        AppState.isViewerConnected = true;
+        if (DOM.theaterOnlineScreen) DOM.theaterOnlineScreen.style.display = 'none';
+
+        // 1. Cargar la cámara y chat de Kick de inmediato
+        updateKickViews();
+
+        // 2. Cargar el video sincronizado si hay uno activo
+        if (AppState.videoUrl && AppState.videoUrl.trim() !== '') {
+          loadVideoSource(AppState.videoUrl);
+        }
+
+        // 3. Desbloquear audio del reproductor
+        unlockViewerMobileAudio();
+
+        showToast('🎉 ¡Conectado con éxito a la Watch Party en vivo!', 'success');
+      });
+    }
+
     // --- Desbloqueo de Audio & Sync en Móviles / Viewers ---
     const btnUnlockSync = document.getElementById('btn-unlock-sync');
     if (btnUnlockSync) {
@@ -1969,6 +2086,9 @@
           if (cloudState.camX !== undefined) AppState.camX = cloudState.camX;
           if (cloudState.camY !== undefined) AppState.camY = cloudState.camY;
           if (cloudState.camW !== undefined) AppState.camW = cloudState.camW;
+          if (cloudState.isOnline !== undefined) AppState.isOnline = Boolean(cloudState.isOnline);
+          if (cloudState.offlineImg !== undefined) AppState.offlineImg = cloudState.offlineImg;
+          if (cloudState.onlineImg !== undefined) AppState.onlineImg = cloudState.onlineImg;
           latestSyncPlaybackState = cloudState;
         }
       }
@@ -1976,13 +2096,31 @@
       console.warn('Error obteniendo estado inicial de la nube', e);
     }
 
-    updateKickViews();
-    applyWebcamPosition();
-
-    if (AppState.videoUrl && AppState.videoUrl.trim() !== '') {
-      loadVideoSource(AppState.videoUrl);
+    if (AppState.isAdmin) {
+      AppState.isOnline = true;
+      AppState.isViewerConnected = true;
+      updateKickViews();
+      applyWebcamPosition();
+      if (AppState.videoUrl && AppState.videoUrl.trim() !== '') {
+        loadVideoSource(AppState.videoUrl);
+      }
     } else {
-      unloadVideo();
+      // Espectador
+      applyWebcamPosition();
+      if (DOM.offlineBackdrop && AppState.offlineImg) {
+        DOM.offlineBackdrop.style.backgroundImage = `url('${AppState.offlineImg}')`;
+      }
+      if (DOM.onlineBackdrop && AppState.onlineImg) {
+        DOM.onlineBackdrop.style.backgroundImage = `url('${AppState.onlineImg}')`;
+      }
+
+      if (!AppState.isOnline) {
+        if (DOM.theaterOfflineScreen) DOM.theaterOfflineScreen.style.display = 'flex';
+        if (DOM.theaterOnlineScreen) DOM.theaterOnlineScreen.style.display = 'none';
+      } else {
+        if (DOM.theaterOfflineScreen) DOM.theaterOfflineScreen.style.display = 'none';
+        if (DOM.theaterOnlineScreen) DOM.theaterOnlineScreen.style.display = 'flex';
+      }
     }
   }
 

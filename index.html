@@ -95,15 +95,34 @@
 
         <!-- Movie Viewport -->
         <div class="movie-player-box" id="movie-player-box">
-          <!-- Shield Overlay para Espectadores (Bloquea clics/pausa manual de viewers) -->
-          <div class="viewer-video-shield" id="viewer-video-shield" title="Sincronizado con el streamer"></div>
+          <!-- Pantalla Completa: STREAMER OFFLINE / DESCONECTADO -->
+          <div class="theater-standby-screen theater-offline" id="theater-offline-screen" style="display: none;">
+            <div class="standby-backdrop" id="offline-backdrop"></div>
+            <div class="standby-card">
+              <div class="standby-badge offline-badge">
+                <span class="offline-dot"></span>
+                <span>STREAMER DESCONECTADO</span>
+              </div>
+              <h2 class="standby-title" id="offline-title">La transmisión está fuera de línea</h2>
+              <p class="standby-subtitle">El streamer no ha iniciado la Watch Party. Espera a que se conecte para comenzar la función.</p>
+            </div>
+          </div>
 
-          <!-- Banner para Móviles: Desbloqueo de Audio y Autoplay (Política de navegadores móviles) -->
-          <div class="mobile-sync-unlock-banner" id="mobile-sync-unlock-banner">
-            <button class="btn-unlock-sync" id="btn-unlock-sync" type="button">
-              <span class="unlock-icon">▶</span>
-              <span class="unlock-text">Toca para Unirte a la Watch Party</span>
-            </button>
+          <!-- Pantalla Completa: STREAMER ONLINE / LISTO PARA CONECTARSE -->
+          <div class="theater-standby-screen theater-online" id="theater-online-screen" style="display: none;">
+            <div class="standby-backdrop" id="online-backdrop"></div>
+            <div class="standby-card">
+              <div class="standby-badge online-badge">
+                <span class="live-dot"></span>
+                <span>¡STREAMER EN VIVO!</span>
+              </div>
+              <h2 class="standby-title" id="online-title">Watch Party en Directo</h2>
+              <p class="standby-subtitle">El streamer está transmitiendo. Haz clic abajo para ingresar y sincronizar tu pantalla y audio.</p>
+              <button class="btn-connect-watchparty" id="btn-connect-watchparty" type="button">
+                <span class="connect-icon">▶</span>
+                <span class="connect-text">Conectarse a la Transmisión</span>
+              </button>
+            </div>
           </div>
 
           <!-- Placeholder State (Admin vs Viewer) -->
@@ -398,6 +417,26 @@
                 <div class="upload-progress-bar" id="upload-progress-bar"></div>
               </div>
             </div>
+          </div>
+
+          <div class="form-group">
+            <label for="input-config-offline-img">Imagen de Pantalla OFFLINE (URL de Banner / Poster):</label>
+            <input 
+              type="url" 
+              id="input-config-offline-img" 
+              placeholder="https://ejemplo.com/poster-offline.jpg (opcional)"
+              autocomplete="off"
+              spellcheck="false">
+          </div>
+
+          <div class="form-group">
+            <label for="input-config-online-img">Imagen de Pantalla ONLINE (URL de Portada de Bienvenida):</label>
+            <input 
+              type="url" 
+              id="input-config-online-img" 
+              placeholder="https://ejemplo.com/portada-online.jpg (opcional)"
+              autocomplete="off"
+              spellcheck="false">
           </div>
 
           <div class="quick-presets">

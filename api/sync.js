@@ -145,15 +145,41 @@ module.exports = async (req, res) => {
         }
       }
 
-      // 1. Caso: Login / Inicio de Sesión nuevo -> Genera y registra nueva sesión única
+      // 1. Caso: Login / Inicio de Sesión nuevo -> Genera y registra nueva sesión única y marca online
       if (incomingData && incomingData.type === 'VERIFY_AUTH') {
         const newSessionToken = 'sess_' + Math.random().toString(36).substring(2) + Date.now().toString(36);
         await setActiveSessionInRedis(newSessionToken);
+
+        const currentState = (await getFromRedis()) || memoryStateStore;
+        const updatedState = {
+          ...currentState,
+          isOnline: true,
+          updatedAt: Date.now()
+        };
+        memoryStateStore = updatedState;
+        await saveToRedis(updatedState);
+
         return res.status(200).json({ 
           ok: true, 
           message: 'Autenticación exitosa',
-          sessionToken: newSessionToken 
+          sessionToken: newSessionToken,
+          state: updatedState
         });
+      }
+
+      // 1.5. Caso: Logout explícito del Admin -> Pone el stream en OFFLINE
+      if (incomingData && incomingData.type === 'LOGOUT') {
+        await setActiveSessionInRedis('');
+        const currentState = (await getFromRedis()) || memoryStateStore;
+        const updatedState = {
+          ...currentState,
+          isOnline: false,
+          isPlaying: false,
+          updatedAt: Date.now()
+        };
+        memoryStateStore = updatedState;
+        await saveToRedis(updatedState);
+        return res.status(200).json({ ok: true, isOnline: false });
       }
 
       // 2. Caso: Verificación de sesión activa (Heartbeat / polling)
