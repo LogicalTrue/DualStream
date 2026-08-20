@@ -708,22 +708,24 @@
     // 2. Sincronización para Video Nativo HTML5 (.mp4, etc.)
     if (activeNativeVideo) {
       try {
-        // Si el estado del streamer es Pausa
         if (!isPlaying) {
+          // Si el streamer pausó, congelar en el segundo del streamer
           if (!activeNativeVideo.paused) {
             activeNativeVideo.pause();
           }
-          if (Math.abs(activeNativeVideo.currentTime - targetTime) > 0.4) {
+          if (Math.abs(activeNativeVideo.currentTime - targetTime) > 0.5) {
             activeNativeVideo.currentTime = targetTime;
           }
         } else {
-          // Si el estado del streamer es Play
+          // Si el streamer está reproduciendo, arrancar reproducción
           if (activeNativeVideo.paused) {
             activeNativeVideo.play().catch(() => {});
           }
+
+          // Solo saltar si el espectador tiene un desfase gigante (> 4.5 segundos)
+          // Esto evita que el video vaya para adelante y para atrás entrecortándose
           const diff = Math.abs(activeNativeVideo.currentTime - targetTime);
-          // Si el celular va desfasado por más de 1.5s, corregir el segundo
-          if (diff > 1.5) {
+          if (diff > 4.5) {
             activeNativeVideo.currentTime = targetTime;
           }
         }
