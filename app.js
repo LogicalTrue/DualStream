@@ -1703,7 +1703,70 @@
     if (DOM.btnWebcamToggleFooter) DOM.btnWebcamToggleFooter.addEventListener('click', toggleWebcamVisibility);
     if (DOM.btnReloadKick) DOM.btnReloadKick.addEventListener('click', reloadKickPlayer);
 
-    // --- Video Actions ---
+    // --- Video Actions & Volume Control ---
+    const btnToggleVideoMute = document.getElementById('btn-toggle-video-mute');
+    const sliderVideoVolume = document.getElementById('slider-video-volume');
+    const iconVolHigh = document.getElementById('icon-vol-high');
+    const iconVolMute = document.getElementById('icon-vol-mute');
+
+    const updateVideoVolume = (val) => {
+      const vol = Math.max(0, Math.min(100, parseInt(val, 10)));
+      if (activeNativeVideo) {
+        activeNativeVideo.volume = vol / 100;
+        activeNativeVideo.muted = (vol === 0);
+      }
+      if (ytPlayerInstance && typeof ytPlayerInstance.setVolume === 'function') {
+        ytPlayerInstance.setVolume(vol);
+        if (vol === 0) ytPlayerInstance.mute();
+        else ytPlayerInstance.unMute();
+      }
+      if (vol === 0) {
+        if (iconVolHigh) iconVolHigh.classList.add('hidden');
+        if (iconVolMute) iconVolMute.classList.remove('hidden');
+      } else {
+        if (iconVolHigh) iconVolHigh.classList.remove('hidden');
+        if (iconVolMute) iconVolMute.classList.add('hidden');
+      }
+    };
+
+    if (sliderVideoVolume) {
+      sliderVideoVolume.addEventListener('input', (e) => {
+        updateVideoVolume(e.target.value);
+      });
+    }
+
+    if (btnToggleVideoMute) {
+      btnToggleVideoMute.addEventListener('click', () => {
+        if (activeNativeVideo) {
+          if (activeNativeVideo.muted || activeNativeVideo.volume === 0) {
+            activeNativeVideo.muted = false;
+            activeNativeVideo.volume = 1;
+            if (sliderVideoVolume) sliderVideoVolume.value = 100;
+            updateVideoVolume(100);
+            showToast('Audio de película activado', 'success');
+          } else {
+            activeNativeVideo.muted = true;
+            if (sliderVideoVolume) sliderVideoVolume.value = 0;
+            updateVideoVolume(0);
+            showToast('Película silenciada', 'info');
+          }
+        } else if (ytPlayerInstance && typeof ytPlayerInstance.isMuted === 'function') {
+          if (ytPlayerInstance.isMuted()) {
+            ytPlayerInstance.unMute();
+            ytPlayerInstance.setVolume(100);
+            if (sliderVideoVolume) sliderVideoVolume.value = 100;
+            updateVideoVolume(100);
+            showToast('Audio de YouTube activado', 'success');
+          } else {
+            ytPlayerInstance.mute();
+            if (sliderVideoVolume) sliderVideoVolume.value = 0;
+            updateVideoVolume(0);
+            showToast('YouTube silenciado', 'info');
+          }
+        }
+      });
+    }
+
     if (DOM.btnReloadMovie) DOM.btnReloadMovie.addEventListener('click', reloadMoviePlayer);
     if (DOM.btnFullscreenMovie) DOM.btnFullscreenMovie.addEventListener('click', () => toggleFullscreen(DOM.stageSection));
 

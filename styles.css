@@ -548,6 +548,51 @@ body.mode-admin .mobile-sync-unlock-banner,
   opacity: 1;
 }
 
+.viewer-volume-control {
+  display: flex;
+  align-items: center;
+  background: rgba(14, 17, 19, 0.85);
+  backdrop-filter: blur(6px);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  padding: 0 4px;
+  gap: 4px;
+  height: 28px;
+}
+
+.viewer-volume-control .control-badge-btn {
+  background: none;
+  border: none;
+  width: 20px;
+  height: 20px;
+}
+
+.viewer-volume-slider {
+  width: 60px;
+  height: 4px;
+  -webkit-appearance: none;
+  appearance: none;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 2px;
+  outline: none;
+  cursor: pointer;
+  accent-color: var(--kick-green);
+}
+
+.viewer-volume-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--kick-green);
+  cursor: pointer;
+}
+
+.hidden {
+  display: none !important;
+}
+
 .control-badge-btn {
   background: rgba(14, 17, 19, 0.85);
   backdrop-filter: blur(6px);
