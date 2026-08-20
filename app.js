@@ -33,7 +33,7 @@
   // Configuración inicial / por defecto (blackozutr)
   const DEFAULT_CONFIG = {
     streamer: 'blackozutr',
-    videoUrl: 'https://www.youtube.com/watch?v=aqz-KE-bpKQ',
+    videoUrl: 'https://www.youtube.com/watch?v=A8qw5r6aDYo',
     camX: 2, // %
     camY: 3, // %
     camW: 26 // %
@@ -998,7 +998,7 @@
     // Demo video preset
     if (DOM.btnLoadDemo) {
       DOM.btnLoadDemo.addEventListener('click', () => {
-        const demoUrl = 'https://www.youtube.com/watch?v=aqz-KE-bpKQ';
+        const demoUrl = 'https://www.youtube.com/watch?v=A8qw5r6aDYo';
         loadVideoSource(demoUrl);
         showToast('Video Demo cargado', 'success');
       });
