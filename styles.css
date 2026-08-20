@@ -788,6 +788,147 @@ body.mode-viewer .webcam-resize-handle {
 }
 
 /* ==========================================================================
+   14. RESPONSIVE DESIGN (MOBILE PORTRAIT & LANDSCAPE)
+   ========================================================================== */
+
+/* Tablet & Mobile Portrait (max-width: 768px) */
+@media (max-width: 768px) and (orientation: portrait) {
+  :root {
+    --topbar-height: 44px;
+  }
+
+  .topbar {
+    padding: 0 10px;
+  }
+
+  .brand-text .app-title {
+    font-size: 14px;
+  }
+
+  .brand-badge {
+    width: 26px;
+    height: 26px;
+    font-size: 13px;
+  }
+
+  .mode-badge,
+  .topbar-center,
+  .btn-text,
+  .streamer-pill .streamer-name {
+    font-size: 11px;
+  }
+
+  .watch-container {
+    flex-direction: column !important;
+    height: calc(100dvh - var(--topbar-height));
+    overflow: hidden;
+  }
+
+  .stage-section {
+    flex: 0 0 auto !important;
+    width: 100% !important;
+    height: auto !important;
+    max-height: 42vh;
+    aspect-ratio: 16 / 9;
+  }
+
+  .video-theater {
+    width: 100%;
+    height: 100%;
+  }
+
+  .movie-player-box {
+    width: 100%;
+    height: 100%;
+  }
+
+  .webcam-card {
+    min-width: 105px !important;
+    max-width: 145px !important;
+    border-radius: var(--radius-sm);
+  }
+
+  .chat-resizer {
+    display: none !important;
+  }
+
+  .chat-section {
+    flex: 1 1 auto !important;
+    width: 100% !important;
+    min-width: 100% !important;
+    max-width: 100% !important;
+    height: 100% !important;
+    border-left: none !important;
+    border-top: 1px solid var(--border-subtle);
+    display: flex !important;
+  }
+
+  .chat-header {
+    height: 38px;
+    min-height: 38px;
+    padding: 0 10px;
+  }
+}
+
+/* Mobile Landscape / Rotado (max-height: 520px) */
+@media (orientation: landscape) and (max-height: 520px) {
+  :root {
+    --topbar-height: 0px;
+  }
+
+  /* Ocultar barra superior en rotación para cine fullscreen */
+  .topbar {
+    display: none !important;
+  }
+
+  .watch-container {
+    height: 100dvh !important;
+    flex-direction: row !important;
+  }
+
+  .stage-section {
+    flex: 1 1 auto !important;
+    height: 100dvh !important;
+    width: 100% !important;
+  }
+
+  .video-theater {
+    width: 100% !important;
+    height: 100% !important;
+  }
+
+  .movie-player-box {
+    width: 100% !important;
+    height: 100% !important;
+    aspect-ratio: 16 / 9;
+  }
+
+  .webcam-card {
+    min-width: 120px !important;
+    max-width: 180px !important;
+  }
+
+  .chat-resizer {
+    display: none !important;
+  }
+
+  /* En horizontal el chat es lateral compacto */
+  .chat-section {
+    width: 250px !important;
+    min-width: 220px !important;
+    max-width: 280px !important;
+    height: 100dvh !important;
+    border-left: 1px solid var(--border-subtle) !important;
+  }
+
+  .chat-header {
+    height: 34px;
+    min-height: 34px;
+    padding: 0 8px;
+  }
+}
+
+/* ==========================================================================
    CHAT SIDEBAR SECTION
    ========================================================================== */
 
