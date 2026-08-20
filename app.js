@@ -28,7 +28,7 @@
   }
 
   // Canal de eventos en vivo en tiempo real (EventSource / SSE)
-  const CLOUD_SYNC_TOPIC = 'https://ntfy.sh/dualstream_watchparty_official_sync_v2';
+  const CLOUD_SYNC_TOPIC = 'https://ntfy.sh/dualstream_wp_official_v3';
 
   // Configuración inicial / por defecto (blackozutr)
   const DEFAULT_CONFIG = {
@@ -763,18 +763,30 @@
     if (ytPlayerInstance && typeof ytPlayerInstance.unMute === 'function') {
       try {
         ytPlayerInstance.unMute();
-        ytPlayerInstance.playVideo();
+        ytPlayerInstance.setVolume(100);
+        if (latestSyncPlaybackState && latestSyncPlaybackState.isPlaying) {
+          const latency = Math.max(0, (Date.now() - latestSyncPlaybackState.updatedAt) / 1000);
+          ytPlayerInstance.seekTo((latestSyncPlaybackState.currentTime || 0) + latency, true);
+          ytPlayerInstance.playVideo();
+        } else if (latestSyncPlaybackState) {
+          ytPlayerInstance.seekTo(latestSyncPlaybackState.currentTime || 0, true);
+          ytPlayerInstance.pauseVideo();
+        } else {
+          ytPlayerInstance.playVideo();
+        }
       } catch (e) {}
     }
 
     if (activeNativeVideo) {
       try {
         activeNativeVideo.muted = false;
-        activeNativeVideo.play().catch(() => {});
+        if (latestSyncPlaybackState && latestSyncPlaybackState.isPlaying) {
+          activeNativeVideo.play().catch(() => {});
+        }
       } catch (e) {}
     }
 
-    showToast('🔊 ¡Audio activado y sincronizado!', 'success');
+    showToast('🔊 ¡Watch Party sincronizada con audio!', 'success');
   }
 
   // Detector instantáneo de saltos en el tiempo (Seek / Adelantar / Retroceder) para Admin
