@@ -193,25 +193,11 @@
 
         <!-- WEBCAM / STREAMER CAMERA OVERLAY -->
         <div class="webcam-card" id="webcam-card">
-          <!-- Transparent Drag & Resize Overlay for Admin (no interfiere con el reproductor de Kick) -->
+          <!-- Transparent Drag & Resize Overlay for Admin -->
           <div class="webcam-drag-overlay" id="webcam-drag-overlay" title="Arrastra para mover la cámara"></div>
 
-          <!-- Botones de Acción Rápida para la Webcam (Recargar / Desmutear Streamer) -->
-          <div class="webcam-floating-actions">
-            <button class="webcam-action-pill" id="btn-unmute-kick-stream" title="Activar/Silenciar audio de Kick">
-              <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2">
-                <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
-                <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path>
-              </svg>
-              <span>Kick Audio</span>
-            </button>
-            <button class="webcam-action-pill-icon" id="btn-quick-reload-kick" title="Recargar cámara de Kick">
-              <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2">
-                <polyline points="23 4 23 10 17 10"></polyline>
-                <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
-              </svg>
-            </button>
-          </div>
+          <!-- Escudo transparente inerte (evita 100% cualquier overlay de pausa, play o hover de Kick) -->
+          <div class="webcam-inert-shield"></div>
 
           <!-- Webcam Iframe Frame -->
           <div class="webcam-frame-wrapper">
