@@ -58,9 +58,9 @@
   }
 
   /**
-   * Guarda y difunde la configuración a todos los espectadores en tiempo real (Local + Nube)
+   * Obtiene el estado maestro actual del Admin en este milisegundo exacto
    */
-  function saveAndBroadcastConfig() {
+  function getCurrentMasterState() {
     let currentSec = 0;
     let isCurrentlyPlaying = false;
     if (typeof ytPlayerInstance !== 'undefined' && ytPlayerInstance && typeof ytPlayerInstance.getCurrentTime === 'function') {
@@ -74,8 +74,8 @@
       isCurrentlyPlaying = !activeNativeVideo.paused;
     }
 
-    const configToSave = {
-      type: 'CONFIG_UPDATED',
+    return {
+      type: 'MASTER_STATE',
       streamer: AppState.streamer,
       videoUrl: AppState.videoUrl,
       camX: AppState.camX,
@@ -85,6 +85,13 @@
       isPlaying: isCurrentlyPlaying,
       updatedAt: Date.now()
     };
+  }
+
+  /**
+   * Guarda y difunde la configuración a todos los espectadores en tiempo real por WebRTC
+   */
+  function saveAndBroadcastConfig() {
+    const configToSave = getCurrentMasterState();
 
     // 1. Guardar en localStorage local y BroadcastChannel
     try {
@@ -96,18 +103,13 @@
       console.warn('Error en storage local', e);
     }
 
-    // 2. Transmitir por canal de eventos en vivo para todos los espectadores en Vercel
-    try {
-      fetch(CLOUD_SYNC_TOPIC, {
-        method: 'POST',
-        body: JSON.stringify(configToSave),
-        headers: {
-          'Title': 'DualStream Global Sync',
-          'Tags': 'tv,video_camera'
+    // 2. Transmitir por WebRTC DataChannel directo (0ms a todos los espectadores)
+    if (viewerConnections && viewerConnections.length > 0) {
+      viewerConnections.forEach(conn => {
+        if (conn && conn.open) {
+          try { conn.send(configToSave); } catch(e) {}
         }
-      }).catch(err => console.warn('Error en broadcast a la nube', err));
-    } catch (err) {
-      console.warn('Fallo al emitir a la nube', err);
+      });
     }
   }
 
@@ -575,17 +577,21 @@
       updatedAt: now
     };
 
-    // Emitir localmente por BroadcastChannel y a la nube
+    // 1. Emitir localmente por BroadcastChannel
     try {
       if (syncChannel) {
         syncChannel.postMessage(payload);
       }
-      fetch(CLOUD_SYNC_TOPIC, {
-        method: 'POST',
-        body: JSON.stringify(payload),
-        headers: { 'Title': 'Playback Sync', 'Tags': 'arrow_forward,play_or_pause_button' }
-      }).catch(() => {});
     } catch (e) {}
+
+    // 2. Emitir directo por WebRTC DataChannel (0ms latencia)
+    if (viewerConnections && viewerConnections.length > 0) {
+      viewerConnections.forEach(conn => {
+        if (conn && conn.open) {
+          try { conn.send(payload); } catch(e) {}
+        }
+      });
+    }
   }
 
   let latestSyncPlaybackState = null;
@@ -1063,66 +1069,108 @@
       }
     });
 
-    // 3. Escuchar EventSource en la Nube (Eventos instantáneos en Vercel para todos los espectadores)
-    let cloudEventSource = null;
+    // 3. Sistema WebRTC Directo PeerJS (0ms latencia directa entre Admin y Espectadores)
+    initPeerSignaling();
+  }
 
-    function initCloudSync() {
-      if (cloudEventSource) {
-        try { cloudEventSource.close(); } catch (e) {}
-      }
+  // Variables globales de PeerJS
+  let peerInstance = null;
+  let viewerConnections = [];
+  let adminConnToMaster = null;
 
-      try {
-        const sseUrl = `${CLOUD_SYNC_TOPIC}/sse`;
-        cloudEventSource = new EventSource(sseUrl);
+  function getStreamerRoomId(streamer) {
+    return 'dualstream_room_' + (streamer || DEFAULT_STREAMER).toLowerCase().replace(/[^a-z0-9]/g, '');
+  }
 
-        cloudEventSource.onmessage = (event) => {
-          try {
-            const data = JSON.parse(event.data);
-            const rawMessage = data.message || data;
-            const config = typeof rawMessage === 'string' ? JSON.parse(rawMessage) : rawMessage;
-            if (config) {
-              applyIncomingConfig(config);
-            }
-          } catch (e) {}
-        };
-
-        cloudEventSource.onerror = () => {};
-      } catch (e) {
-        console.warn('EventSource cloud sync no disponible', e);
-      }
+  function initPeerSignaling() {
+    if (typeof Peer === 'undefined') {
+      setTimeout(initPeerSignaling, 400);
+      return;
     }
 
-    initCloudSync();
+    if (peerInstance) {
+      try { peerInstance.destroy(); } catch (e) {}
+      peerInstance = null;
+    }
+    viewerConnections = [];
 
-    // 4. Carga inmediata del último estado activo en la Nube (para usuarios nuevos o modo incógnito)
-    const fetchLatestCloudState = async () => {
-      if (document.body.classList.contains('mode-viewer') || !AppState.isAdmin) {
-        try {
-          const cloudRes = await fetch(`${CLOUD_SYNC_TOPIC}/json?poll=1`, { cache: 'no-store' });
-          if (cloudRes.ok) {
-            const text = await cloudRes.text();
-            const lines = text.trim().split('\n');
-            for (let i = lines.length - 1; i >= 0; i--) {
-              if (!lines[i] || !lines[i].trim()) continue;
-              try {
-                const item = JSON.parse(lines[i]);
-                if (item.event && item.event !== 'message') continue;
-                const rawMessage = item.message || item;
-                const config = typeof rawMessage === 'string' ? JSON.parse(rawMessage) : rawMessage;
-                if (config && (config.streamer || config.videoUrl !== undefined)) {
-                  applyIncomingConfig(config);
-                  return;
-                }
-              } catch (e) {}
-            }
+    const roomId = getStreamerRoomId(AppState.streamer);
+
+    if (AppState.isAdmin) {
+      // STREAMER HOST: Recibe conexiones directas de los espectadores
+      try {
+        peerInstance = new Peer(roomId, { debug: 0 });
+
+        peerInstance.on('open', (id) => {
+          console.log('📡 [Admin WebRTC Host] Sala abierta y lista:', id);
+        });
+
+        peerInstance.on('connection', (conn) => {
+          console.log('👥 [Admin WebRTC Host] Nuevo espectador conectado');
+          viewerConnections.push(conn);
+
+          conn.on('open', () => {
+            // Enviar inmediatamente el estado maestro actual al nuevo espectador
+            const state = getCurrentMasterState();
+            conn.send(state);
+          });
+
+          conn.on('close', () => {
+            viewerConnections = viewerConnections.filter(c => c !== conn);
+          });
+        });
+
+        peerInstance.on('error', (err) => {
+          if (err.type === 'unavailable-id') {
+            console.warn('ID de sala en uso. Reintentando...');
           }
-        } catch (err) {}
+        });
+      } catch (e) {
+        console.warn('Error iniciando PeerJS Host', e);
       }
-    };
+    } else {
+      // ESPECTADOR CLIENTE: Se conecta directamente al Host del Streamer
+      try {
+        peerInstance = new Peer(null, { debug: 0 });
 
-    // Consulta inicial inmediata para que el nuevo viewer cargue el streamer y video exacto del admin
-    fetchLatestCloudState();
-    setInterval(fetchLatestCloudState, 3500);
+        peerInstance.on('open', () => {
+          connectToStreamerHost();
+        });
+
+        peerInstance.on('error', () => {
+          setTimeout(connectToStreamerHost, 2000);
+        });
+      } catch (e) {
+        console.warn('Error iniciando PeerJS Client', e);
+      }
+    }
+  }
+
+  function connectToStreamerHost() {
+    if (!peerInstance || AppState.isAdmin) return;
+    const roomId = getStreamerRoomId(AppState.streamer);
+    try {
+      if (adminConnToMaster) {
+        try { adminConnToMaster.close(); } catch(e) {}
+      }
+      adminConnToMaster = peerInstance.connect(roomId, { reliable: true });
+
+      adminConnToMaster.on('open', () => {
+        console.log('🟢 [Viewer] Conectado en directo al Streamer');
+      });
+
+      adminConnToMaster.on('data', (data) => {
+        if (data) {
+          applyIncomingConfig(data);
+        }
+      });
+
+      adminConnToMaster.on('close', () => {
+        setTimeout(connectToStreamerHost, 2500);
+      });
+    } catch(e) {
+      setTimeout(connectToStreamerHost, 3000);
+    }
   }
 
   // --------------------------------------------------------------------------
