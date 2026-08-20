@@ -11,7 +11,7 @@
   // --------------------------------------------------------------------------
   // 1. CONFIGURATION & STATE
   // --------------------------------------------------------------------------
-  
+
   // Clave de almacenamiento persistente
   const STORAGE_KEY = 'kick_dual_streamer_config';
   const SYNC_CHANNEL_NAME = 'kick_dual_watch_party_sync';
@@ -27,12 +27,12 @@
     console.warn('BroadcastChannel no soportado, usando fallback StorageEvent', e);
   }
 
-  // Base de datos global en la nube (Persistente, sin límites ni reinicios)
-  const CLOUD_CONFIG_URL = 'https://api.restful-api.dev/objects/ff8081819ff5b11001a01cfe28415758';
+  // Canal de eventos en vivo en tiempo real (EventSource / SSE)
+  const CLOUD_SYNC_TOPIC = 'https://ntfy.sh/dualstream_watchparty_official_sync_v2';
 
-  // Configuración inicial / por defecto
+  // Configuración inicial / por defecto (blackozutr)
   const DEFAULT_CONFIG = {
-    streamer: 'losfutbolitos',
+    streamer: 'blackozutr',
     videoUrl: 'https://www.youtube.com/watch?v=aqz-KE-bpKQ',
     camX: 2, // %
     camY: 3, // %
@@ -69,7 +69,7 @@
       camW: AppState.camW,
       updatedAt: Date.now()
     };
-    
+
     // 1. Guardar en localStorage local y BroadcastChannel
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(configToSave));
@@ -80,16 +80,16 @@
       console.warn('Error en storage local', e);
     }
 
-    // 2. Guardar en la Nube Global (para todos los espectadores en Vercel/Internet)
+    // 2. Transmitir por canal de eventos en vivo para todos los espectadores en Vercel
     try {
-      fetch(CLOUD_CONFIG_URL, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: 'dualstream_config',
-          data: configToSave
-        })
-      }).catch(err => console.warn('Error guardando en la nube', err));
+      fetch(CLOUD_SYNC_TOPIC, {
+        method: 'POST',
+        body: JSON.stringify(configToSave),
+        headers: {
+          'Title': 'DualStream Global Sync',
+          'Tags': 'tv,video_camera'
+        }
+      }).catch(err => console.warn('Error en broadcast a la nube', err));
     } catch (err) {
       console.warn('Fallo al emitir a la nube', err);
     }
@@ -222,7 +222,7 @@
 
   function parseUrlParams() {
     const searchParams = new URLSearchParams(window.location.search);
-    
+
     // Check mode
     const modeParam = searchParams.get('mode');
     const adminParam = searchParams.get('admin');
@@ -272,7 +272,7 @@
 
   function syncUrlParams() {
     const url = new URL(window.location.href);
-    
+
     if (AppState.streamer && AppState.streamer !== DEFAULT_STREAMER) {
       url.searchParams.set('streamer', AppState.streamer);
     } else {
@@ -304,7 +304,7 @@
 
   function updateKickViews() {
     const channel = AppState.streamer;
-    
+
     if (DOM.currentStreamerLabel) {
       DOM.currentStreamerLabel.textContent = channel;
     }
@@ -364,7 +364,7 @@
 
       isDragging = true;
       DOM.webcamCard.classList.add('is-dragging');
-      
+
       // Evitar que el iframe de Kick capture los eventos del mouse durante el arrastre
       DOM.kickPlayerFrame.style.pointerEvents = 'none';
 
@@ -548,16 +548,16 @@
 
     DOM.moviePlaceholder.style.display = 'none';
     DOM.movieMediaWrapper.style.display = 'block';
-    
+
     updateVideoInfoBadge(url);
   }
 
   function isDirectVideoFile(url) {
     const cleanUrl = url.split('?')[0].toLowerCase();
-    return cleanUrl.endsWith('.mp4') || 
-           cleanUrl.endsWith('.webm') || 
-           cleanUrl.endsWith('.ogg') ||
-           cleanUrl.endsWith('.mkv');
+    return cleanUrl.endsWith('.mp4') ||
+      cleanUrl.endsWith('.webm') ||
+      cleanUrl.endsWith('.ogg') ||
+      cleanUrl.endsWith('.mkv');
   }
 
   function normalizeEmbedUrl(url) {
@@ -682,7 +682,7 @@
       if (!isDragging) return;
       const containerRect = DOM.watchContainer.getBoundingClientRect();
       let newChatWidth = containerRect.right - e.clientX;
-      
+
       if (newChatWidth < 240) newChatWidth = 240;
       if (newChatWidth > 580) newChatWidth = 580;
 
@@ -735,7 +735,7 @@
     // Función que aplica la configuración recibida
     const applyIncomingConfig = (config) => {
       if (!config) return;
-      
+
       // Solo aplicar a espectadores
       if (document.body.classList.contains('mode-viewer') || !AppState.isAdmin) {
         let changed = false;
@@ -794,7 +794,42 @@
       }
     });
 
-    // 3. Polling inicial y periódico a la Base de Datos Global en la Nube (cada 2 segundos)
+    // 3. Escuchar EventSource en la Nube (Eventos instantáneos en Vercel para todos los espectadores)
+    let cloudEventSource = null;
+
+    function initCloudSync() {
+      if (cloudEventSource) {
+        try { cloudEventSource.close(); } catch (e) {}
+      }
+
+      try {
+        const sseUrl = `${CLOUD_SYNC_TOPIC}/sse`;
+        cloudEventSource = new EventSource(sseUrl);
+
+        cloudEventSource.onmessage = (event) => {
+          try {
+            const data = JSON.parse(event.data);
+            const rawMessage = data.message || data;
+            const config = typeof rawMessage === 'string' ? JSON.parse(rawMessage) : rawMessage;
+            if (config && config.streamer) {
+              const configTime = config.updatedAt || 1;
+              if (configTime > lastProcessedTimestamp) {
+                lastProcessedTimestamp = configTime;
+                applyIncomingConfig(config);
+              }
+            }
+          } catch (e) {}
+        };
+
+        cloudEventSource.onerror = () => {};
+      } catch (e) {
+        console.warn('EventSource cloud sync no disponible', e);
+      }
+    }
+
+    initCloudSync();
+
+    // 4. Polling de respaldo a la Base de Datos Global en la Nube
     const pollCloudDatabase = async () => {
       if (document.body.classList.contains('mode-viewer') || !AppState.isAdmin) {
         try {
@@ -810,13 +845,13 @@
               }
             }
           }
-        } catch (err) {}
+        } catch (err) { }
       }
     };
 
     // Consulta inicial inmediata para que el viewer cargue todo lo que dejó el admin
     pollCloudDatabase();
-    setInterval(pollCloudDatabase, 2000);
+    setInterval(pollCloudDatabase, 5000);
   }
 
   // --------------------------------------------------------------------------
