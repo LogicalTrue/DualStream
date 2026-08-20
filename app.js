@@ -521,15 +521,25 @@
   // --------------------------------------------------------------------------
 
   // --------------------------------------------------------------------------
-  // 7. MAIN VIDEO PLAYER & TIME SYNCHRONIZER
+  // 7. MAIN VIDEO PLAYER & TIME SYNCHRONIZER (YOUTUBE API & HTML5)
   // --------------------------------------------------------------------------
 
   let lastAdminSyncEmit = 0;
   let activeNativeVideo = null;
-  let activeIframeVideo = null;
+  let ytPlayerInstance = null;
+  let isYtApiReady = false;
+  let pendingYtVideoId = null;
+
+  // Callback oficial de YouTube API
+  window.onYouTubeIframeAPIReady = function () {
+    isYtApiReady = true;
+    if (pendingYtVideoId) {
+      initYouTubePlayer(pendingYtVideoId);
+    }
+  };
 
   function emitPlaybackSync(currentTime, isPlaying) {
-    if (!AppState.isAdmin) return; // Solo el admin es el emisor máster
+    if (!AppState.isAdmin) return; // Solo el admin emite eventos máster
 
     const now = Date.now();
     lastAdminSyncEmit = now;
@@ -565,44 +575,49 @@
     const { currentTime, isPlaying, updatedAt } = data;
     if (currentTime === undefined) return;
 
-    // Calcular el segundo exacto compensando latencia de red
-    const latencySec = (Date.now() - (updatedAt || Date.now())) / 1000;
-    const targetTime = isPlaying ? currentTime + Math.max(0, latencySec) : currentTime;
+    // Compensar latencia de red para sincronización exacta
+    const latencySec = Math.max(0, (Date.now() - (updatedAt || Date.now())) / 1000);
+    const targetTime = isPlaying ? currentTime + latencySec : currentTime;
 
-    // 1. Control para Video Nativo HTML5
-    if (activeNativeVideo) {
-      if (isPlaying && activeNativeVideo.paused) {
-        activeNativeVideo.play().catch(() => {});
-      } else if (!isPlaying && !activeNativeVideo.paused) {
-        activeNativeVideo.pause();
-      }
+    // 1. Sincronización para YouTube Player
+    if (ytPlayerInstance && typeof ytPlayerInstance.getPlayerState === 'function') {
+      try {
+        const playerState = ytPlayerInstance.getPlayerState();
+        const currentYtTime = ytPlayerInstance.getCurrentTime() || 0;
 
-      if (Math.abs(activeNativeVideo.currentTime - targetTime) > 1.2) {
-        activeNativeVideo.currentTime = targetTime;
+        if (isPlaying) {
+          if (playerState !== 1 && playerState !== 3) {
+            ytPlayerInstance.playVideo();
+          }
+          if (Math.abs(currentYtTime - targetTime) > 1.2) {
+            ytPlayerInstance.seekTo(targetTime, true);
+          }
+        } else {
+          if (playerState === 1 || playerState === 3) {
+            ytPlayerInstance.pauseVideo();
+          }
+          if (Math.abs(currentYtTime - targetTime) > 1.0) {
+            ytPlayerInstance.seekTo(targetTime, true);
+          }
+        }
+      } catch (err) {
+        console.warn('Error sincronizando YouTube player', err);
       }
     }
 
-    // 2. Control para YouTube Iframe Player
-    if (activeIframeVideo && activeIframeVideo.contentWindow) {
-      if (isPlaying) {
-        activeIframeVideo.contentWindow.postMessage(JSON.stringify({
-          event: 'command',
-          func: 'playVideo',
-          args: []
-        }), '*');
-      } else {
-        activeIframeVideo.contentWindow.postMessage(JSON.stringify({
-          event: 'command',
-          func: 'pauseVideo',
-          args: []
-        }), '*');
-      }
+    // 2. Sincronización para Video Nativo HTML5
+    if (activeNativeVideo) {
+      try {
+        if (isPlaying && activeNativeVideo.paused) {
+          activeNativeVideo.play().catch(() => {});
+        } else if (!isPlaying && !activeNativeVideo.paused) {
+          activeNativeVideo.pause();
+        }
 
-      activeIframeVideo.contentWindow.postMessage(JSON.stringify({
-        event: 'command',
-        func: 'seekTo',
-        args: [targetTime, true]
-      }), '*');
+        if (Math.abs(activeNativeVideo.currentTime - targetTime) > 1.2) {
+          activeNativeVideo.currentTime = targetTime;
+        }
+      } catch (e) {}
     }
   }
 
@@ -614,7 +629,7 @@
 
     let url = rawInput.trim();
 
-    // Check if user pasted an entire iframe
+    // Extraer src si pegaron un <iframe>
     const iframeSrcMatch = url.match(/<iframe.*?src=["'](.*?)["']/i);
     if (iframeSrcMatch && iframeSrcMatch[1]) {
       url = iframeSrcMatch[1];
@@ -625,13 +640,29 @@
 
     DOM.movieMediaWrapper.innerHTML = '';
     activeNativeVideo = null;
-    activeIframeVideo = null;
+    if (ytPlayerInstance && typeof ytPlayerInstance.destroy === 'function') {
+      try { ytPlayerInstance.destroy(); } catch (e) {}
+      ytPlayerInstance = null;
+    }
 
-    if (isDirectVideoFile(url)) {
+    const ytId = extractYouTubeId(url);
+
+    if (ytId) {
+      // Contenedor dedicado para YouTube API
+      const ytContainer = document.createElement('div');
+      ytContainer.id = 'yt-player-target';
+      ytContainer.className = 'media-frame';
+      DOM.movieMediaWrapper.appendChild(ytContainer);
+
+      if (window.YT && window.YT.Player) {
+        initYouTubePlayer(ytId);
+      } else {
+        pendingYtVideoId = ytId;
+      }
+    } else if (isDirectVideoFile(url)) {
       renderNativeVideo(url);
     } else {
-      const embedUrl = normalizeEmbedUrl(url);
-      renderIframeVideo(embedUrl);
+      renderIframeVideo(url);
     }
 
     DOM.moviePlaceholder.style.display = 'none';
@@ -639,6 +670,61 @@
 
     updateVideoInfoBadge(url);
   }
+
+  function extractYouTubeId(url) {
+    const ytMatch = url.match(/(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/i);
+    return (ytMatch && ytMatch[1]) ? ytMatch[1] : null;
+  }
+
+  function initYouTubePlayer(videoId) {
+    pendingYtVideoId = null;
+    try {
+      ytPlayerInstance = new YT.Player('yt-player-target', {
+        videoId: videoId,
+        playerVars: {
+          autoplay: 1,
+          controls: AppState.isAdmin ? 1 : 0, // Solo admin tiene controles
+          rel: 0,
+          modestbranding: 1,
+          playsinline: 1,
+          enablejsapi: 1,
+          origin: window.location.origin
+        },
+        events: {
+          onReady: (e) => {
+            e.target.playVideo();
+          },
+          onStateChange: (e) => {
+            if (AppState.isAdmin) {
+              const state = e.data;
+              const currentTime = e.target.getCurrentTime() || 0;
+              if (state === 1) { // Playing
+                emitPlaybackSync(currentTime, true);
+              } else if (state === 2) { // Paused
+                emitPlaybackSync(currentTime, false);
+              }
+            }
+          }
+        }
+      });
+    } catch (e) {
+      console.warn('Error inicializando YT.Player', e);
+    }
+  }
+
+  // Heartbeat continuo de emisión de tiempo para el Admin
+  setInterval(() => {
+    if (AppState.isAdmin && ytPlayerInstance && typeof ytPlayerInstance.getPlayerState === 'function') {
+      try {
+        if (ytPlayerInstance.getPlayerState() === 1) { // Está reproduciendo
+          const current = ytPlayerInstance.getCurrentTime();
+          if (current !== undefined && Date.now() - lastAdminSyncEmit > 1400) {
+            emitPlaybackSync(current, true);
+          }
+        }
+      } catch (e) {}
+    }
+  }, 1400);
 
   function isDirectVideoFile(url) {
     const cleanUrl = url.split('?')[0].toLowerCase();
@@ -648,39 +734,22 @@
       cleanUrl.endsWith('.mkv');
   }
 
-  function normalizeEmbedUrl(url) {
-    // YouTube
-    const ytMatch = url.match(/(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/i);
-    if (ytMatch && ytMatch[1]) {
-      return `https://www.youtube-nocookie.com/embed/${ytMatch[1]}?autoplay=1&rel=0&enablejsapi=1&origin=${encodeURIComponent(window.location.origin)}`;
-    }
-
-    // Dailymotion
-    const dmMatch = url.match(/dailymotion\.com\/video\/([a-zA-Z0-9]+)/i);
-    if (dmMatch && dmMatch[1]) {
-      return `https://www.dailymotion.com/embed/video/${dmMatch[1]}?autoplay=1`;
-    }
-
-    return url;
-  }
-
   function renderNativeVideo(url) {
     const videoElem = document.createElement('video');
     videoElem.className = 'native-video-player';
-    videoElem.controls = AppState.isAdmin; // Solo el admin tiene barra de controles
+    videoElem.controls = AppState.isAdmin;
     videoElem.autoplay = true;
     videoElem.playsInline = true;
     videoElem.src = url;
 
     activeNativeVideo = videoElem;
 
-    // Detectores de eventos para el Admin máster
     if (AppState.isAdmin) {
       videoElem.addEventListener('play', () => emitPlaybackSync(videoElem.currentTime, true));
       videoElem.addEventListener('pause', () => emitPlaybackSync(videoElem.currentTime, false));
       videoElem.addEventListener('seeked', () => emitPlaybackSync(videoElem.currentTime, !videoElem.paused));
       videoElem.addEventListener('timeupdate', () => {
-        if (!videoElem.paused && Date.now() - lastAdminSyncEmit > 1800) {
+        if (!videoElem.paused && Date.now() - lastAdminSyncEmit > 1500) {
           emitPlaybackSync(videoElem.currentTime, true);
         }
       });
@@ -703,26 +772,8 @@
     iframe.setAttribute('referrerpolicy', 'no-referrer-when-downgrade');
     iframe.setAttribute('title', 'Movie Player');
 
-    activeIframeVideo = iframe;
-
     DOM.movieMediaWrapper.appendChild(iframe);
   }
-
-  // Escuchar mensajes de YouTube Iframe API desde el iframe (para Admin)
-  window.addEventListener('message', (e) => {
-    if (!AppState.isAdmin || !e.data) return;
-    try {
-      const data = typeof e.data === 'string' ? JSON.parse(e.data) : e.data;
-      if (data && data.event === 'infoDelivery' && data.info) {
-        if (data.info.currentTime !== undefined) {
-          const isPlaying = data.info.playerState === 1;
-          if (Date.now() - lastAdminSyncEmit > 1800) {
-            emitPlaybackSync(data.info.currentTime, isPlaying);
-          }
-        }
-      }
-    } catch (err) {}
-  });
 
   function unloadVideo() {
     AppState.videoUrl = '';
