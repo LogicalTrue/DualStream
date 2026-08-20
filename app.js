@@ -1712,10 +1712,30 @@
   // 12. INITIALIZATION
   // --------------------------------------------------------------------------
 
-  function init() {
-    parseUrlParams();
+  async function init() {
+    await parseUrlParams();
     initEventListeners();
+
+    // 1. Obtener de inmediato el estado más reciente de Upstash Redis en la nube
+    try {
+      const res = await fetch(SYNC_API_ENDPOINT + '?t=' + Date.now(), { cache: 'no-store' });
+      if (res.ok) {
+        const cloudState = await res.json();
+        if (cloudState) {
+          if (cloudState.streamer) AppState.streamer = cloudState.streamer;
+          if (cloudState.videoUrl !== undefined) AppState.videoUrl = cloudState.videoUrl;
+          if (cloudState.camX !== undefined) AppState.camX = cloudState.camX;
+          if (cloudState.camY !== undefined) AppState.camY = cloudState.camY;
+          if (cloudState.camW !== undefined) AppState.camW = cloudState.camW;
+          latestSyncPlaybackState = cloudState;
+        }
+      }
+    } catch (e) {
+      console.warn('Error obteniendo estado inicial de la nube', e);
+    }
+
     updateKickViews();
+    applyWebcamPosition();
 
     if (AppState.videoUrl && AppState.videoUrl.trim() !== '') {
       loadVideoSource(AppState.videoUrl);
