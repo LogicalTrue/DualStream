@@ -910,51 +910,39 @@ body.mode-viewer .webcam-resize-handle {
   }
 }
 
-.chat-close-btn {
+.chat-header {
+  height: 38px !important;
+  min-height: 38px !important;
+  background: var(--bg-surface);
+  border-bottom: 1px solid var(--border-subtle);
   display: flex !important;
   align-items: center;
-  justify-content: center;
-  width: 26px;
-  height: 26px;
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid var(--border-subtle);
+  justify-content: space-between;
+  padding: 0 10px;
+  z-index: 10;
+  box-sizing: border-box;
+}
+
+.chat-close-btn {
+  display: inline-flex !important;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px !important;
+  width: auto !important;
+  height: 26px !important;
+  background: rgba(255, 68, 68, 0.15) !important;
+  border: 1px solid rgba(255, 68, 68, 0.4) !important;
   border-radius: 4px;
-  color: var(--text-primary);
+  color: #ff6666 !important;
   cursor: pointer;
   transition: all var(--transition-fast);
 }
 
 .chat-close-btn:hover {
-  background: rgba(255, 68, 68, 0.2);
-  border-color: rgba(255, 68, 68, 0.5);
-  color: #ff4444;
-}
-
-.btn-floating-chat-landscape {
-  display: none;
-  position: absolute;
-  bottom: 16px;
-  right: 16px;
-  z-index: 25;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 14px;
-  background: rgba(14, 17, 19, 0.85);
-  backdrop-filter: blur(10px);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-full);
-  color: var(--text-primary);
-  font-size: 11px;
-  font-weight: 600;
-  cursor: pointer;
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.6);
-  transition: all var(--transition-fast);
-}
-
-.btn-floating-chat-landscape:hover {
-  border-color: var(--kick-green);
-  color: var(--kick-green);
-  transform: scale(1.04);
+  background: rgba(255, 68, 68, 0.3) !important;
+  border-color: #ff4444 !important;
+  color: #ffffff !important;
+  transform: scale(1.03);
 }
 
 /* Mobile Landscape / Rotado (max-height: 520px) */
@@ -1010,15 +998,16 @@ body.mode-viewer .webcam-resize-handle {
     position: absolute !important;
     right: 0 !important;
     top: 0 !important;
-    width: 270px !important;
-    min-width: 270px !important;
-    max-width: 270px !important;
+    width: 280px !important;
+    min-width: 280px !important;
+    max-width: 280px !important;
     height: 100dvh !important;
-    z-index: 30 !important;
-    background: rgba(14, 17, 19, 0.96) !important;
+    z-index: 35 !important;
+    background: rgba(14, 17, 19, 0.98) !important;
     backdrop-filter: blur(14px) !important;
     border-left: 1px solid var(--border-subtle) !important;
-    box-shadow: -10px 0 30px rgba(0, 0, 0, 0.7) !important;
+    box-shadow: -10px 0 30px rgba(0, 0, 0, 0.8) !important;
+    flex-direction: column !important;
   }
 
   /* Se abre al pulsar el botón flotante */
@@ -1027,13 +1016,14 @@ body.mode-viewer .webcam-resize-handle {
   }
 
   .chat-header {
-    height: 36px;
-    min-height: 36px;
-    padding: 0 10px;
+    height: 38px !important;
+    min-height: 38px !important;
+    padding: 0 10px !important;
+    background: #0e1113 !important;
   }
 
-  .hide-desktop {
-    display: inline-flex !important;
+  .chat-frame-wrapper {
+    height: calc(100dvh - 38px) !important;
   }
 }
 
