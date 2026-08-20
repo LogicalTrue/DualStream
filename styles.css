@@ -923,6 +923,35 @@ body.mode-viewer .webcam-resize-handle {
   box-sizing: border-box;
 }
 
+/* Botón Cerrar Chat de Alta Visibilidad */
+.chat-close-btn {
+  display: inline-flex !important;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px !important;
+  height: 26px !important;
+  background: linear-gradient(135deg, #ef4444, #dc2626) !important;
+  border: 1px solid rgba(255, 255, 255, 0.25) !important;
+  border-radius: var(--radius-sm) !important;
+  color: #ffffff !important;
+  font-family: var(--font-body);
+  font-size: 11px !important;
+  font-weight: 800 !important;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(220, 38, 38, 0.45);
+  transition: all var(--transition-fast);
+}
+
+.chat-close-btn:hover {
+  background: linear-gradient(135deg, #f87171, #ef4444) !important;
+  box-shadow: 0 4px 12px rgba(220, 38, 38, 0.65);
+  transform: scale(1.05);
+}
+
+.chat-close-btn svg {
+  stroke-width: 2.8;
+}
+
 .btn-floating-chat-toggle {
   display: none;
   position: fixed;
