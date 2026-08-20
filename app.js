@@ -212,6 +212,15 @@
     btnCloseStreamerModal: document.getElementById('btn-close-streamer-modal'),
     btnCancelStreamerModal: document.getElementById('btn-cancel-streamer-modal'),
 
+    // Unified Config Modal (Streamer + Video + Save)
+    modalConfig: document.getElementById('modal-config'),
+    btnOpenConfigModal: document.getElementById('btn-open-config-modal'),
+    formConfig: document.getElementById('form-config'),
+    inputConfigStreamer: document.getElementById('input-config-streamer'),
+    inputConfigVideo: document.getElementById('input-config-video'),
+    btnCloseConfigModal: document.getElementById('btn-close-config-modal'),
+    btnCancelConfigModal: document.getElementById('btn-cancel-config-modal'),
+
     modalSync: document.getElementById('modal-sync'),
     btnCloseSyncModal: document.getElementById('btn-close-sync-modal'),
     btnDismissSyncModal: document.getElementById('btn-dismiss-sync-modal'),
@@ -1319,6 +1328,50 @@
       });
     }
 
+    // --- Unified Configuration Modal (Kick + Video + Save) ---
+    const openConfigModalHandler = () => {
+      if (DOM.inputConfigStreamer) DOM.inputConfigStreamer.value = AppState.streamer || '';
+      if (DOM.inputConfigVideo) DOM.inputConfigVideo.value = AppState.videoUrl || '';
+      openModal(DOM.modalConfig);
+    };
+
+    if (DOM.btnOpenConfigModal) DOM.btnOpenConfigModal.addEventListener('click', openConfigModalHandler);
+    if (DOM.btnCloseConfigModal) DOM.btnCloseConfigModal.addEventListener('click', () => closeModal(DOM.modalConfig));
+    if (DOM.btnCancelConfigModal) DOM.btnCancelConfigModal.addEventListener('click', () => closeModal(DOM.modalConfig));
+
+    if (DOM.formConfig) {
+      DOM.formConfig.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const streamerVal = DOM.inputConfigStreamer ? DOM.inputConfigStreamer.value.trim() : '';
+        const videoVal = DOM.inputConfigVideo ? DOM.inputConfigVideo.value.trim() : '';
+
+        // 1. Actualizar Streamer si se indicó
+        if (streamerVal) {
+          AppState.streamer = sanitizeStreamerName(streamerVal);
+          updateKickViews();
+        }
+
+        // 2. Actualizar o descargar Video
+        if (videoVal) {
+          loadVideoSource(videoVal);
+        } else if (AppState.videoUrl && !videoVal) {
+          unloadVideo();
+        }
+
+        syncUrlParams();
+        saveAndBroadcastConfig(); // Auto-guardado y transmisión en tiempo real a todos los viewers
+        closeModal(DOM.modalConfig);
+        showToast('¡Configuración guardada y transmitida en vivo a todos los espectadores!', 'success');
+      });
+    }
+
+    document.querySelectorAll('.config-video-preset').forEach(chip => {
+      chip.addEventListener('click', () => {
+        const url = chip.getAttribute('data-url');
+        if (DOM.inputConfigVideo) DOM.inputConfigVideo.value = url;
+      });
+    });
+
     // --- Streamer Selection ---
     if (DOM.btnChangeStreamer) {
       DOM.btnChangeStreamer.addEventListener('click', () => {
@@ -1359,7 +1412,7 @@
     };
 
     if (DOM.btnOpenVideoModal) DOM.btnOpenVideoModal.addEventListener('click', openVideoModalHandler);
-    if (DOM.btnPlaceholderLoad) DOM.btnPlaceholderLoad.addEventListener('click', openVideoModalHandler);
+    if (DOM.btnPlaceholderLoad) DOM.btnPlaceholderLoad.addEventListener('click', openConfigModalHandler);
 
     if (DOM.btnCloseVideoModal) DOM.btnCloseVideoModal.addEventListener('click', () => closeModal(DOM.modalVideo));
     if (DOM.btnCancelVideoModal) DOM.btnCancelVideoModal.addEventListener('click', () => closeModal(DOM.modalVideo));

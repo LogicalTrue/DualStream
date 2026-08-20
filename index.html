@@ -45,39 +45,19 @@
       <div class="streamer-pill" id="streamer-pill" title="Canal de Kick actual">
         <span class="live-dot" aria-label="En Vivo"></span>
         <span class="streamer-name" id="current-streamer-label">Cargando...</span>
-        <!-- Solo visible para Admin -->
-        <button class="icon-btn-pill admin-only" id="btn-change-streamer" title="Cambiar canal de Kick (Admin)">
-          <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
-            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
-          </svg>
-        </button>
       </div>
     </div>
-
-
 
     <!-- Topbar Right Actions -->
     <div class="topbar-right">
       
-      <!-- Botones de Admin (Solo visibles en modo streamer/admin) -->
-      <button class="btn btn-secondary btn-sm admin-only" id="btn-open-video-modal" title="Cargar película o video">
+      <!-- Botón Único de Configuración (Admin / Streamer) -->
+      <button class="btn btn-primary btn-sm admin-only" id="btn-open-config-modal" title="Configurar Kick, Video y Guardar">
         <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <rect x="2" y="2" width="20" height="20" rx="2.18" ry="2.18"></rect>
-          <line x1="7" y1="2" x2="7" y2="22"></line>
-          <line x1="17" y1="2" x2="17" y2="22"></line>
-          <line x1="2" y1="12" x2="22" y2="12"></line>
+          <circle cx="12" cy="12" r="3"></circle>
+          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
         </svg>
-        <span>Cargar Video</span>
-      </button>
-
-      <button class="btn btn-primary btn-sm admin-only" id="btn-save-publish" title="Guardar posición y generar enlace para viewers">
-        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
-          <polyline points="17 21 17 13 7 13 7 21"></polyline>
-          <polyline points="7 3 7 8 15 8"></polyline>
-        </svg>
-        <span>Guardar y Publicar</span>
+        <span>Configuración</span>
       </button>
 
       <!-- Botón de Acceso para el Streamer / Dueño (Si está en modo espectador) -->
@@ -319,6 +299,79 @@
             <button type="button" class="btn btn-secondary" id="btn-cancel-auth-modal">Cancelar</button>
             <button type="submit" class="btn btn-primary" id="btn-submit-auth">
               <span>Ingresar como Streamer</span>
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: CONFIGURACIÓN STREAMER (KICK + VIDEO + GUARDAR) -->
+  <div class="modal-overlay" id="modal-config" aria-hidden="true">
+    <div class="modal-card">
+      <header class="modal-header">
+        <div class="modal-title-group">
+          <div class="modal-icon-badge kick-bg">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="3"></circle>
+              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+            </svg>
+          </div>
+          <h3>Configuración de la Transmisión</h3>
+        </div>
+        <button class="modal-close-btn" id="btn-close-config-modal" aria-label="Cerrar ventana">&times;</button>
+      </header>
+
+      <div class="modal-body">
+        <p class="modal-desc">
+          Configura tu canal de Kick y la película/video a transmitir. Al guardar se aplicarán los cambios y se generará el enlace para tus espectadores.
+        </p>
+
+        <form id="form-config" onsubmit="return false;">
+          <!-- Campo 1: Usuario de Kick -->
+          <div class="input-group">
+            <label for="input-config-streamer">Canal / Usuario de Kick:</label>
+            <div class="input-prefix-wrapper">
+              <span class="input-prefix">kick.com/</span>
+              <input 
+                type="text" 
+                id="input-config-streamer" 
+                placeholder="ej: blackozutr, westcol, xqc"
+                spellcheck="false"
+                autocomplete="off"
+                required>
+            </div>
+          </div>
+
+          <!-- Campo 2: URL o Embed del Video -->
+          <div class="input-group">
+            <label for="input-config-video">URL o Código Embed del Video / Película:</label>
+            <textarea 
+              id="input-config-video" 
+              rows="3" 
+              placeholder="Ejemplos:&#10;• https://www.youtube.com/watch?v=aqz-KE-bpKQ&#10;• https://streamwish.to/e/abc123xyz&#10;• https://tuservidor.com/video.mp4&#10;• <iframe src='...'></iframe>"
+              spellcheck="false"></textarea>
+          </div>
+
+          <div class="quick-presets">
+            <span class="presets-label">Prueba rápida de video:</span>
+            <button type="button" class="preset-chip config-video-preset" data-url="https://www.youtube.com/watch?v=A8qw5r6aDYo">
+              🎬 YouTube Trailer
+            </button>
+            <button type="button" class="preset-chip config-video-preset" data-url="https://vjs.zencdn.net/v/oceans.mp4">
+              🎬 Oceans (MP4)
+            </button>
+          </div>
+
+          <div class="modal-actions">
+            <button type="button" class="btn btn-secondary" id="btn-cancel-config-modal">Cancelar</button>
+            <button type="submit" class="btn btn-primary" id="btn-submit-config">
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
+                <polyline points="17 21 17 13 7 13 7 21"></polyline>
+                <polyline points="7 3 7 8 15 8"></polyline>
+              </svg>
+              <span>Guardar y Aplicar</span>
             </button>
           </div>
         </form>
