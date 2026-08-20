@@ -903,7 +903,6 @@
     videoElem.setAttribute('playsinline', 'true');
     videoElem.setAttribute('webkit-playsinline', 'true');
     videoElem.preload = 'auto';
-    videoElem.crossOrigin = 'anonymous';
 
     // Para espectadores en móvil: iniciar muteado para garantizar autoplay sin bloqueo de navegador
     if (!AppState.isAdmin) {
@@ -915,7 +914,7 @@
     activeNativeVideo = videoElem;
 
     // Sincronizar segundo inicial al cargar metadatos
-    videoElem.addEventListener('loadedmetadata', () => {
+    videoElem.addEventListener('loadeddata', () => {
       if (!AppState.isAdmin && latestSyncPlaybackState) {
         const latency = Math.max(0, (Date.now() - (latestSyncPlaybackState.updatedAt || Date.now())) / 1000);
         const target = (latestSyncPlaybackState.currentTime || 0) + (latestSyncPlaybackState.isPlaying ? latency : 0);
@@ -936,10 +935,6 @@
         }
       });
     }
-
-    videoElem.addEventListener('error', () => {
-      showToast('Error al reproducir el video. Verifica el enlace.', 'error');
-    });
 
     DOM.movieMediaWrapper.appendChild(videoElem);
   }
