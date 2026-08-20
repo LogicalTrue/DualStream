@@ -430,6 +430,9 @@
         isResizing = false;
         DOM.webcamCard.classList.remove('is-dragging');
         DOM.kickPlayerFrame.style.pointerEvents = 'auto';
+        if (AppState.isAdmin) {
+          saveAndBroadcastConfig(); // Auto-guardar nueva posición en la nube
+        }
       }
     };
 
@@ -916,7 +919,6 @@
         if (config.streamer && config.streamer !== AppState.streamer) {
           AppState.streamer = config.streamer;
           updateKickViews();
-          reconnectCloudSync(); // Reconectar al topic del nuevo streamer
           changed = true;
         }
 
@@ -1141,8 +1143,9 @@
           AppState.streamer = sanitizeStreamerName(val);
           syncUrlParams();
           updateKickViews();
+          saveAndBroadcastConfig(); // Auto-guardado y transmisión en tiempo real a todos los viewers
           closeModal(DOM.modalStreamer);
-          showToast(`Canal de Kick actualizado a "${AppState.streamer}"`, 'success');
+          showToast(`Canal de Kick actualizado a "${AppState.streamer}" y sincronizado con espectadores`, 'success');
         }
       });
     }
@@ -1171,8 +1174,9 @@
         e.preventDefault();
         const val = DOM.inputVideoUrl ? DOM.inputVideoUrl.value : '';
         loadVideoSource(val);
+        saveAndBroadcastConfig(); // Auto-guardado y transmisión en tiempo real a todos los viewers
         closeModal(DOM.modalVideo);
-        showToast('Video cargado correctamente', 'success');
+        showToast('Video cargado y sincronizado con espectadores', 'success');
       });
     }
 
