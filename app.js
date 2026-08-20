@@ -27,9 +27,8 @@
     console.warn('BroadcastChannel no soportado, usando fallback StorageEvent', e);
   }
 
-  // URL del Relay de Sincronización Global en la Nube
-  const CLOUD_SYNC_TOPIC = 'https://ntfy.sh/dualstream_live_cloud_sync_v1';
-  const API_SYNC_ENDPOINT = '/api/sync';
+  // Base de datos global en la nube (Persistente, sin límites ni reinicios)
+  const CLOUD_CONFIG_URL = 'https://api.restful-api.dev/objects/ff8081819ff5b11001a01cfe28415758';
 
   // Configuración inicial / por defecto
   const DEFAULT_CONFIG = {
@@ -59,7 +58,7 @@
   }
 
   /**
-   * Guarda y difunde la configuración a todos los espectadores en tiempo real (Local + Nube + API)
+   * Guarda y difunde la configuración a todos los espectadores en tiempo real (Local + Nube)
    */
   function saveAndBroadcastConfig() {
     const configToSave = {
@@ -71,7 +70,7 @@
       updatedAt: Date.now()
     };
     
-    // 1. Guardar en localStorage local
+    // 1. Guardar en localStorage local y BroadcastChannel
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(configToSave));
       if (syncChannel) {
@@ -81,25 +80,16 @@
       console.warn('Error en storage local', e);
     }
 
-    // 2. Guardar en API Serverless de Vercel (/api/sync)
+    // 2. Guardar en la Nube Global (para todos los espectadores en Vercel/Internet)
     try {
-      fetch(API_SYNC_ENDPOINT, {
-        method: 'POST',
+      fetch(CLOUD_CONFIG_URL, {
+        method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(configToSave)
-      }).catch(() => {});
-    } catch (e) {}
-
-    // 3. Transmitir por SSE en la Nube (latencia 0ms para todos los espectadores en vivo)
-    try {
-      fetch(CLOUD_SYNC_TOPIC, {
-        method: 'POST',
-        body: JSON.stringify(configToSave),
-        headers: {
-          'Title': 'DualStream Global Sync',
-          'Tags': 'tv,video_camera'
-        }
-      }).catch(err => console.warn('Error en broadcast a la nube', err));
+        body: JSON.stringify({
+          name: 'dualstream_config',
+          data: configToSave
+        })
+      }).catch(err => console.warn('Error guardando en la nube', err));
     } catch (err) {
       console.warn('Fallo al emitir a la nube', err);
     }
@@ -804,72 +794,14 @@
       }
     });
 
-    // 3. Escuchar EventSource en la Nube (para Vercel y todos los espectadores en internet)
-    let cloudEventSource = null;
-
-    function initCloudSync() {
-      if (cloudEventSource) {
-        try { cloudEventSource.close(); } catch (e) {}
-      }
-
-      try {
-        const sseUrl = `${CLOUD_SYNC_TOPIC}/sse`;
-        cloudEventSource = new EventSource(sseUrl);
-
-        cloudEventSource.onmessage = (event) => {
-          try {
-            const data = JSON.parse(event.data);
-            const rawMessage = data.message || data;
-            const config = typeof rawMessage === 'string' ? JSON.parse(rawMessage) : rawMessage;
-            if (config && config.updatedAt && config.updatedAt > lastProcessedTimestamp) {
-              lastProcessedTimestamp = config.updatedAt;
-              applyIncomingConfig(config);
-            }
-          } catch (e) {}
-        };
-
-        cloudEventSource.onerror = () => {};
-      } catch (e) {
-        console.warn('EventSource cloud sync no disponible', e);
-      }
-    }
-
-    initCloudSync();
-
-    // 4. Polling inicial y periódico a /api/sync de Vercel y Relay de nube (cada 1.5s)
-    const pollServerlessState = async () => {
+    // 3. Polling inicial y periódico a la Base de Datos Global en la Nube (cada 2 segundos)
+    const pollCloudDatabase = async () => {
       if (document.body.classList.contains('mode-viewer') || !AppState.isAdmin) {
-        // Intentar primero endpoint de nube ntfy (alta velocidad)
         try {
-          const cloudRes = await fetch(`${CLOUD_SYNC_TOPIC}/json?poll=1`, { cache: 'no-store' });
-          if (cloudRes.ok) {
-            const text = await cloudRes.text();
-            const lines = text.trim().split('\n');
-            for (let i = lines.length - 1; i >= 0; i--) {
-              if (!lines[i] || !lines[i].trim()) continue;
-              try {
-                const item = JSON.parse(lines[i]);
-                if (item.event && item.event !== 'message') continue;
-                const rawMessage = item.message || item;
-                const config = typeof rawMessage === 'string' ? JSON.parse(rawMessage) : rawMessage;
-                if (config && config.streamer) {
-                  const configTime = config.updatedAt || 1;
-                  if (configTime > lastProcessedTimestamp) {
-                    lastProcessedTimestamp = configTime;
-                    applyIncomingConfig(config);
-                    return;
-                  }
-                }
-              } catch (e) {}
-            }
-          }
-        } catch (err) {}
-
-        // Fallback a /api/sync de Vercel
-        try {
-          const res = await fetch(API_SYNC_ENDPOINT, { cache: 'no-store' });
+          const res = await fetch(CLOUD_CONFIG_URL, { cache: 'no-store' });
           if (res.ok) {
-            const config = await res.json();
+            const json = await res.json();
+            const config = (json && json.data) ? json.data : json;
             if (config && config.streamer) {
               const configTime = config.updatedAt || 1;
               if (configTime > lastProcessedTimestamp) {
@@ -878,13 +810,13 @@
               }
             }
           }
-        } catch (e) {}
+        } catch (err) {}
       }
     };
 
     // Consulta inicial inmediata para que el viewer cargue todo lo que dejó el admin
-    pollServerlessState();
-    setInterval(pollServerlessState, 1500);
+    pollCloudDatabase();
+    setInterval(pollCloudDatabase, 2000);
   }
 
   // --------------------------------------------------------------------------
