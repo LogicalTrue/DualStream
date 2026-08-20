@@ -143,13 +143,13 @@
 
   const AppState = {
     isAdmin: false,
-    streamer: persisted.streamer,
-    videoUrl: persisted.videoUrl,
+    streamer: persisted.streamer || DEFAULT_STREAMER,
+    videoUrl: '',
     chatVisible: true,
     webcamVisible: true,
-    camX: persisted.camX,
-    camY: persisted.camY,
-    camW: persisted.camW,
+    camX: persisted.camX !== undefined ? persisted.camX : 2,
+    camY: persisted.camY !== undefined ? persisted.camY : 3,
+    camW: persisted.camW !== undefined ? persisted.camW : 26,
     chatWidth: 320
   };
 
@@ -596,16 +596,22 @@
   let lastAdminSyncEmit = 0;
   let activeNativeVideo = null;
   let ytPlayerInstance = null;
-  let isYtApiReady = false;
+  let isYtApiReady = (typeof YT !== 'undefined' && YT.loaded);
   let pendingYtVideoId = null;
 
   // Callback oficial de YouTube API
+  const previousYtReady = window.onYouTubeIframeAPIReady;
   window.onYouTubeIframeAPIReady = function () {
+    if (typeof previousYtReady === 'function') previousYtReady();
     isYtApiReady = true;
     if (pendingYtVideoId) {
       initYouTubePlayer(pendingYtVideoId);
     }
   };
+
+  if (typeof YT !== 'undefined' && YT.Player) {
+    isYtApiReady = true;
+  }
 
   function emitPlaybackSync(currentTime, isPlaying) {
     if (!AppState.isAdmin) return; // Solo el admin emite eventos máster
@@ -632,11 +638,17 @@
       }
     } catch (e) {}
 
-    // 2. Enviar a backend Vercel Cloud
+    // 2. Enviar a backend Vercel Cloud con autorización
     try {
+      const adminSecret = sessionStorage.getItem('kick_dual_admin_secret') || '';
+      const sessionToken = sessionStorage.getItem('kick_dual_admin_session_token') || '';
       fetch(SYNC_API_ENDPOINT, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': adminSecret ? `Bearer ${adminSecret}` : '',
+          'x-admin-session': sessionToken
+        },
         body: JSON.stringify(payload)
       }).catch(() => {});
     } catch (e) {}
@@ -744,6 +756,16 @@
         initYouTubePlayer(ytId);
       } else {
         pendingYtVideoId = ytId;
+        // Fallback inmediato si la API de YouTube tarda en cargar en móviles
+        setTimeout(() => {
+          if (!ytPlayerInstance && pendingYtVideoId === ytId) {
+            ytContainer.innerHTML = `<iframe 
+              src="https://www.youtube-nocookie.com/embed/${ytId}?enablejsapi=1&autoplay=1&mute=1&playsinline=1&rel=0" 
+              class="media-frame" 
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" 
+              allowfullscreen></iframe>`;
+          }
+        }, 1200);
       }
     } else if (isDirectVideoFile(url)) {
       renderNativeVideo(url);
