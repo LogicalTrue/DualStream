@@ -1,0 +1,23 @@
+{
+  "name": "dualstream",
+  "version": "1.0.0",
+  "description": "**Kick Dual Viewer** es una aplicación web responsiva de una sola página (SPA) moderna, ligera y de alto rendimiento diseñada para ver películas, series o videos externos simultáneamente con la reacción en vivo de un streamer en **Kick** y su chat oficial incrustado.",
+  "main": "app.js",
+  "scripts": {
+    "test": "node test-sync-bots.js 5 20",
+    "test:bots": "node test-sync-bots.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/LogicalTrue/DualStream.git"
+  },
+  "keywords": [],
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/LogicalTrue/DualStream/issues"
+  },
+  "homepage": "https://github.com/LogicalTrue/DualStream#readme",
+  "devDependencies": {
+    "playwright": "^1.62.1"
+  }
+}
