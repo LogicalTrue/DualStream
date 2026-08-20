@@ -702,6 +702,8 @@
                 emitPlaybackSync(currentTime, true);
               } else if (state === 2) { // Paused
                 emitPlaybackSync(currentTime, false);
+              } else if (state === 3) { // Buffering (Seek)
+                emitPlaybackSync(currentTime, true);
               }
             }
           }
@@ -712,19 +714,33 @@
     }
   }
 
-  // Heartbeat continuo de emisión de tiempo para el Admin
+  // Detector instantáneo de saltos en el tiempo (Seek / Adelantar / Retroceder) para Admin
+  let lastTrackedAdminTime = 0;
+
   setInterval(() => {
-    if (AppState.isAdmin && ytPlayerInstance && typeof ytPlayerInstance.getPlayerState === 'function') {
+    if (AppState.isAdmin && ytPlayerInstance && typeof ytPlayerInstance.getCurrentTime === 'function') {
       try {
-        if (ytPlayerInstance.getPlayerState() === 1) { // Está reproduciendo
-          const current = ytPlayerInstance.getCurrentTime();
-          if (current !== undefined && Date.now() - lastAdminSyncEmit > 1400) {
-            emitPlaybackSync(current, true);
+        const currentTime = ytPlayerInstance.getCurrentTime();
+        const playerState = ytPlayerInstance.getPlayerState();
+        const isPlaying = (playerState === 1 || playerState === 3);
+
+        if (currentTime !== undefined) {
+          // Detectar saltos manuales en la barra de tiempo (Adelantar o Retroceder)
+          const diff = Math.abs(currentTime - lastTrackedAdminTime);
+
+          if (diff > 1.8) {
+            // ¡El admin acaba de adelantar o retroceder el video!
+            emitPlaybackSync(currentTime, isPlaying);
+          } else if (isPlaying && Date.now() - lastAdminSyncEmit > 1200) {
+            // Heartbeat de sincronización continua
+            emitPlaybackSync(currentTime, true);
           }
+
+          lastTrackedAdminTime = currentTime;
         }
       } catch (e) {}
     }
-  }, 1400);
+  }, 350);
 
   function isDirectVideoFile(url) {
     const cleanUrl = url.split('?')[0].toLowerCase();
@@ -1245,6 +1261,10 @@
     });
 
     document.addEventListener('keydown', (e) => {
+      // Ignorar si el usuario está escribiendo en un input o textarea
+      const activeTag = document.activeElement ? document.activeElement.tagName.toLowerCase() : '';
+      const isTyping = activeTag === 'input' || activeTag === 'textarea';
+
       if (e.key === 'Escape') {
         closeModal(DOM.modalAuth);
         closeModal(DOM.modalVideo);
@@ -1252,6 +1272,7 @@
         closeModal(DOM.modalPublish);
         closeModal(DOM.modalSync);
       }
+
       // Atajo de teclado para Streamer: Ctrl + Shift + A
       if (e.ctrlKey && e.shiftKey && (e.key === 'A' || e.key === 'a')) {
         e.preventDefault();
@@ -1260,6 +1281,27 @@
           showToast('Modo Espectador activado', 'info');
         } else {
           openModal(DOM.modalAuth);
+        }
+      }
+
+      // Controles de tiempo rápidos para el Admin (Adelantar / Retroceder)
+      if (AppState.isAdmin && !isTyping) {
+        if (ytPlayerInstance && typeof ytPlayerInstance.getCurrentTime === 'function') {
+          if (e.key === 'ArrowRight') {
+            e.preventDefault();
+            const curr = ytPlayerInstance.getCurrentTime() || 0;
+            const newT = curr + 5;
+            ytPlayerInstance.seekTo(newT, true);
+            emitPlaybackSync(newT, ytPlayerInstance.getPlayerState() === 1);
+            showToast('+5s Adelantado', 'info');
+          } else if (e.key === 'ArrowLeft') {
+            e.preventDefault();
+            const curr = ytPlayerInstance.getCurrentTime() || 0;
+            const newT = Math.max(0, curr - 5);
+            ytPlayerInstance.seekTo(newT, true);
+            emitPlaybackSync(newT, ytPlayerInstance.getPlayerState() === 1);
+            showToast('-5s Retrocedido', 'info');
+          }
         }
       }
     });
