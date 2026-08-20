@@ -637,7 +637,7 @@ body.mode-admin .mobile-sync-unlock-banner,
   transition: box-shadow var(--transition-fast);
 }
 
-/* El iframe de Kick permite interactuar para activar audio y volumen */
+/* El iframe de Kick está permanentemente en vivo y NUNCA se pausa */
 .webcam-frame {
   position: absolute;
   top: 0;
@@ -645,7 +645,68 @@ body.mode-admin .mobile-sync-unlock-banner,
   width: 100%;
   height: 100%;
   border: none;
-  pointer-events: auto; /* Permite al espectador hacer clic para desmutear el stream de Kick */
+  pointer-events: none; /* Evita que el usuario pause o congele la cámara de Kick por accidente al tocarla o pasar el mouse */
+}
+
+/* Botones flotantes sobre la webcam para sonido y recarga sin pausar */
+.webcam-floating-actions {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  z-index: 22;
+  opacity: 0.85;
+  transition: opacity var(--transition-fast);
+}
+
+.webcam-card:hover .webcam-floating-actions {
+  opacity: 1;
+}
+
+.webcam-action-pill {
+  background: rgba(14, 17, 19, 0.88);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(83, 252, 24, 0.4);
+  color: var(--text-primary);
+  font-size: 10px;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+  transition: all var(--transition-fast);
+}
+
+.webcam-action-pill:hover {
+  background: var(--kick-green);
+  color: #000000;
+  border-color: var(--kick-green);
+}
+
+.webcam-action-pill-icon {
+  background: rgba(14, 17, 19, 0.88);
+  backdrop-filter: blur(8px);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-secondary);
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.webcam-action-pill-icon:hover {
+  background: var(--bg-surface-elevated);
+  color: var(--text-primary);
+  border-color: var(--border-focus);
 }
 
 /* Overlay transparente para arrastrar en Admin */

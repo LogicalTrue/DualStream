@@ -1696,7 +1696,27 @@
       });
     });
 
-    // --- Webcam Controls ---
+    // --- Webcam Controls & Audio ---
+    const btnUnmuteKickStream = document.getElementById('btn-unmute-kick-stream');
+    const btnQuickReloadKick = document.getElementById('btn-quick-reload-kick');
+
+    if (btnUnmuteKickStream) {
+      btnUnmuteKickStream.addEventListener('click', (e) => {
+        e.stopPropagation();
+        // Recargar el iframe de Kick con audio explícito y notificar al usuario
+        const channel = AppState.streamer || DEFAULT_STREAMER;
+        DOM.kickPlayerFrame.src = `https://player.kick.com/${encodeURIComponent(channel)}?autoplay=true&muted=false`;
+        showToast('🔊 Audio de Kick activado', 'success');
+      });
+    }
+
+    if (btnQuickReloadKick) {
+      btnQuickReloadKick.addEventListener('click', (e) => {
+        e.stopPropagation();
+        reloadKickPlayer();
+      });
+    }
+
     if (DOM.btnToggleWebcamSize) DOM.btnToggleWebcamSize.addEventListener('click', cycleWebcamSize);
     if (DOM.btnCycleWebcamPos) DOM.btnCycleWebcamPos.addEventListener('click', cycleWebcamPosition);
     if (DOM.btnHideWebcam) DOM.btnHideWebcam.addEventListener('click', toggleWebcamVisibility);
