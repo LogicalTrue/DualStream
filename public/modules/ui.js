@@ -192,8 +192,9 @@ export function initWebcamDragAndResize(onPositionChanged) {
     startX = clientX;
     startY = clientY;
 
+    const container = DOM.moviePlayerBox || DOM.videoTheater;
     const cardRect = DOM.webcamCard.getBoundingClientRect();
-    const parentRect = DOM.videoTheater.getBoundingClientRect();
+    const parentRect = container.getBoundingClientRect();
 
     initialLeft = cardRect.left - parentRect.left;
     initialTop = cardRect.top - parentRect.top;
@@ -204,12 +205,13 @@ export function initWebcamDragAndResize(onPositionChanged) {
   const onMouseMove = (e) => {
     const clientX = e.touches ? e.touches[0].clientX : e.clientX;
     const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+    const container = DOM.moviePlayerBox || DOM.videoTheater;
+    const parentRect = container.getBoundingClientRect();
 
     if (isDragging) {
       const deltaX = clientX - startX;
       const deltaY = clientY - startY;
 
-      const parentRect = DOM.videoTheater.getBoundingClientRect();
       const cardWidth = DOM.webcamCard.offsetWidth;
       const cardHeight = DOM.webcamCard.offsetHeight;
 
@@ -228,11 +230,10 @@ export function initWebcamDragAndResize(onPositionChanged) {
       DOM.webcamCard.style.top = `${AppState.camY}%`;
     } else if (isResizing) {
       const deltaX = clientX - startX;
-      const parentRect = DOM.videoTheater.getBoundingClientRect();
       let newW = initialWidth + deltaX;
 
-      if (newW < 160) newW = 160;
-      if (newW > parentRect.width * 0.75) newW = parentRect.width * 0.75;
+      if (newW < 80) newW = 80;
+      if (newW > parentRect.width * 0.85) newW = parentRect.width * 0.85;
 
       AppState.camW = parseFloat(((newW / parentRect.width) * 100).toFixed(2));
       DOM.webcamCard.style.width = `${AppState.camW}%`;
