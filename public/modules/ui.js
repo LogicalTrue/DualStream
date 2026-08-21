@@ -12,17 +12,15 @@ import { startAdminSessionChecker } from './api.js';
 export function showToast(message, type = 'info') {
   if (!DOM.toastContainer) return;
 
+  // Silenciar avisos rutinarios molestos de configuración guardada, modo, posición, etc.
+  if (type !== 'error') {
+    return;
+  }
+
   const toast = document.createElement('div');
   toast.className = `toast toast-${type}`;
 
-  let iconSvg = '';
-  if (type === 'success') {
-    iconSvg = '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>';
-  } else if (type === 'error') {
-    iconSvg = '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg>';
-  } else {
-    iconSvg = '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>';
-  }
+  let iconSvg = '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg>';
 
   toast.innerHTML = `${iconSvg}<span>${message}</span>`;
   DOM.toastContainer.appendChild(toast);
