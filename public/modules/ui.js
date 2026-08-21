@@ -327,26 +327,30 @@ export function closeChat() {
 export function initChatResizer() {
   let isDragging = false;
 
-  const onMouseDown = () => {
+  const onDragStart = (e) => {
     isDragging = true;
     if (DOM.chatResizer) DOM.chatResizer.classList.add('dragging');
     document.body.style.cursor = 'col-resize';
     document.body.style.userSelect = 'none';
   };
 
-  const onMouseMove = (e) => {
+  const onDragMove = (e) => {
     if (!isDragging || !DOM.watchContainer) return;
+    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
     const containerRect = DOM.watchContainer.getBoundingClientRect();
-    let newChatWidth = containerRect.right - e.clientX;
+    let newChatWidth = containerRect.right - clientX;
 
-    if (newChatWidth < 240) newChatWidth = 240;
-    if (newChatWidth > 580) newChatWidth = 580;
+    const minW = window.innerWidth < 768 ? 160 : 240;
+    const maxW = window.innerWidth < 768 ? Math.min(420, window.innerWidth * 0.65) : 580;
+
+    if (newChatWidth < minW) newChatWidth = minW;
+    if (newChatWidth > maxW) newChatWidth = maxW;
 
     AppState.chatWidth = newChatWidth;
     document.documentElement.style.setProperty('--chat-width', `${newChatWidth}px`);
   };
 
-  const onMouseUp = () => {
+  const onDragEnd = () => {
     if (isDragging) {
       isDragging = false;
       if (DOM.chatResizer) DOM.chatResizer.classList.remove('dragging');
@@ -356,8 +360,12 @@ export function initChatResizer() {
   };
 
   if (DOM.chatResizer) {
-    DOM.chatResizer.addEventListener('mousedown', onMouseDown);
+    DOM.chatResizer.addEventListener('mousedown', onDragStart);
+    DOM.chatResizer.addEventListener('touchstart', onDragStart, { passive: false });
   }
-  document.addEventListener('mousemove', onMouseMove);
-  document.addEventListener('mouseup', onMouseUp);
+
+  document.addEventListener('mousemove', onDragMove);
+  document.addEventListener('touchmove', onDragMove, { passive: false });
+  document.addEventListener('mouseup', onDragEnd);
+  document.addEventListener('touchend', onDragEnd);
 }
