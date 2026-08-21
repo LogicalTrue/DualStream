@@ -294,13 +294,11 @@ export function toggleChatColumn() {
     document.body.classList.remove('chat-is-hidden');
     if (DOM.chatResizer) DOM.chatResizer.style.display = 'flex';
     if (DOM.btnToggleChat) DOM.btnToggleChat.classList.add('active');
-    showToast('Chat visible', 'info');
   } else {
     if (DOM.chatColumn) DOM.chatColumn.classList.add('collapsed');
     document.body.classList.add('chat-is-hidden');
     if (DOM.chatResizer) DOM.chatResizer.style.display = 'none';
     if (DOM.btnToggleChat) DOM.btnToggleChat.classList.remove('active');
-    showToast('Chat ocultado (máximo tamaño de video)', 'info');
   }
 }
 
