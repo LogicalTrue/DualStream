@@ -731,7 +731,7 @@ body.mode-viewer.viewer-standby #floating-video-controls {
   position: absolute;
   top: 16px;
   left: 16px;
-  width: 320px;
+  width: 26%;
   aspect-ratio: 16 / 9;
   border-radius: var(--radius-md);
   overflow: hidden;
@@ -1161,14 +1161,15 @@ body.mode-viewer .webcam-resize-handle {
 .btn-floating-chat-toggle {
   display: none;
   position: fixed;
-  bottom: 22px;
-  right: 22px;
-  z-index: 45;
+  bottom: 24px;
+  right: 24px;
+  z-index: 9999 !important;
+  pointer-events: auto !important;
   align-items: center;
   gap: 8px;
   padding: 10px 18px;
-  background: rgba(14, 17, 19, 0.94);
-  backdrop-filter: blur(12px);
+  background: rgba(14, 17, 19, 0.96);
+  backdrop-filter: blur(14px);
   border: 1.5px solid var(--kick-green);
   border-radius: var(--radius-full);
   color: var(--text-primary);
@@ -1177,6 +1178,8 @@ body.mode-viewer .webcam-resize-handle {
   cursor: pointer;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.8), 0 0 16px rgba(83, 252, 24, 0.35);
   transition: all var(--transition-fast);
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .btn-floating-chat-toggle:hover {
