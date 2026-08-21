@@ -1296,8 +1296,7 @@ body.chat-is-hidden .btn-floating-chat-toggle {
     height: 100dvh !important;
   }
 
-  /* Ocultar botones flotantes de video y encabezados de streaming en horizontal */
-  .floating-video-controls,
+  /* Ocultar encabezados de streaming en horizontal manteniendo controles de video */
   .webcam-header,
   .badge-tag,
   .streamer-pill {

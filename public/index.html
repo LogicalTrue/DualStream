@@ -178,13 +178,13 @@
 
           <!-- Floating Video Controls (Top Right of Video) -->
           <div class="floating-video-controls" id="floating-video-controls">
-            <button class="control-badge-btn" id="btn-reload-movie" title="Recargar reproductor de video">
+            <button class="control-badge-btn" id="btn-reload-movie" aria-label="Recargar reproductor">
               <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <polyline points="23 4 23 10 17 10"></polyline>
                 <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
               </svg>
             </button>
-            <button class="control-badge-btn" id="btn-fullscreen-movie" title="Pantalla Completa Película">
+            <button class="control-badge-btn" id="btn-fullscreen-movie" aria-label="Pantalla Completa">
               <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"></path>
               </svg>
@@ -195,8 +195,8 @@
         <!-- WEBCAM / STREAMER CAMERA OVERLAY -->
         <div class="webcam-card" id="webcam-card">
           <!-- Transparent Drag & Resize Overlay for Admin -->
-          <div class="webcam-drag-overlay" id="webcam-drag-overlay" title="Arrastra para mover la cámara"></div>
-          <div class="webcam-resize-handle" id="webcam-resize-handle" title="Arrastra para agrandar o achicar"></div>
+          <div class="webcam-drag-overlay" id="webcam-drag-overlay"></div>
+          <div class="webcam-resize-handle" id="webcam-resize-handle"></div>
 
           <!-- Escudo transparente inerte (evita 100% cualquier overlay de pausa, play o hover de Kick) -->
           <div class="webcam-inert-shield"></div>
