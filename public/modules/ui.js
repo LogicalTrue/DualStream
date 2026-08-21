@@ -231,7 +231,7 @@ export function initWebcamDragAndResize(onPositionChanged) {
       const parentRect = DOM.videoTheater.getBoundingClientRect();
       let newW = initialWidth + deltaX;
 
-      if (newW < 180) newW = 180;
+      if (newW < 160) newW = 160;
       if (newW > parentRect.width * 0.75) newW = parentRect.width * 0.75;
 
       AppState.camW = parseFloat(((newW / parentRect.width) * 100).toFixed(2));

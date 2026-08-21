@@ -746,7 +746,14 @@ body.mode-viewer.viewer-standby #floating-video-controls {
   transition: box-shadow var(--transition-fast);
 }
 
-/* El iframe de Kick está permanentemente en vivo y NUNCA se pausa */
+.webcam-frame-wrapper {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden !important;
+}
+
+/* El iframe de Kick está permanentemente en vivo y NUNCA se pausa ni genera scrollbars */
 .webcam-frame {
   position: absolute;
   top: 0;
@@ -754,6 +761,7 @@ body.mode-viewer.viewer-standby #floating-video-controls {
   width: 100%;
   height: 100%;
   border: none;
+  overflow: hidden !important;
   pointer-events: none !important; /* Deshabilita completamente cualquier evento del ratón hacia Kick */
 }
 
