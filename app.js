@@ -169,8 +169,10 @@
     // Standby Screens
     theaterOfflineScreen: document.getElementById('theater-offline-screen'),
     offlineBackdrop: document.getElementById('offline-backdrop'),
+    offlineStreamerName: document.getElementById('offline-streamer-name'),
     theaterOnlineScreen: document.getElementById('theater-online-screen'),
     onlineBackdrop: document.getElementById('online-backdrop'),
+    onlineStreamerName: document.getElementById('online-streamer-name'),
     btnConnectWatchparty: document.getElementById('btn-connect-watchparty'),
     inputConfigOfflineImg: document.getElementById('input-config-offline-img'),
     inputConfigOnlineImg: document.getElementById('input-config-online-img'),
@@ -1127,6 +1129,7 @@
     // Actualizar pantallas de espera (Offline vs Online)
     function updateTheaterStandbyScreens() {
       if (AppState.isAdmin) {
+        document.body.classList.remove('viewer-standby');
         if (DOM.theaterOfflineScreen) DOM.theaterOfflineScreen.style.display = 'none';
         if (DOM.theaterOnlineScreen) DOM.theaterOnlineScreen.style.display = 'none';
         return;
@@ -1151,8 +1154,14 @@
         }
       }
 
+      // Actualizar nombre del streamer en las tarjetas
+      const currentName = AppState.streamer || 'Streamer';
+      if (DOM.offlineStreamerName) DOM.offlineStreamerName.textContent = currentName;
+      if (DOM.onlineStreamerName) DOM.onlineStreamerName.textContent = currentName;
+
       if (!AppState.isOnline) {
         // Streamer Offline: Mostrar pantalla de fuera de línea
+        document.body.classList.add('viewer-standby');
         if (DOM.theaterOfflineScreen) DOM.theaterOfflineScreen.style.display = 'flex';
         if (DOM.theaterOnlineScreen) DOM.theaterOnlineScreen.style.display = 'none';
       } else {
@@ -1161,9 +1170,11 @@
         
         if (!AppState.isViewerConnected) {
           // El viewer aún no hizo clic en "Conectarse"
+          document.body.classList.add('viewer-standby');
           if (DOM.theaterOnlineScreen) DOM.theaterOnlineScreen.style.display = 'flex';
         } else {
           // El viewer ya está conectado a la transmisión
+          document.body.classList.remove('viewer-standby');
           if (DOM.theaterOnlineScreen) DOM.theaterOnlineScreen.style.display = 'none';
         }
       }
@@ -1942,6 +1953,7 @@
     if (DOM.btnConnectWatchparty) {
       DOM.btnConnectWatchparty.addEventListener('click', () => {
         AppState.isViewerConnected = true;
+        document.body.classList.remove('viewer-standby');
         if (DOM.theaterOnlineScreen) DOM.theaterOnlineScreen.style.display = 'none';
 
         // 1. Cargar la cámara y chat de Kick de inmediato
@@ -2099,6 +2111,7 @@
     if (AppState.isAdmin) {
       AppState.isOnline = true;
       AppState.isViewerConnected = true;
+      document.body.classList.remove('viewer-standby');
       updateKickViews();
       applyWebcamPosition();
       if (AppState.videoUrl && AppState.videoUrl.trim() !== '') {
@@ -2107,6 +2120,10 @@
     } else {
       // Espectador
       applyWebcamPosition();
+      const currentName = AppState.streamer || 'Streamer';
+      if (DOM.offlineStreamerName) DOM.offlineStreamerName.textContent = currentName;
+      if (DOM.onlineStreamerName) DOM.onlineStreamerName.textContent = currentName;
+
       if (DOM.offlineBackdrop && AppState.offlineImg) {
         DOM.offlineBackdrop.style.backgroundImage = `url('${AppState.offlineImg}')`;
       }
@@ -2115,9 +2132,11 @@
       }
 
       if (!AppState.isOnline) {
+        document.body.classList.add('viewer-standby');
         if (DOM.theaterOfflineScreen) DOM.theaterOfflineScreen.style.display = 'flex';
         if (DOM.theaterOnlineScreen) DOM.theaterOnlineScreen.style.display = 'none';
       } else {
+        document.body.classList.add('viewer-standby');
         if (DOM.theaterOfflineScreen) DOM.theaterOfflineScreen.style.display = 'none';
         if (DOM.theaterOnlineScreen) DOM.theaterOnlineScreen.style.display = 'flex';
       }

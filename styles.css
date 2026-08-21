@@ -554,6 +554,24 @@ body.mode-admin .viewer-video-shield {
   margin: 0 0 8px 0;
 }
 
+.standby-streamer-highlight {
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: var(--radius-sm);
+}
+
+.standby-streamer-highlight.online-name {
+  color: var(--kick-green);
+  background: var(--kick-green-subtle);
+  border: 1px solid rgba(83, 252, 24, 0.3);
+}
+
+.standby-streamer-highlight.offline-name {
+  color: #ff5252;
+  background: rgba(255, 75, 75, 0.1);
+  border: 1px solid rgba(255, 75, 75, 0.3);
+}
+
 .btn-connect-watchparty {
   display: inline-flex;
   align-items: center;
@@ -591,6 +609,16 @@ body.mode-admin .viewer-video-shield {
 
 body.mode-admin #theater-offline-screen,
 body.mode-admin #theater-online-screen {
+  display: none !important;
+}
+
+/* Ocultar la webcam y controles flotantes si el espectador ve las pantallas de espera (desconectado o previo a conectar) */
+body.mode-viewer:has(#theater-offline-screen[style*="display: flex"]) #webcam-card,
+body.mode-viewer:has(#theater-online-screen[style*="display: flex"]) #webcam-card,
+body.mode-viewer:has(#theater-offline-screen[style*="display: flex"]) #floating-video-controls,
+body.mode-viewer:has(#theater-online-screen[style*="display: flex"]) #floating-video-controls,
+body.mode-viewer.viewer-standby #webcam-card,
+body.mode-viewer.viewer-standby #floating-video-controls {
   display: none !important;
 }
 
@@ -1012,6 +1040,39 @@ body.mode-viewer .webcam-resize-handle {
     height: 100%;
   }
 
+  /* Si está en standby (esperando conectar o desconectado) en celular, expandir el video-theater para ver la tarjeta cómodamente */
+  body.mode-viewer.viewer-standby .stage-section {
+    max-height: 55vh !important;
+    min-height: 280px !important;
+  }
+
+  .standby-card {
+    padding: 20px 16px !important;
+    gap: 8px !important;
+    max-width: 95% !important;
+  }
+
+  .standby-title {
+    font-size: 17px !important;
+  }
+
+  .standby-subtitle {
+    font-size: 11.5px !important;
+    line-height: 1.4 !important;
+  }
+
+  .btn-connect-watchparty {
+    padding: 10px 18px !important;
+    font-size: 12px !important;
+    gap: 8px !important;
+  }
+
+  .btn-connect-watchparty .connect-icon {
+    width: 18px !important;
+    height: 18px !important;
+    font-size: 9px !important;
+  }
+
   .webcam-card {
     min-width: 100px !important;
     max-width: 135px !important;
@@ -1156,6 +1217,27 @@ body.mode-viewer .webcam-resize-handle {
     width: 100% !important;
     height: 100% !important;
     aspect-ratio: 16 / 9;
+  }
+
+  .standby-card {
+    padding: 14px 18px !important;
+    gap: 6px !important;
+    max-width: 85% !important;
+  }
+
+  .standby-title {
+    font-size: 15px !important;
+  }
+
+  .standby-subtitle {
+    font-size: 11px !important;
+    line-height: 1.3 !important;
+    margin-bottom: 2px !important;
+  }
+
+  .btn-connect-watchparty {
+    padding: 8px 16px !important;
+    font-size: 11.5px !important;
   }
 
   .webcam-card {
