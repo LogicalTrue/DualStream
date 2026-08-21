@@ -1256,11 +1256,6 @@ body.chat-is-hidden .btn-floating-chat-toggle {
     font-size: 11.5px !important;
   }
 
-  .webcam-card {
-    min-width: 120px !important;
-    max-width: 180px !important;
-  }
-
   .chat-resizer {
     display: none !important;
   }
@@ -2011,9 +2006,6 @@ body.chat-is-hidden .chat-collapsed-trigger {
   }
 
   .webcam-card {
-    width: 140px;
-    top: 8px;
-    left: 8px;
     border-radius: var(--radius-sm);
   }
 
