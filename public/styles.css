@@ -1296,7 +1296,28 @@ body.chat-is-hidden .btn-floating-chat-toggle {
     height: 100dvh !important;
   }
 
-  /* Ocultar encabezados de streaming en horizontal manteniendo controles de video */
+  /* Controles flotantes visibles y siempre accesibles en horizontal (Pantalla Completa y Recargar) */
+  .floating-video-controls {
+    display: flex !important;
+    position: fixed !important;
+    top: 14px !important;
+    right: 16px !important;
+    z-index: 40 !important;
+    opacity: 1 !important;
+  }
+
+  body.landscape-chat-open .floating-video-controls {
+    right: calc(var(--chat-width, 280px) + 20px) !important;
+  }
+
+  .control-badge-btn {
+    width: 32px !important;
+    height: 32px !important;
+    background: rgba(14, 17, 19, 0.9) !important;
+    border: 1px solid var(--border-subtle) !important;
+  }
+
+  /* Ocultar encabezados de streaming en horizontal */
   .webcam-header,
   .badge-tag,
   .streamer-pill {
