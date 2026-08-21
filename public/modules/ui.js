@@ -292,26 +292,36 @@ export function toggleChatColumn() {
   if (AppState.chatVisible) {
     if (DOM.chatColumn) DOM.chatColumn.classList.remove('collapsed');
     document.body.classList.remove('chat-is-hidden');
+    document.body.classList.remove('chat-is-closed');
+    document.body.classList.add('landscape-chat-open');
     if (DOM.chatResizer) DOM.chatResizer.style.display = 'flex';
     if (DOM.btnToggleChat) DOM.btnToggleChat.classList.add('active');
   } else {
     if (DOM.chatColumn) DOM.chatColumn.classList.add('collapsed');
     document.body.classList.add('chat-is-hidden');
+    document.body.classList.add('chat-is-closed');
+    document.body.classList.remove('landscape-chat-open');
     if (DOM.chatResizer) DOM.chatResizer.style.display = 'none';
     if (DOM.btnToggleChat) DOM.btnToggleChat.classList.remove('active');
   }
 }
 
 export function openChat() {
+  AppState.chatVisible = true;
   if (DOM.chatColumn) DOM.chatColumn.classList.remove('collapsed');
   document.body.classList.remove('chat-is-closed');
+  document.body.classList.remove('chat-is-hidden');
   document.body.classList.add('landscape-chat-open');
+  if (DOM.btnToggleChat) DOM.btnToggleChat.classList.add('active');
 }
 
 export function closeChat() {
+  AppState.chatVisible = false;
   if (DOM.chatColumn) DOM.chatColumn.classList.add('collapsed');
   document.body.classList.add('chat-is-closed');
+  document.body.classList.add('chat-is-hidden');
   document.body.classList.remove('landscape-chat-open');
+  if (DOM.btnToggleChat) DOM.btnToggleChat.classList.remove('active');
 }
 
 export function initChatResizer() {
