@@ -1173,12 +1173,13 @@ body.mode-viewer .webcam-resize-handle {
   color: var(--kick-green);
 }
 
-/* En vertical: si el chat está colapsado, mostrar el botón para reabrirlo */
-@media (max-width: 768px) and (orientation: portrait) {
-  body.chat-is-closed .btn-floating-chat-toggle {
-    display: inline-flex !important;
-  }
+/* Mostrar botón flotante siempre que el chat esté cerrado (PC, Laptop, Tablet y Móvil) */
+body.chat-is-closed .btn-floating-chat-toggle,
+body.chat-is-hidden .btn-floating-chat-toggle {
+  display: inline-flex !important;
+}
 
+@media (max-width: 768px) and (orientation: portrait) {
   body.chat-is-closed .stage-section {
     max-height: 100vh !important;
     height: 100% !important;
