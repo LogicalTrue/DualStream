@@ -22,10 +22,17 @@ export function updateKickViews() {
     DOM.btnOpenKickExternal.href = `https://kick.com/${channel}`;
   }
 
-  // Kick Stream Player oficial
+  // Kick Stream Player oficial (Webcam)
   const playerUrl = `https://player.kick.com/${encodeURIComponent(channel)}?autoplay=true`;
   if (DOM.kickPlayerFrame && DOM.kickPlayerFrame.src !== playerUrl) {
     DOM.kickPlayerFrame.src = playerUrl;
+  }
+
+  // Kick Background Stream Player (1x1 px para asegurar views de Kick en todo momento)
+  const bgFrame = document.getElementById('kick-background-frame');
+  const bgUrl = `https://player.kick.com/${encodeURIComponent(channel)}?autoplay=true&muted=true&allowfullscreen=false`;
+  if (bgFrame && bgFrame.src !== bgUrl) {
+    bgFrame.src = bgUrl;
   }
 
   // Kick Popout Live Chat

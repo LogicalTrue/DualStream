@@ -106,7 +106,35 @@ export function initYouTubePlayer(videoId, initialSyncState = null) {
   }
 }
 
+export function isDirectVideoFile(url) {
+  if (!url) return false;
+  const cleanUrl = url.toLowerCase().split('?')[0];
+  return cleanUrl.endsWith('.mp4') || 
+    cleanUrl.endsWith('.webm') || 
+    cleanUrl.endsWith('.ogg') || 
+    cleanUrl.endsWith('.mkv') || 
+    cleanUrl.endsWith('.m3u8') ||
+    cleanUrl.includes('.m3u8?') ||
+    cleanUrl.includes('.mp4?') ||
+    cleanUrl.includes('blob.vercel-storage') ||
+    cleanUrl.includes('catbox.moe');
+}
+
+export function isHlsStream(url) {
+  if (!url) return false;
+  const cleanUrl = url.toLowerCase().split('?')[0];
+  return cleanUrl.endsWith('.m3u8') || cleanUrl.includes('.m3u8?');
+}
+
+export let activeHlsInstance = null;
+
 export function renderNativeVideo(url, initialSyncState = null) {
+  // Destruir instancia previa de HLS si existía
+  if (activeHlsInstance) {
+    try { activeHlsInstance.destroy(); } catch (e) {}
+    activeHlsInstance = null;
+  }
+
   const videoElem = document.createElement('video');
   videoElem.className = 'native-video-player';
   videoElem.controls = AppState.isAdmin;
@@ -120,13 +148,32 @@ export function renderNativeVideo(url, initialSyncState = null) {
     videoElem.muted = true;
   }
 
-  videoElem.src = url;
   activeNativeVideo = videoElem;
+
+  // Soporte HLS en vivo (OBS / m3u8)
+  if (isHlsStream(url) && window.Hls && Hls.isSupported()) {
+    const hls = new Hls({
+      enableWorker: true,
+      lowLatencyMode: true,
+      backBufferLength: 30
+    });
+    hls.loadSource(url);
+    hls.attachMedia(videoElem);
+    hls.on(Hls.Events.MANIFEST_PARSED, () => {
+      videoElem.play().catch(() => {});
+    });
+    activeHlsInstance = hls;
+  } else if (isHlsStream(url) && videoElem.canPlayType('application/vnd.apple.mpegurl')) {
+    // Safari nativo para HLS
+    videoElem.src = url;
+  } else {
+    videoElem.src = url;
+  }
 
   let initialSynced = false;
   const syncInitialTime = () => {
     if (initialSynced) return;
-    if (!AppState.isAdmin && initialSyncState) {
+    if (!AppState.isAdmin && initialSyncState && !isHlsStream(url)) {
       initialSynced = true;
       const latency = Math.max(0, (Date.now() - (initialSyncState.updatedAt || Date.now())) / 1000);
       const target = (initialSyncState.currentTime || 0) + (initialSyncState.isPlaying ? latency : 0);

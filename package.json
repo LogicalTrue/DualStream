@@ -5,7 +5,8 @@
   "main": "public/main.js",
   "scripts": {
     "test": "node scripts/test-sync-bots.js 5 20",
-    "test:bots": "node scripts/test-sync-bots.js"
+    "test:bots": "node scripts/test-sync-bots.js",
+    "stream:server": "node scripts/stream-server.js"
   },
   "repository": {
     "type": "git",
@@ -19,5 +20,8 @@
   "homepage": "https://github.com/LogicalTrue/DualStream#readme",
   "devDependencies": {
     "playwright": "^1.62.1"
+  },
+  "dependencies": {
+    "node-media-server": "^4.2.8"
   }
 }
