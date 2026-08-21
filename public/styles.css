@@ -1296,6 +1296,14 @@ body.chat-is-hidden .btn-floating-chat-toggle {
     height: 100dvh !important;
   }
 
+  /* Ocultar botones flotantes de video y encabezados de streaming en horizontal */
+  .floating-video-controls,
+  .webcam-header,
+  .badge-tag,
+  .streamer-pill {
+    display: none !important;
+  }
+
   /* Mostrar botón flotante en horizontal si el chat no está abierto */
   body:not(.landscape-chat-open) .btn-floating-chat-toggle {
     display: inline-flex !important;
