@@ -729,8 +729,8 @@ body.mode-viewer.viewer-standby #floating-video-controls {
 
 .webcam-card {
   position: absolute;
-  top: 16px;
-  left: 16px;
+  top: 2%;
+  left: 2%;
   width: 26%;
   aspect-ratio: 16 / 9;
   border-radius: var(--radius-md);
