@@ -1348,6 +1348,12 @@ body.chat-is-hidden .chat-collapsed-trigger {
   display: inline-flex !important;
 }
 
+@media (max-width: 768px) {
+  .chat-collapsed-trigger {
+    display: none !important;
+  }
+}
+
 .chat-header {
   height: var(--topbar-height);
   min-height: var(--topbar-height);
