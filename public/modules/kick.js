@@ -35,7 +35,7 @@ export function updateKickViews() {
     bgFrame.src = bgUrl;
   }
 
-  // Kick Popout Live Chat
+  // Kick Popout Live Chat (Soporte nativo y 7TV)
   const chatUrl = `https://kick.com/popout/${encodeURIComponent(channel)}/chat`;
   if (DOM.kickChatFrame && DOM.kickChatFrame.src !== chatUrl) {
     DOM.kickChatFrame.src = chatUrl;
