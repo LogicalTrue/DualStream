@@ -151,12 +151,13 @@ export function applyViewerPlaybackSync(data) {
 
   // 2. Sincronización para Video Nativo HTML5 (.mp4, etc.)
   if (activeNativeVideo) {
+    const isLive = activeNativeVideo.src && (activeNativeVideo.src.includes('.m3u8') || activeNativeVideo.src.includes('blob:'));
     try {
       if (!isPlaying) {
         if (!activeNativeVideo.paused) {
           activeNativeVideo.pause();
         }
-        if (Math.abs(activeNativeVideo.currentTime - targetTime) > 0.5) {
+        if (!isLive && Math.abs(activeNativeVideo.currentTime - targetTime) > 0.5) {
           activeNativeVideo.currentTime = targetTime;
         }
       } else {
@@ -164,9 +165,11 @@ export function applyViewerPlaybackSync(data) {
           activeNativeVideo.play().catch(() => {});
         }
 
-        const diff = Math.abs(activeNativeVideo.currentTime - targetTime);
-        if (diff > 4.5) {
-          activeNativeVideo.currentTime = targetTime;
+        if (!isLive) {
+          const diff = Math.abs(activeNativeVideo.currentTime - targetTime);
+          if (diff > 4.5) {
+            activeNativeVideo.currentTime = targetTime;
+          }
         }
       }
     } catch (e) {}

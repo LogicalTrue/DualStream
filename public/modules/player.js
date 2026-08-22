@@ -202,13 +202,13 @@ export function renderNativeVideo(url, initialSyncState = null) {
 
   if (AppState.isAdmin) {
     videoElem.addEventListener('play', () => {
-      if (typeof playbackSyncEmitter === 'function') playbackSyncEmitter(videoElem.currentTime, true);
+      if (!isHlsStream(url) && typeof playbackSyncEmitter === 'function') playbackSyncEmitter(videoElem.currentTime, true);
     });
     videoElem.addEventListener('pause', () => {
-      if (typeof playbackSyncEmitter === 'function') playbackSyncEmitter(videoElem.currentTime, false);
+      if (!isHlsStream(url) && typeof playbackSyncEmitter === 'function') playbackSyncEmitter(videoElem.currentTime, false);
     });
     videoElem.addEventListener('seeked', () => {
-      if (typeof playbackSyncEmitter === 'function') playbackSyncEmitter(videoElem.currentTime, !videoElem.paused);
+      if (!isHlsStream(url) && typeof playbackSyncEmitter === 'function') playbackSyncEmitter(videoElem.currentTime, !videoElem.paused);
     });
   }
 
