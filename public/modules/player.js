@@ -43,18 +43,6 @@ export function extractYouTubeId(url) {
   return (ytMatch && ytMatch[1]) ? ytMatch[1] : null;
 }
 
-export function isDirectVideoFile(url) {
-  if (!url) return false;
-  const cleanUrl = url.split('?')[0].toLowerCase();
-  return cleanUrl.endsWith('.mp4') ||
-    cleanUrl.endsWith('.webm') ||
-    cleanUrl.endsWith('.ogg') ||
-    cleanUrl.endsWith('.mkv') ||
-    cleanUrl.includes('.mp4?') ||
-    cleanUrl.includes('blob.vercel-storage') ||
-    cleanUrl.includes('catbox.moe');
-}
-
 export function initYouTubePlayer(videoId, initialSyncState = null) {
   pendingYtVideoId = null;
   try {
@@ -155,12 +143,30 @@ export function renderNativeVideo(url, initialSyncState = null) {
     const hls = new Hls({
       enableWorker: true,
       lowLatencyMode: true,
-      backBufferLength: 30
+      backBufferLength: 30,
+      liveSyncDurationCount: 3,
+      liveMaxLatencyDurationCount: 8,
+      maxLiveSyncPlaybackRate: 1.15
     });
     hls.loadSource(url);
     hls.attachMedia(videoElem);
     hls.on(Hls.Events.MANIFEST_PARSED, () => {
       videoElem.play().catch(() => {});
+    });
+    hls.on(Hls.Events.ERROR, (event, data) => {
+      if (data.fatal) {
+        switch (data.type) {
+          case Hls.ErrorTypes.NETWORK_ERROR:
+            hls.startLoad();
+            break;
+          case Hls.ErrorTypes.MEDIA_ERROR:
+            hls.recoverMediaError();
+            break;
+          default:
+            try { hls.destroy(); } catch (e) {}
+            break;
+        }
+      }
     });
     activeHlsInstance = hls;
   } else if (isHlsStream(url) && videoElem.canPlayType('application/vnd.apple.mpegurl')) {
