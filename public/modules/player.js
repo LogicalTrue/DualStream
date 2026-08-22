@@ -132,12 +132,16 @@ export function renderNativeVideo(url, initialSyncState = null) {
   videoElem.setAttribute('webkit-playsinline', 'true');
   videoElem.preload = 'auto';
   videoElem.volume = 1.0;
+  videoElem.muted = false;
 
-  if (!AppState.isAdmin) {
-    videoElem.muted = true;
-  } else {
+  // Si el navegador bloquea autoplay con sonido, arrancamos muteado y desmuteamos al primer toque
+  const enableSoundOnInteraction = () => {
     videoElem.muted = false;
-  }
+    videoElem.volume = 1.0;
+    updateVideoVolume(100);
+  };
+  videoElem.addEventListener('click', enableSoundOnInteraction);
+  document.addEventListener('click', enableSoundOnInteraction, { once: true });
 
   activeNativeVideo = videoElem;
 
