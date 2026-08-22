@@ -1687,6 +1687,7 @@ body.chat-is-hidden .chat-collapsed-trigger {
 
 .input-group textarea,
 .input-group input[type="text"],
+.input-group input[type="url"],
 .input-group input[type="password"] {
   width: 100%;
   background: var(--bg-surface);
@@ -1702,6 +1703,7 @@ body.chat-is-hidden .chat-collapsed-trigger {
 
 .input-group textarea:focus,
 .input-group input[type="text"]:focus,
+.input-group input[type="url"]:focus,
 .input-group input[type="password"]:focus {
   border-color: var(--kick-green);
   box-shadow: 0 0 0 2px var(--kick-green-glow);
