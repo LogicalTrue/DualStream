@@ -180,6 +180,20 @@
 
           <!-- Floating Video Controls (Top Right of Video) -->
           <div class="floating-video-controls" id="floating-video-controls">
+            <div class="viewer-volume-control">
+              <button class="control-badge-btn" id="btn-toggle-video-mute" aria-label="Silenciar/Desactivar Silencio">
+                <svg id="icon-vol-high" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+                  <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+                </svg>
+                <svg id="icon-vol-mute" class="hidden" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+                  <line x1="23" y1="9" x2="17" y2="15"></line>
+                  <line x1="17" y1="9" x2="23" y2="15"></line>
+                </svg>
+              </button>
+              <input type="range" id="slider-video-volume" class="viewer-volume-slider" min="0" max="100" value="100" aria-label="Volumen">
+            </div>
             <button class="control-badge-btn" id="btn-reload-movie" aria-label="Recargar reproductor">
               <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <polyline points="23 4 23 10 17 10"></polyline>
