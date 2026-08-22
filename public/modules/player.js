@@ -156,7 +156,14 @@ export function renderNativeVideo(url, initialSyncState = null) {
     hls.loadSource(url);
     hls.attachMedia(videoElem);
     hls.on(Hls.Events.MANIFEST_PARSED, () => {
-      videoElem.play().catch(() => {});
+      const playPromise = videoElem.play();
+      if (playPromise !== undefined) {
+        playPromise.catch(() => {
+          // Autoplay policy fallback (start muted first)
+          videoElem.muted = true;
+          videoElem.play().catch(() => {});
+        });
+      }
     });
     hls.on(Hls.Events.ERROR, (event, data) => {
       if (data.fatal) {
