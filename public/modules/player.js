@@ -141,29 +141,15 @@ export function renderNativeVideo(url, initialSyncState = null) {
   // Soporte HLS en vivo (OBS / m3u8)
   if (isHlsStream(url) && window.Hls && Hls.isSupported()) {
     const hls = new Hls({
-      enableWorker: true,
-      lowLatencyMode: false,
-      liveSyncDurationCount: 3,
-      liveMaxLatencyDurationCount: 8,
-      liveDurationInfinity: true,
-      maxBufferLength: 10,
-      maxMaxBufferLength: 20,
-      backBufferLength: 0,
-      maxLiveSyncPlaybackRate: 1,
-      nudgeOffset: 0.1,
-      nudgeMaxRetry: 5
+      enableWorker: true
     });
     hls.loadSource(url);
     hls.attachMedia(videoElem);
     hls.on(Hls.Events.MANIFEST_PARSED, () => {
-      const playPromise = videoElem.play();
-      if (playPromise !== undefined) {
-        playPromise.catch(() => {
-          // Autoplay policy fallback (start muted first)
-          videoElem.muted = true;
-          videoElem.play().catch(() => {});
-        });
-      }
+      videoElem.play().catch(() => {
+        videoElem.muted = true;
+        videoElem.play().catch(() => {});
+      });
     });
     hls.on(Hls.Events.ERROR, (event, data) => {
       if (data.fatal) {
