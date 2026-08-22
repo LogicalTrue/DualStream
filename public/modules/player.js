@@ -165,9 +165,9 @@ export function renderNativeVideo(url, initialSyncState = null) {
     });
     let consecutive404Errors = 0;
     hls.on(Hls.Events.ERROR, (event, data) => {
-      if (data.response && data.response.code === 404) {
+      if (data.response && (data.response.code === 404 || data.response.code === 0)) {
         consecutive404Errors++;
-        if (consecutive404Errors >= 2) {
+        if (consecutive404Errors >= 1) {
           if (DOM.currentVideoTitle) DOM.currentVideoTitle.textContent = 'Stream Fuera de Línea / Pausado';
           if (DOM.theaterOfflineScreen) DOM.theaterOfflineScreen.style.display = 'flex';
           if (DOM.movieMediaWrapper) DOM.movieMediaWrapper.style.display = 'none';

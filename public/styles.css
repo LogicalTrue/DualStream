@@ -607,9 +607,9 @@ body.mode-admin .viewer-video-shield {
   font-size: 10px;
 }
 
-body.mode-admin #theater-offline-screen,
-body.mode-admin #theater-online-screen {
-  display: none !important;
+/* Pantallas de Espera y Standby */
+body.viewer-standby #theater-offline-screen {
+  display: flex !important;
 }
 
 /* Ocultar la webcam y controles flotantes si el espectador ve las pantallas de espera (desconectado o previo a conectar) */
