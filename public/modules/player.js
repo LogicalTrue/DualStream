@@ -151,11 +151,24 @@ export function renderNativeVideo(url, initialSyncState = null) {
         videoElem.play().catch(() => {});
       });
     });
+    let consecutive404Errors = 0;
     hls.on(Hls.Events.ERROR, (event, data) => {
+      if (data.response && data.response.code === 404) {
+        consecutive404Errors++;
+        if (consecutive404Errors >= 3) {
+          if (DOM.currentVideoTitle) DOM.currentVideoTitle.textContent = 'Transmisión en Pausa / Offline';
+        }
+      } else {
+        consecutive404Errors = 0;
+      }
+
       if (data.fatal) {
         switch (data.type) {
           case Hls.ErrorTypes.NETWORK_ERROR:
-            hls.startLoad();
+            // Reintentar automáticamente cada 3s en caso de caída temporal
+            setTimeout(() => {
+              try { hls.startLoad(); } catch(e) {}
+            }, 3000);
             break;
           case Hls.ErrorTypes.MEDIA_ERROR:
             hls.recoverMediaError();
