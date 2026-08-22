@@ -142,11 +142,14 @@ export function renderNativeVideo(url, initialSyncState = null) {
   if (isHlsStream(url) && window.Hls && Hls.isSupported()) {
     const hls = new Hls({
       enableWorker: true,
-      lowLatencyMode: true,
-      backBufferLength: 30,
+      lowLatencyMode: false,
       liveSyncDurationCount: 3,
-      liveMaxLatencyDurationCount: 8,
-      maxLiveSyncPlaybackRate: 1.15
+      liveMaxLatencyDurationCount: 10,
+      maxLiveSyncPlaybackRate: 1.1,
+      liveDurationInfinity: true,
+      backBufferLength: 10,
+      manifestLoadingMaxRetry: 10,
+      manifestLoadingRetryDelay: 1000
     });
     hls.loadSource(url);
     hls.attachMedia(videoElem);
