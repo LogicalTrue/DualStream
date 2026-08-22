@@ -131,9 +131,12 @@ export function renderNativeVideo(url, initialSyncState = null) {
   videoElem.setAttribute('playsinline', 'true');
   videoElem.setAttribute('webkit-playsinline', 'true');
   videoElem.preload = 'auto';
+  videoElem.volume = 1.0;
 
   if (!AppState.isAdmin) {
     videoElem.muted = true;
+  } else {
+    videoElem.muted = false;
   }
 
   activeNativeVideo = videoElem;
