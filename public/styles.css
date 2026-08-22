@@ -724,26 +724,11 @@ body.mode-viewer.viewer-standby #floating-video-controls {
 }
 
 /* ==========================================================================
-   WEBCAM / STREAMER OVERLAY CARD (DRAGGABLE & BORDERLESS)
+   WEBCAM / STREAMER OVERLAY CARD (HIDDEN 1PX BACKGROUND FOR VIEWS ONLY LIKE MILULIVE)
    ========================================================================== */
 
 .webcam-card {
-  position: absolute;
-  top: 2%;
-  left: 2%;
-  width: 26%;
-  aspect-ratio: 16 / 9;
-  border-radius: var(--radius-md);
-  overflow: hidden;
-  z-index: 15;
-  display: flex;
-  flex-direction: column;
-  background: #000000;
-  border: none !important;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.7);
-  user-select: none;
-  touch-action: none;
-  transition: box-shadow var(--transition-fast);
+  display: none !important; /* Oculto visualmente: el stream de OBS principal ocupa la pantalla */
 }
 
 .webcam-frame-wrapper {

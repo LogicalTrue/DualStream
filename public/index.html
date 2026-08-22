@@ -368,34 +368,6 @@
               spellcheck="false"></textarea>
           </div>
 
-          <!-- Zona de Subida Directa de Archivos MP4 desde la PC -->
-          <div class="upload-mp4-box" id="upload-mp4-box">
-            <input type="file" id="input-mp4-file" accept="video/mp4,video/webm,video/ogg,video/quicktime,.mp4,.webm,.mkv" style="display: none;">
-            <div class="upload-dropzone" id="upload-dropzone">
-              <div class="upload-icon-wrapper">
-                <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                  <polyline points="17 8 12 3 7 8"></polyline>
-                  <line x1="12" y1="3" x2="12" y2="15"></line>
-                </svg>
-              </div>
-              <div class="upload-texts">
-                <span class="upload-main-text"><strong>Haz clic para subir un video .MP4</strong> o arrástralo aquí</span>
-                <span class="upload-sub-text">Se subirá y generará el enlace directo para tu transmisión automáticamente</span>
-              </div>
-              <button type="button" class="btn btn-secondary btn-sm" id="btn-browse-file">Examinar Archivo</button>
-            </div>
-            <div class="upload-progress-container" id="upload-progress-container" style="display: none;">
-              <div class="upload-progress-info">
-                <span id="upload-filename">Subiendo video...</span>
-                <span id="upload-percentage">0%</span>
-              </div>
-              <div class="upload-progress-track">
-                <div class="upload-progress-bar" id="upload-progress-bar"></div>
-              </div>
-            </div>
-          </div>
-
           <div class="form-group">
             <label for="input-config-offline-img">Imagen de Pantalla OFFLINE (URL de Banner / Poster):</label>
             <input 
@@ -414,16 +386,6 @@
               placeholder="https://ejemplo.com/portada-online.jpg (opcional)"
               autocomplete="off"
               spellcheck="false">
-          </div>
-
-          <div class="quick-presets">
-            <span class="presets-label">Prueba rápida de video:</span>
-            <button type="button" class="preset-chip config-video-preset" data-url="https://www.youtube.com/watch?v=A8qw5r6aDYo">
-              🎬 YouTube Trailer
-            </button>
-            <button type="button" class="preset-chip config-video-preset" data-url="https://vjs.zencdn.net/v/oceans.mp4">
-              🎬 Oceans (MP4)
-            </button>
           </div>
 
           <div class="modal-actions">
