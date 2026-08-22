@@ -153,6 +153,11 @@ export function renderNativeVideo(url, initialSyncState = null) {
     hls.loadSource(url);
     hls.attachMedia(videoElem);
     hls.on(Hls.Events.MANIFEST_PARSED, () => {
+      // Ocultar pantalla offline si estaba visible
+      if (DOM.theaterOfflineScreen) DOM.theaterOfflineScreen.style.display = 'none';
+      if (DOM.movieMediaWrapper) DOM.movieMediaWrapper.style.display = 'block';
+      if (DOM.currentVideoTitle) DOM.currentVideoTitle.textContent = 'En Vivo';
+
       videoElem.play().catch(() => {
         videoElem.muted = true;
         videoElem.play().catch(() => {});
@@ -162,8 +167,10 @@ export function renderNativeVideo(url, initialSyncState = null) {
     hls.on(Hls.Events.ERROR, (event, data) => {
       if (data.response && data.response.code === 404) {
         consecutive404Errors++;
-        if (consecutive404Errors >= 3) {
-          if (DOM.currentVideoTitle) DOM.currentVideoTitle.textContent = 'Transmisión en Pausa / Offline';
+        if (consecutive404Errors >= 2) {
+          if (DOM.currentVideoTitle) DOM.currentVideoTitle.textContent = 'Stream Fuera de Línea / Pausado';
+          if (DOM.theaterOfflineScreen) DOM.theaterOfflineScreen.style.display = 'flex';
+          if (DOM.movieMediaWrapper) DOM.movieMediaWrapper.style.display = 'none';
         }
       } else {
         consecutive404Errors = 0;
@@ -172,10 +179,10 @@ export function renderNativeVideo(url, initialSyncState = null) {
       if (data.fatal) {
         switch (data.type) {
           case Hls.ErrorTypes.NETWORK_ERROR:
-            // Reintentar automáticamente cada 3s en caso de caída temporal
+            // Reintentar reconexión continua cada 2s
             setTimeout(() => {
               try { hls.startLoad(); } catch(e) {}
-            }, 3000);
+            }, 2000);
             break;
           case Hls.ErrorTypes.MEDIA_ERROR:
             hls.recoverMediaError();
