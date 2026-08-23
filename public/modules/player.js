@@ -384,7 +384,7 @@ export function renderNativeVideo(url, initialSyncState = null) {
           isPlayingLive = true;
           clearInterval(offlineCheckTimer);
           setPlayerOnline();
-          addTelemetryLog('Transmisión conectada y reproduciendo a 60 FPS', 'success');
+          addTelemetryLog('Transmisión en vivo conectada (60 FPS)', 'success');
         }
       };
 
@@ -392,20 +392,19 @@ export function renderNativeVideo(url, initialSyncState = null) {
         clearInterval(offlineCheckTimer);
         offlineCheckTimer = setInterval(async () => {
           try {
-            const res = await fetch(url, { method: 'GET', cache: 'no-store' });
+            // Verificar directamente la sublista de segmentos activos de MediaMTX
+            const checkUrl = url.replace('index.m3u8', 'main_stream.m3u8') + '?t=' + Date.now();
+            const res = await fetch(checkUrl, { method: 'HEAD', cache: 'no-store' });
             if (res.ok) {
-              const text = await res.text();
-              if (text.includes('EXTM3U')) {
-                clearInterval(offlineCheckTimer);
-                if (activeHlsInstance === hls) {
-                  addTelemetryLog('OBS detectado en vivo. Reconectando...', 'info');
-                  hls.loadSource(url);
-                  hls.startLoad();
-                }
+              clearInterval(offlineCheckTimer);
+              if (activeHlsInstance === hls) {
+                addTelemetryLog('OBS detectado en directo. Cargando flujo...', 'info');
+                hls.loadSource(url);
+                hls.startLoad();
               }
             }
           } catch (e) {}
-        }, 2500);
+        }, 3000);
       };
 
       const setStreamOffline = () => {
@@ -419,12 +418,8 @@ export function renderNativeVideo(url, initialSyncState = null) {
       };
 
       hls.on(Hls.Events.MANIFEST_PARSED, (ev, data) => {
-        addTelemetryLog(`Manifiesto parseado (${data.levels ? data.levels.length : 1} calidades encontradas)`, 'info');
-        setStreamOnline();
-        videoElem.play().catch(() => {
-          videoElem.muted = true;
-          videoElem.play().catch(() => {});
-        });
+        addTelemetryLog(`Manifiesto recibido (${data.levels ? data.levels.length : 1} calidades)`, 'info');
+        // No pasamos a online hasta que llegue el primer fragmento real
       });
 
       hls.on(Hls.Events.FRAG_LOADED, (ev, data) => {
@@ -438,7 +433,10 @@ export function renderNativeVideo(url, initialSyncState = null) {
 
         addTelemetryLog(`Fragmento #${data.frag.sn} (${durationSec}s) cargado en ${loadTimeMs}ms (${mbps} Mbps)`, 'success');
         
-        if (videoElem.paused && isPlayingLive) {
+        // Pasar a online únicamente cuando un fragmento real de video fue descargado
+        setStreamOnline();
+
+        if (videoElem.paused) {
           videoElem.play().catch(() => {});
         }
       });
