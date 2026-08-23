@@ -248,10 +248,13 @@ body.mode-admin .viewer-only {
   color: var(--kick-green);
 }
 
-/* Center Video Host Pill */
+/* Center Video Host Pill & Social Buttons */
 .topbar-center {
   display: flex;
   align-items: center;
+  justify-content: center;
+  gap: 8px;
+  flex: 1;
 }
 
 .video-info-pill {
