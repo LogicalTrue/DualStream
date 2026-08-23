@@ -145,103 +145,79 @@ export function renderNativeVideo(url, initialSyncState = null) {
 
   activeNativeVideo = videoElem;
 
-  // Soporte HLS en vivo (OBS / m3u8) Limpio, sin spam en consola
+  // Soporte HLS en vivo (OBS / m3u8)
   if (isHlsStream(url) && window.Hls && Hls.isSupported()) {
-    let hls = null;
-    let liveWatcher = null;
+    let hls = new Hls({
+      enableWorker: true,
+      lowLatencyMode: false,
+      liveSyncDuration: 3,
+      liveMaxLatencyDuration: 8,
+      maxBufferLength: 30,
+      maxMaxBufferLength: 60,
+      backBufferLength: 0,
+      nudgeOffset: 0.1,
+      nudgeMaxRetry: 10,
+      manifestLoadingTimeOut: 8000,
+      manifestLoadingMaxRetry: Infinity,
+      manifestLoadingRetryDelay: 3500,
+      levelLoadingTimeOut: 8000,
+      levelLoadingMaxRetry: Infinity,
+      levelLoadingRetryDelay: 3500,
+      fragLoadingTimeOut: 20000,
+      fragLoadingMaxRetry: 6,
+      fragLoadingRetryDelay: 1000
+    });
 
-    const startHlsPlayback = () => {
-      if (hls) return;
-      
-      hls = new Hls({
-        enableWorker: true,
-        lowLatencyMode: false,
-        liveSyncDuration: 3,
-        liveMaxLatencyDuration: 8,
-        maxBufferLength: 30,
-        maxMaxBufferLength: 60,
-        backBufferLength: 0,
-        nudgeOffset: 0.1,
-        nudgeMaxRetry: 10,
-        manifestLoadingTimeOut: 10000,
-        fragLoadingTimeOut: 20000
-      });
+    hls.loadSource(url);
+    hls.attachMedia(videoElem);
 
-      hls.loadSource(url);
-      hls.attachMedia(videoElem);
+    const onStreamLive = () => {
+      if (DOM.theaterOfflineScreen) DOM.theaterOfflineScreen.style.display = 'none';
+      if (DOM.movieMediaWrapper) DOM.movieMediaWrapper.style.display = 'block';
+      if (DOM.currentVideoTitle) DOM.currentVideoTitle.textContent = 'En Vivo';
 
-      const onStreamLive = () => {
-        if (DOM.theaterOfflineScreen) DOM.theaterOfflineScreen.style.display = 'none';
-        if (DOM.movieMediaWrapper) DOM.movieMediaWrapper.style.display = 'block';
-        if (DOM.currentVideoTitle) DOM.currentVideoTitle.textContent = 'En Vivo';
-
-        const playPromise = videoElem.play();
-        if (playPromise !== undefined) {
-          playPromise.catch(() => {
-            videoElem.muted = true;
-            videoElem.play().catch(() => {});
-          });
-        }
-      };
-
-      hls.on(Hls.Events.MANIFEST_PARSED, onStreamLive);
-      hls.on(Hls.Events.LEVEL_LOADED, onStreamLive);
-      hls.on(Hls.Events.FRAG_LOADED, onStreamLive);
-
-      hls.on(Hls.Events.ERROR, (event, data) => {
-        const is404 = (data.response && (data.response.code === 404 || data.response.code === 0)) ||
-                      (data.details && data.details.includes('404')) ||
-                      data.details === Hls.ErrorDetails.MANIFEST_LOAD_ERROR ||
-                      data.details === Hls.ErrorDetails.LEVEL_LOAD_ERROR;
-
-        if (is404) {
-          if (DOM.theaterOfflineScreen) DOM.theaterOfflineScreen.style.display = 'flex';
-          if (DOM.movieMediaWrapper) DOM.movieMediaWrapper.style.display = 'none';
-          if (DOM.currentVideoTitle) DOM.currentVideoTitle.textContent = 'Stream Fuera de Línea';
-          try { hls.destroy(); } catch(e) {}
-          hls = null;
-          activeHlsInstance = null;
-        } else if (data.fatal) {
-          if (data.type === Hls.ErrorTypes.MEDIA_ERROR) {
-            hls.recoverMediaError();
-          } else {
-            try { hls.destroy(); } catch(e) {}
-            hls = null;
-            activeHlsInstance = null;
-          }
-        }
-      });
-
-      activeHlsInstance = hls;
+      const playPromise = videoElem.play();
+      if (playPromise !== undefined) {
+        playPromise.catch(() => {
+          videoElem.muted = true;
+          videoElem.play().catch(() => {});
+        });
+      }
     };
 
-    // Verificar silenciosamente si OBS está transmitiendo antes de crear Hls.js
-    const checkLiveStreamQuietly = async () => {
-      try {
-        const res = await fetch(url, { method: 'HEAD', cache: 'no-store' });
-        if (res.ok) {
-          startHlsPlayback();
-        } else {
-          if (DOM.theaterOfflineScreen) DOM.theaterOfflineScreen.style.display = 'flex';
-          if (DOM.movieMediaWrapper) DOM.movieMediaWrapper.style.display = 'none';
-        }
-      } catch (e) {
+    hls.on(Hls.Events.MANIFEST_PARSED, onStreamLive);
+    hls.on(Hls.Events.LEVEL_LOADED, onStreamLive);
+    hls.on(Hls.Events.FRAG_LOADED, onStreamLive);
+
+    hls.on(Hls.Events.ERROR, (event, data) => {
+      const is404 = (data.response && (data.response.code === 404 || data.response.code === 0)) ||
+                    (data.details && data.details.includes('404')) ||
+                    data.details === Hls.ErrorDetails.MANIFEST_LOAD_ERROR ||
+                    data.details === Hls.ErrorDetails.LEVEL_LOAD_ERROR;
+
+      if (is404) {
         if (DOM.theaterOfflineScreen) DOM.theaterOfflineScreen.style.display = 'flex';
         if (DOM.movieMediaWrapper) DOM.movieMediaWrapper.style.display = 'none';
       }
-    };
 
-    // Primer chequeo inmediato
-    checkLiveStreamQuietly();
-
-    // Vigilante silencioso continuo cada 2.5s mientras esté offline
-    liveWatcher = setInterval(() => {
-      if (!hls && DOM.theaterOfflineScreen && DOM.theaterOfflineScreen.style.display !== 'none') {
-        checkLiveStreamQuietly();
+      if (data.fatal) {
+        if (data.type === Hls.ErrorTypes.NETWORK_ERROR) {
+          setTimeout(() => {
+            try { hls.startLoad(); } catch(e) {}
+          }, 3500);
+        } else if (data.type === Hls.ErrorTypes.MEDIA_ERROR) {
+          hls.recoverMediaError();
+        } else {
+          setTimeout(() => {
+            try {
+              hls.loadSource(url);
+              hls.attachMedia(videoElem);
+            } catch (e) {}
+          }, 4000);
+        }
       }
-    }, 2500);
+    });
 
-    videoElem._liveWatcher = liveWatcher;
     activeHlsInstance = hls;
   } else if (isHlsStream(url) && videoElem.canPlayType('application/vnd.apple.mpegurl')) {
     // Safari nativo para HLS
