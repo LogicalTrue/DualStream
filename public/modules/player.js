@@ -206,11 +206,8 @@ export function renderNativeVideo(url, initialSyncState = null) {
       if (isLive || isProbing) return;
       isProbing = true;
       try {
-        const resp = await fetch(url, {
-          method: 'GET',
-          cache: 'no-store',
-          headers: { 'Cache-Control': 'no-cache' }
-        });
+        const probeUrl = url + (url.includes('?') ? '&' : '?') + '_t=' + Date.now();
+        const resp = await fetch(probeUrl);
         if (resp.ok) {
           const text = await resp.text();
           if (text.includes('#EXTM3U')) {
