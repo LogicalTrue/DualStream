@@ -366,11 +366,11 @@ export function renderNativeVideo(url, initialSyncState = null) {
         liveSyncDurationCount: 3,
         liveMaxLatencyDurationCount: 12,
         liveDurationInfinity: true,
-        manifestLoadingMaxRetry: Infinity,
-        manifestLoadingRetryDelay: 1500,
-        levelLoadingMaxRetry: Infinity,
-        levelLoadingRetryDelay: 1500,
-        fragLoadingMaxRetry: Infinity,
+        manifestLoadingMaxRetry: 2,
+        manifestLoadingRetryDelay: 1000,
+        levelLoadingMaxRetry: 2,
+        levelLoadingRetryDelay: 1000,
+        fragLoadingMaxRetry: 3,
         fragLoadingRetryDelay: 1000,
       });
 
@@ -382,16 +382,39 @@ export function renderNativeVideo(url, initialSyncState = null) {
       const setStreamOnline = () => {
         if (!isPlayingLive) {
           isPlayingLive = true;
+          clearInterval(offlineCheckTimer);
           setPlayerOnline();
           addTelemetryLog('Transmisión conectada y reproduciendo a 60 FPS', 'success');
         }
+      };
+
+      const startQuietOfflinePoller = () => {
+        clearInterval(offlineCheckTimer);
+        offlineCheckTimer = setInterval(async () => {
+          try {
+            const res = await fetch(url, { method: 'GET', cache: 'no-store' });
+            if (res.ok) {
+              const text = await res.text();
+              if (text.includes('EXTM3U')) {
+                clearInterval(offlineCheckTimer);
+                if (activeHlsInstance === hls) {
+                  addTelemetryLog('OBS detectado en vivo. Reconectando...', 'info');
+                  hls.loadSource(url);
+                  hls.startLoad();
+                }
+              }
+            }
+          } catch (e) {}
+        }, 2500);
       };
 
       const setStreamOffline = () => {
         if (isPlayingLive) {
           isPlayingLive = false;
           setPlayerOffline();
+          try { hls.stopLoad(); } catch (e) {}
           addTelemetryLog('OBS detenido / Stream fuera de línea', 'warn');
+          startQuietOfflinePoller();
         }
       };
 
@@ -428,31 +451,32 @@ export function renderNativeVideo(url, initialSyncState = null) {
         setStreamOffline();
       });
 
+      videoElem.addEventListener('pause', () => {
+        if (isPlayingLive && telemetryState.bufferSeconds <= 0.1) {
+          setStreamOffline();
+        }
+      });
+
       hls.on(Hls.Events.ERROR, (event, data) => {
+        const isLevelOrManifestError = (
+          data.details === Hls.ErrorDetails.LEVEL_LOAD_ERROR || 
+          data.details === Hls.ErrorDetails.MANIFEST_LOAD_ERROR ||
+          data.details === Hls.ErrorDetails.MANIFEST_LOAD_TIMEOUT ||
+          data.details === Hls.ErrorDetails.LEVEL_LOAD_TIMEOUT
+        );
+
+        if (isLevelOrManifestError) {
+          // OBS detenido: el servidor ya no tiene la lista
+          setStreamOffline();
+          return;
+        }
+
         if (data.fatal) {
           addTelemetryLog(`Error Fatal HLS [${data.type}]: ${data.details}`, 'error');
           switch (data.type) {
             case Hls.ErrorTypes.NETWORK_ERROR:
-              // Comprobar si es un error de lista/manifiesto (OBS apagado)
-              if (
-                data.details === Hls.ErrorDetails.LEVEL_LOAD_ERROR || 
-                data.details === Hls.ErrorDetails.MANIFEST_LOAD_ERROR ||
-                data.details === Hls.ErrorDetails.MANIFEST_LOAD_TIMEOUT ||
-                data.details === Hls.ErrorDetails.LEVEL_LOAD_TIMEOUT
-              ) {
-                // OBS detenido: mostrar cartel de fuera de línea de inmediato
-                setStreamOffline();
-                clearTimeout(offlineCheckTimer);
-                offlineCheckTimer = setTimeout(() => {
-                  try {
-                    if (activeHlsInstance === hls) {
-                      hls.loadSource(url);
-                    }
-                  } catch (e) {}
-                }, 2500);
-              } else if (data.details === Hls.ErrorDetails.FRAG_LOAD_ERROR) {
-                // Error en un solo fragmento .ts durante el vivo: saltar al live-edge
-                addTelemetryLog('Saltando al directo tras fragmento expirado...', 'warn');
+              if (data.details === Hls.ErrorDetails.FRAG_LOAD_ERROR) {
+                // Fragmento vencido puntual: saltar al directo
                 try { hls.startLoad(-1); } catch (e) {}
               } else {
                 setStreamOffline();
@@ -472,6 +496,7 @@ export function renderNativeVideo(url, initialSyncState = null) {
       hls.attachMedia(videoElem);
       hls.loadSource(url);
       addTelemetryLog(`Iniciando conexión a: ${url}`, 'info');
+      startQuietOfflinePoller();
     } else if (videoElem.canPlayType('application/vnd.apple.mpegurl')) {
       videoElem.src = url;
       setPlayerOnline();
