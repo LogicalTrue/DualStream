@@ -145,29 +145,49 @@ export function renderNativeVideo(url, initialSyncState = null) {
 
   activeNativeVideo = videoElem;
 
-  // Soporte HLS en vivo (OBS / m3u8)
+  // Soporte HLS en vivo (OBS / m3u8) Ultra Low Latency & Auto-Recovery
   if (isHlsStream(url) && window.Hls && Hls.isSupported()) {
     const hls = new Hls({
-      enableWorker: true
+      enableWorker: true,
+      lowLatencyMode: true,
+      liveSyncDurationCount: 3,
+      liveMaxLatencyDurationCount: 6,
+      maxBufferLength: 8,
+      maxMaxBufferLength: 16,
+      backBufferLength: 0,
+      manifestLoadingTimeOut: 10000,
+      manifestLoadingMaxRetry: Infinity,
+      manifestLoadingRetryDelay: 1500,
+      levelLoadingTimeOut: 10000,
+      levelLoadingMaxRetry: Infinity,
+      levelLoadingRetryDelay: 1500,
+      fragLoadingTimeOut: 20000,
+      fragLoadingMaxRetry: 6,
+      fragLoadingRetryDelay: 1000
     });
     hls.loadSource(url);
     hls.attachMedia(videoElem);
+    
     hls.on(Hls.Events.MANIFEST_PARSED, () => {
       // Ocultar pantalla offline si estaba visible
       if (DOM.theaterOfflineScreen) DOM.theaterOfflineScreen.style.display = 'none';
       if (DOM.movieMediaWrapper) DOM.movieMediaWrapper.style.display = 'block';
       if (DOM.currentVideoTitle) DOM.currentVideoTitle.textContent = 'En Vivo';
 
-      videoElem.play().catch(() => {
-        videoElem.muted = true;
-        videoElem.play().catch(() => {});
-      });
+      const playPromise = videoElem.play();
+      if (playPromise !== undefined) {
+        playPromise.catch(() => {
+          videoElem.muted = true;
+          videoElem.play().catch(() => {});
+        });
+      }
     });
+
     let consecutive404Errors = 0;
     hls.on(Hls.Events.ERROR, (event, data) => {
       if (data.response && (data.response.code === 404 || data.response.code === 0)) {
         consecutive404Errors++;
-        if (consecutive404Errors >= 1) {
+        if (consecutive404Errors >= 3) {
           if (DOM.currentVideoTitle) DOM.currentVideoTitle.textContent = 'Stream Fuera de Línea / Pausado';
           if (DOM.theaterOfflineScreen) DOM.theaterOfflineScreen.style.display = 'flex';
           if (DOM.movieMediaWrapper) DOM.movieMediaWrapper.style.display = 'none';
@@ -179,16 +199,20 @@ export function renderNativeVideo(url, initialSyncState = null) {
       if (data.fatal) {
         switch (data.type) {
           case Hls.ErrorTypes.NETWORK_ERROR:
-            // Reintentar reconexión continua cada 2s
             setTimeout(() => {
               try { hls.startLoad(); } catch(e) {}
-            }, 2000);
+            }, 1000);
             break;
           case Hls.ErrorTypes.MEDIA_ERROR:
             hls.recoverMediaError();
             break;
           default:
-            try { hls.destroy(); } catch (e) {}
+            setTimeout(() => {
+              try {
+                hls.loadSource(url);
+                hls.attachMedia(videoElem);
+              } catch (e) {}
+            }, 2000);
             break;
         }
       }
