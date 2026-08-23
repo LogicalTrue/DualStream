@@ -229,11 +229,30 @@ module.exports = async (req, res) => {
     }
   }
 
-  // --- GET: Obtener el estado actual más reciente ---
-  const cloudState = await getFromRedis();
-  if (cloudState) {
-    return res.status(200).json(cloudState);
+  // --- GET: Obtener el estado actual más reciente con verificación server-side ---
+  let currentState = (await getFromRedis()) || memoryStateStore;
+
+  const targetVideoUrl = currentState.videoUrl || 'https://62-238-122-186.sslip.io/live/stream/index.m3u8';
+  let isStreamOnline = false;
+
+  if (targetVideoUrl.includes('.m3u8')) {
+    try {
+      const probeRes = await fetch(targetVideoUrl, { 
+        method: 'GET',
+        cache: 'no-store',
+        signal: AbortSignal.timeout(800)
+      });
+      isStreamOnline = probeRes.ok;
+    } catch (e) {
+      isStreamOnline = false;
+    }
   }
 
-  return res.status(200).json(memoryStateStore);
+  const responseState = {
+    ...currentState,
+    isOnline: isStreamOnline,
+    isLive: isStreamOnline
+  };
+
+  return res.status(200).json(responseState);
 };

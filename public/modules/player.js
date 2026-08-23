@@ -397,29 +397,21 @@ export function renderNativeVideo(url, initialSyncState = null) {
       liveSyncDurationCount: 3,
       liveMaxLatencyDurationCount: 12,
       liveDurationInfinity: true,
-      manifestLoadingMaxRetry: Infinity,
+      manifestLoadingMaxRetry: 2,
       manifestLoadingRetryDelay: 2000,
-      levelLoadingMaxRetry: Infinity,
+      levelLoadingMaxRetry: 2,
       levelLoadingRetryDelay: 2000,
-      fragLoadingMaxRetry: 10,
+      fragLoadingMaxRetry: 5,
       fragLoadingRetryDelay: 1000,
     });
 
     activeHlsInstance = hls;
 
-    let retryTimeout = null;
-
-    hls.on(Hls.Events.MANIFEST_PARSED, () => {
-      clearTimeout(retryTimeout);
-    });
-
     hls.on(Hls.Events.LEVEL_LOADED, () => {
-      clearTimeout(retryTimeout);
       setPlayerOnline();
     });
 
     hls.on(Hls.Events.FRAG_LOADED, (ev, data) => {
-      clearTimeout(retryTimeout);
       setPlayerOnline();
       const durationSec = data.frag.duration || 2;
       const loadTimeMs = Math.round(data.stats.loading.end - data.stats.loading.start);
@@ -444,23 +436,11 @@ export function renderNativeVideo(url, initialSyncState = null) {
 
       if (isStreamCutoff) {
         setPlayerOffline();
-        clearTimeout(retryTimeout);
-        retryTimeout = setTimeout(() => {
-          if (activeHlsInstance === hls) {
-            hls.loadSource(url);
-          }
-        }, 2000);
       }
     });
 
     videoElem.addEventListener('ended', () => {
       setPlayerOffline();
-      clearTimeout(retryTimeout);
-      retryTimeout = setTimeout(() => {
-        if (activeHlsInstance === hls) {
-          hls.loadSource(url);
-        }
-      }, 2000);
     });
 
     hls.attachMedia(videoElem);

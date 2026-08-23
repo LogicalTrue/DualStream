@@ -282,6 +282,22 @@ export function applyIncomingConfig(config) {
   if (config.camW !== undefined) AppState.camW = config.camW;
   applyWebcamPosition();
 
+  if (config.isOnline !== undefined) {
+    AppState.isOnline = Boolean(config.isOnline);
+    if (isHlsStream(AppState.videoUrl)) {
+      if (AppState.isOnline) {
+        if (!activeNativeVideo) {
+          loadVideoSource(AppState.videoUrl);
+        }
+      } else {
+        const offlineScreen = document.getElementById('theater-offline-screen');
+        const mediaWrapper = document.getElementById('movie-media-wrapper');
+        if (offlineScreen) offlineScreen.style.setProperty('display', 'flex', 'important');
+        if (mediaWrapper) mediaWrapper.style.setProperty('display', 'none', 'important');
+      }
+    }
+  }
+
   if (AppState.isViewerConnected && (config.type === 'PLAYBACK_SYNC' || config.currentTime !== undefined || config.type === 'MASTER_STATE')) {
     applyViewerPlaybackSync(config);
   }
