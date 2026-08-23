@@ -409,12 +409,16 @@ export function renderNativeVideo(url, initialSyncState = null) {
 
     activeHlsInstance = hls;
 
+    let retryTimeout = null;
+
     hls.on(Hls.Events.MANIFEST_PARSED, () => {
+      clearTimeout(retryTimeout);
       console.log('%c[DualStream] 🟢 Transmisión detectada. Iniciando video en vivo...', 'color: #53fc18; font-weight: bold;');
       setPlayerOnline();
     });
 
     hls.on(Hls.Events.FRAG_LOADED, (ev, data) => {
+      clearTimeout(retryTimeout);
       setPlayerOnline();
       const durationSec = data.frag.duration || 2;
       const loadTimeMs = Math.round(data.stats.loading.end - data.stats.loading.start);
@@ -429,23 +433,23 @@ export function renderNativeVideo(url, initialSyncState = null) {
     hls.on(Hls.Events.ERROR, (event, data) => {
       if (data.fatal) {
         setPlayerOffline();
-        switch (data.type) {
-          case Hls.ErrorTypes.NETWORK_ERROR:
-            hls.startLoad();
-            break;
-          case Hls.ErrorTypes.MEDIA_ERROR:
-            hls.recoverMediaError();
-            break;
-          default:
+        clearTimeout(retryTimeout);
+        retryTimeout = setTimeout(() => {
+          if (activeHlsInstance === hls) {
             hls.loadSource(url);
-            break;
-        }
+          }
+        }, 2000);
       }
     });
 
     videoElem.addEventListener('ended', () => {
       setPlayerOffline();
-      hls.loadSource(url);
+      clearTimeout(retryTimeout);
+      retryTimeout = setTimeout(() => {
+        if (activeHlsInstance === hls) {
+          hls.loadSource(url);
+        }
+      }, 2000);
     });
 
     hls.attachMedia(videoElem);
