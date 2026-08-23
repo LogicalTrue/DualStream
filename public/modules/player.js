@@ -190,33 +190,74 @@ export function renderNativeVideo(url, initialSyncState = null) {
   };
 
   // ==========================================
-  // PROTOCOLO: MediaMTX Live Stream Viewer
+  // PROTOCOLO: HLS (.m3u8) Live Streaming
   // ==========================================
-  if (isHlsStream(url)) {
-    const iframe = document.createElement('iframe');
-    iframe.className = 'native-video-player';
-    iframe.id = 'mediamtx-live-stream';
-    iframe.src = 'https://62-238-122-186.sslip.io/live/stream/';
-    iframe.setAttribute('allow', 'autoplay; fullscreen; encrypted-media; picture-in-picture');
-    iframe.setAttribute('title', 'BlackozuTR Live Stream');
-    iframe.style.border = 'none';
-    iframe.style.width = '100%';
-    iframe.style.height = '100%';
+  if (isHlsStream(url) && window.Hls && Hls.isSupported()) {
+    let isLive = false;
+    let hls = null;
+    let pollTimer = null;
 
-    const offlineScreen = document.getElementById('theater-offline-screen');
-    const mediaWrapper = document.getElementById('movie-media-wrapper');
-    const title = document.getElementById('current-video-title');
+    const startHls = () => {
+      if (hls) {
+        try { hls.destroy(); } catch(e) {}
+        hls = null;
+      }
 
-    if (offlineScreen) offlineScreen.style.display = 'none';
-    if (mediaWrapper) mediaWrapper.style.display = 'block';
-    if (title) title.textContent = 'En Vivo';
+      hls = new Hls({
+        enableWorker: true,
+        lowLatencyMode: false,
+        liveSyncDurationCount: 3,
+        liveMaxLatencyDurationCount: 6,
+        maxBufferLength: 30,
+        maxMaxBufferLength: 60,
+        backBufferLength: 0,
+        manifestLoadingMaxRetry: Infinity,
+        manifestLoadingRetryDelay: 1000,
+        levelLoadingMaxRetry: Infinity,
+        levelLoadingRetryDelay: 1000
+      });
 
-    const wrapper = document.getElementById('movie-media-wrapper') || DOM.movieMediaWrapper;
-    if (wrapper) {
-      wrapper.innerHTML = '';
-      wrapper.appendChild(iframe);
-    }
-    return;
+      const onStreamActive = () => {
+        isLive = true;
+        setPlayerOnline();
+      };
+
+      videoElem.addEventListener('playing', onStreamActive);
+      hls.on(Hls.Events.FRAG_LOADED, onStreamActive);
+      hls.on(Hls.Events.MANIFEST_PARSED, () => {
+        onStreamActive();
+        videoElem.play().catch(() => {
+          videoElem.muted = true;
+          videoElem.play().catch(() => {});
+        });
+      });
+
+      hls.on(Hls.Events.ERROR, (event, data) => {
+        if (data.fatal || data.response?.code === 404 || data.details === Hls.ErrorDetails.MANIFEST_LOAD_ERROR || data.details === Hls.ErrorDetails.LEVEL_LOAD_ERROR) {
+          isLive = false;
+          setPlayerOffline();
+        }
+      });
+
+      hls.loadSource(url);
+      hls.attachMedia(videoElem);
+      activeHlsInstance = hls;
+    };
+
+    startHls();
+
+    pollTimer = setInterval(() => {
+      const offlineScreen = document.getElementById('theater-offline-screen');
+      if (!isLive || (offlineScreen && offlineScreen.style.display !== 'none')) {
+        startHls();
+      }
+    }, 3000);
+
+    videoElem._hlsPoller = pollTimer;
+  } else if (isHlsStream(url) && videoElem.canPlayType('application/vnd.apple.mpegurl')) {
+    videoElem.src = url;
+  } else {
+    videoElem.src = url;
   }
 
   let initialSynced = false;
