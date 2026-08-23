@@ -177,10 +177,14 @@ export function renderNativeVideo(url, initialSyncState = null) {
       videoElem.load();
     } catch(e) {}
     const offlineScreen = document.getElementById('theater-offline-screen');
+    const onlineScreen = document.getElementById('theater-online-screen');
+    const placeholder = document.getElementById('movie-placeholder');
     const mediaWrapper = document.getElementById('movie-media-wrapper');
     const title = document.getElementById('current-video-title');
 
     if (offlineScreen) offlineScreen.style.setProperty('display', 'flex', 'important');
+    if (onlineScreen) onlineScreen.style.setProperty('display', 'none', 'important');
+    if (placeholder) placeholder.style.setProperty('display', 'none', 'important');
     if (mediaWrapper) mediaWrapper.style.setProperty('display', 'none', 'important');
     if (title) title.textContent = 'Stream Fuera de Línea';
   };

@@ -221,13 +221,6 @@ export function saveAndBroadcastConfig() {
 }
 
 export function updateTheaterStandbyScreens() {
-  if (AppState.isAdmin) {
-    document.body.classList.remove('viewer-standby');
-    if (DOM.theaterOfflineScreen) DOM.theaterOfflineScreen.style.display = 'none';
-    if (DOM.theaterOnlineScreen) DOM.theaterOnlineScreen.style.display = 'none';
-    return;
-  }
-
   const defaultOffline = (typeof STREAM_CONFIG !== 'undefined' && STREAM_CONFIG.offlinePoster) ? STREAM_CONFIG.offlinePoster : 'https://i.imgur.com/AhT5Obw.jpeg';
 
   if (DOM.offlineBackdrop) {
@@ -240,9 +233,21 @@ export function updateTheaterStandbyScreens() {
     DOM.onlineBackdrop.style.backgroundImage = `url('${bg}')`;
   }
 
-  const currentName = AppState.streamer || 'Streamer';
+  const currentName = AppState.streamer || 'BlackozuTR';
   if (DOM.offlineStreamerName) DOM.offlineStreamerName.textContent = currentName;
   if (DOM.onlineStreamerName) DOM.onlineStreamerName.textContent = currentName;
+
+  // Si es un stream de OBS (HLS), player.js gestiona online/offline
+  if (isHlsStream(AppState.videoUrl)) {
+    return;
+  }
+
+  if (AppState.isAdmin) {
+    document.body.classList.remove('viewer-standby');
+    if (DOM.theaterOfflineScreen) DOM.theaterOfflineScreen.style.display = 'none';
+    if (DOM.theaterOnlineScreen) DOM.theaterOnlineScreen.style.display = 'none';
+    return;
+  }
 
   if (!AppState.isOnline) {
     document.body.classList.add('viewer-standby');
