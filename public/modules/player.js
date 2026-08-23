@@ -185,125 +185,16 @@ export function renderNativeVideo(url, initialSyncState = null) {
   };
 
   // ==========================================
-  // PROTOCOLO 1: WEBRTC / WHEP (0.3s Delay, 60 FPS)
+  // PROTOCOLO: HLS (.m3u8) Live Streaming
   // ==========================================
-  if (isWhepStream(url)) {
-    const startWhepConnection = async () => {
-      if (activeWhepPc) {
-        try { activeWhepPc.close(); } catch(e) {}
-        activeWhepPc = null;
-      }
-
-      const pc = new RTCPeerConnection({
-        iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
-      });
-      activeWhepPc = pc;
-
-      pc.addTransceiver('video', { direction: 'recvonly' });
-      pc.addTransceiver('audio', { direction: 'recvonly' });
-
-      pc.ontrack = (event) => {
-        if (event.streams && event.streams[0]) {
-          videoElem.srcObject = event.streams[0];
-        } else {
-          const stream = new MediaStream();
-          stream.addTrack(event.track);
-          videoElem.srcObject = stream;
-        }
-        setPlayerOnline();
-      };
-
-      pc.onconnectionstatechange = () => {
-        if (pc.connectionState === 'connected') {
-          setPlayerOnline();
-        } else if (pc.connectionState === 'failed' || pc.connectionState === 'disconnected' || pc.connectionState === 'closed') {
-          setPlayerOffline();
-          if (!whepReconnectTimer) {
-            whepReconnectTimer = setTimeout(() => {
-              whepReconnectTimer = null;
-              startWhepConnection();
-            }, 3000);
-          }
-        }
-      };
-
-      try {
-        const offer = await pc.createOffer();
-        await pc.setLocalDescription(offer);
-
-        // Esperar a que los candidatos ICE locales terminen de reunirse
-        await new Promise((resolve) => {
-          if (pc.iceGatheringState === 'complete') {
-            resolve();
-          } else {
-            const checkIce = () => {
-              if (pc.iceGatheringState === 'complete') {
-                pc.removeEventListener('icegatheringstatechange', checkIce);
-                resolve();
-              }
-            };
-            pc.addEventListener('icegatheringstatechange', checkIce);
-            setTimeout(resolve, 1000); // Timeout de seguridad
-          }
-        });
-
-        let endpoint = url;
-        let response = await fetch(endpoint, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/sdp' },
-          body: pc.localDescription.sdp
-        });
-
-        if (!response.ok && endpoint.endsWith('/whep')) {
-          // Si /whep da 404, probar la ruta base directa
-          endpoint = endpoint.replace(/\/whep$/, '');
-          response = await fetch(endpoint, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/sdp' },
-            body: pc.localDescription.sdp
-          });
-        }
-
-        if (!response.ok) {
-          setPlayerOffline();
-          if (!whepReconnectTimer) {
-            whepReconnectTimer = setTimeout(() => {
-              whepReconnectTimer = null;
-              startWhepConnection();
-            }, 3000);
-          }
-          return;
-        }
-
-        const answerSdp = await response.text();
-        await pc.setRemoteDescription({ type: 'answer', sdp: answerSdp });
-      } catch (err) {
-        setPlayerOffline();
-        if (!whepReconnectTimer) {
-          whepReconnectTimer = setTimeout(() => {
-            whepReconnectTimer = null;
-            startWhepConnection();
-          }, 3000);
-        }
-      }
-    };
-
-    setPlayerOffline();
-    startWhepConnection();
-  } 
-  // ==========================================
-  // PROTOCOLO 2: HLS (.m3u8) Fallback
-  // ==========================================
-  else if (isHlsStream(url) && window.Hls && Hls.isSupported()) {
-    let isStreamLive = false;
-
+  if (isHlsStream(url) && window.Hls && Hls.isSupported()) {
     const hls = new Hls({
       enableWorker: true,
       lowLatencyMode: false,
       liveSyncDurationCount: 3,
       liveMaxLatencyDurationCount: 6,
-      maxBufferLength: 15,
-      maxMaxBufferLength: 30,
+      maxBufferLength: 20,
+      maxMaxBufferLength: 40,
       backBufferLength: 0,
       manifestLoadingMaxRetry: Infinity,
       manifestLoadingRetryDelay: 1500,
@@ -316,7 +207,6 @@ export function renderNativeVideo(url, initialSyncState = null) {
     let retryTimer = null;
 
     videoElem.addEventListener('playing', () => {
-      isStreamLive = true;
       if (retryTimer) {
         clearTimeout(retryTimer);
         retryTimer = null;
@@ -343,11 +233,9 @@ export function renderNativeVideo(url, initialSyncState = null) {
         if (!retryTimer) {
           retryTimer = setTimeout(() => {
             retryTimer = null;
-            if (!isStreamLive) {
-              try {
-                hls.loadSource(url);
-              } catch(e) {}
-            }
+            try {
+              hls.loadSource(url);
+            } catch(e) {}
           }, 3000);
         }
       }
