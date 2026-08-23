@@ -1010,35 +1010,42 @@ body.mode-viewer .webcam-resize-handle {
 }
 
 /* ==========================================================================
-   DRAGGABLE RESIZER SEPARATOR
+   DRAGGABLE RESIZER SEPARATOR (ESTIRAR Y ACHICAR CHAT)
    ========================================================================== */
 
 .chat-resizer {
-  width: 6px;
+  width: 8px;
   height: 100%;
-  background: var(--bg-main);
+  background: rgba(255, 255, 255, 0.03);
   cursor: col-resize;
   position: relative;
-  z-index: 30;
+  z-index: 45;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: background var(--transition-fast);
+  border-left: 1px solid var(--border-subtle);
+  border-right: 1px solid var(--border-subtle);
+  transition: all var(--transition-fast);
+  user-select: none;
+  touch-action: none;
 }
 
 .chat-resizer:hover,
 .chat-resizer.dragging {
-  background: var(--kick-green);
+  background: var(--kick-green) !important;
+  box-shadow: 0 0 12px var(--kick-green-glow);
 }
 
 .resizer-handle {
   width: 2px;
-  height: 24px;
-  background: var(--border-focus);
+  height: 32px;
+  background: rgba(255, 255, 255, 0.3);
   border-radius: 2px;
+  transition: background var(--transition-fast);
 }
 
-.chat-resizer:hover .resizer-handle {
+.chat-resizer:hover .resizer-handle,
+.chat-resizer.dragging .resizer-handle {
   background: #000000;
 }
 
