@@ -198,35 +198,38 @@ export function renderNativeVideo(url, initialSyncState = null) {
     let pollTimer = null;
 
     const startHls = () => {
+      if (isLive && hls) return; // Si ya está transmitiendo de forma fluida, no interrumpir el buffer
+
       if (hls) {
         try { hls.destroy(); } catch(e) {}
         hls = null;
       }
 
-      console.log('[DualStream Player] Intentando conectar al stream:', url);
-
       hls = new Hls({
         enableWorker: true,
         lowLatencyMode: false,
-        liveSyncDurationCount: 3,
-        liveMaxLatencyDurationCount: 6,
-        maxBufferLength: 30,
-        maxMaxBufferLength: 60,
+        liveSyncDurationCount: 2,
+        liveMaxLatencyDurationCount: 4,
+        maxBufferLength: 60,
+        maxMaxBufferLength: 120,
+        maxBufferSize: 60 * 1000 * 1000,
         backBufferLength: 0,
-        manifestLoadingMaxRetry: 1,
-        levelLoadingMaxRetry: 1
+        manifestLoadingMaxRetry: Infinity,
+        manifestLoadingRetryDelay: 1000,
+        levelLoadingMaxRetry: Infinity,
+        levelLoadingRetryDelay: 1000,
+        fragLoadingMaxRetry: 10,
+        fragLoadingRetryDelay: 500
       });
 
       const onStreamActive = () => {
         if (isLive) return;
         isLive = true;
-        console.log('[DualStream Player] ¡Stream detectado! Conmutando a EN VIVO.');
         setPlayerOnline();
       };
 
       videoElem.addEventListener('playing', onStreamActive);
       hls.on(Hls.Events.FRAG_LOADED, onStreamActive);
-      hls.on(Hls.Events.MANIFEST_LOADED, onStreamActive);
       hls.on(Hls.Events.MANIFEST_PARSED, () => {
         onStreamActive();
         videoElem.play().catch(() => {
@@ -249,12 +252,14 @@ export function renderNativeVideo(url, initialSyncState = null) {
 
     startHls();
 
+    // El intervalo solo busca el stream cuando el reproductor esté offline
     pollTimer = setInterval(() => {
       const offlineScreen = document.getElementById('theater-offline-screen');
-      if (!isLive || (offlineScreen && offlineScreen.style.display !== 'none')) {
+      const isActuallyOffline = !isLive || (offlineScreen && offlineScreen.style.display !== 'none');
+      if (isActuallyOffline) {
         startHls();
       }
-    }, 2500);
+    }, 3000);
 
     videoElem._hlsPoller = pollTimer;
   } else if (isHlsStream(url) && videoElem.canPlayType('application/vnd.apple.mpegurl')) {
