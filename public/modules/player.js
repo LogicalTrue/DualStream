@@ -195,83 +195,69 @@ export function renderNativeVideo(url, initialSyncState = null) {
   if (isHlsStream(url) && window.Hls && Hls.isSupported()) {
     let isLive = false;
     let hls = null;
-    let pollTimer = null;
-
     const startHls = () => {
-      if (isLive && hls) return; // Si ya está transmitiendo de forma fluida, no interrumpir el buffer
+      if (isLive) return;
 
-      if (hls) {
-        try { hls.destroy(); } catch(e) {}
-        hls = null;
+      if (!hls) {
+        hls = new Hls({
+          enableWorker: true,
+          lowLatencyMode: false,
+          backBufferLength: 30,
+          maxBufferLength: 30,
+          maxMaxBufferLength: 60,
+          maxBufferSize: 60 * 1000 * 1000,
+          liveSyncDurationCount: 3,
+          liveMaxLatencyDurationCount: 8,
+          liveDurationInfinity: true,
+          fragLoadingMaxRetry: 10,
+          fragLoadingRetryDelay: 500,
+          manifestLoadingMaxRetry: Infinity,
+          manifestLoadingRetryDelay: 1000
+        });
+
+        const onStreamActive = () => {
+          isLive = true;
+          setPlayerOnline();
+        };
+
+        videoElem.addEventListener('playing', onStreamActive);
+        hls.on(Hls.Events.FRAG_LOADED, onStreamActive);
+        hls.on(Hls.Events.MANIFEST_PARSED, () => {
+          onStreamActive();
+          videoElem.play().catch(() => {
+            videoElem.muted = true;
+            videoElem.play().catch(() => {});
+          });
+        });
+
+        hls.on(Hls.Events.ERROR, (event, data) => {
+          if (data.fatal) {
+            isLive = false;
+            setPlayerOffline();
+            if (data.type === Hls.ErrorTypes.NETWORK_ERROR) {
+              setTimeout(() => {
+                if (!isLive && hls) hls.loadSource(url);
+              }, 2000);
+            } else if (data.type === Hls.ErrorTypes.MEDIA_ERROR) {
+              hls.recoverMediaError();
+            }
+          }
+        });
+
+        hls.attachMedia(videoElem);
+        activeHlsInstance = hls;
       }
 
-      hls = new Hls({
-        enableWorker: true,
-        lowLatencyMode: false,
-        backBufferLength: 30,
-        maxBufferLength: 30,
-        maxMaxBufferLength: 60,
-        maxBufferSize: 60 * 1000 * 1000,
-        liveSyncDurationCount: 3,
-        liveMaxLatencyDurationCount: 8,
-        liveDurationInfinity: true,
-        fragLoadingMaxRetry: 10,
-        fragLoadingRetryDelay: 500,
-        manifestLoadingMaxRetry: Infinity,
-        manifestLoadingRetryDelay: 1000
-      });
-
-      const onStreamActive = () => {
-        if (isLive) return;
-        isLive = true;
-        setPlayerOnline();
-      };
-
-      videoElem.addEventListener('playing', onStreamActive);
-      hls.on(Hls.Events.FRAG_LOADED, onStreamActive);
-      hls.on(Hls.Events.MANIFEST_PARSED, () => {
-        onStreamActive();
-        videoElem.play().catch(() => {
-          videoElem.muted = true;
-          videoElem.play().catch(() => {});
-        });
-      });
-
-      hls.on(Hls.Events.ERROR, (event, data) => {
-        if (data.fatal) {
-          switch (data.type) {
-            case Hls.ErrorTypes.NETWORK_ERROR:
-              if (data.response?.code === 404 || data.details === Hls.ErrorDetails.MANIFEST_LOAD_ERROR) {
-                isLive = false;
-                setPlayerOffline();
-              } else {
-                hls.startLoad();
-              }
-              break;
-            case Hls.ErrorTypes.MEDIA_ERROR:
-              hls.recoverMediaError();
-              break;
-            default:
-              isLive = false;
-              setPlayerOffline();
-              break;
-          }
-        }
-      });
-
       hls.loadSource(url);
-      hls.attachMedia(videoElem);
-      activeHlsInstance = hls;
     };
 
     startHls();
 
-    // El intervalo solo busca el stream cuando el reproductor esté 100% desconectado
     pollTimer = setInterval(() => {
       if (!isLive) {
         startHls();
       }
-    }, 4000);
+    }, 2500);
 
     videoElem._hlsPoller = pollTimer;
   } else if (isHlsStream(url) && videoElem.canPlayType('application/vnd.apple.mpegurl')) {
