@@ -208,25 +208,37 @@ export function renderNativeVideo(url, initialSyncState = null) {
     hls.on(Hls.Events.FRAG_LOADED, setPlayerOnline);
 
     hls.on(Hls.Events.ERROR, (event, data) => {
-      if (data.fatal) {
+      const is404 = (data.response && (data.response.code === 404 || data.response.code === 0)) ||
+                    (data.details && data.details.includes('404')) ||
+                    data.details === Hls.ErrorDetails.MANIFEST_LOAD_ERROR ||
+                    data.details === Hls.ErrorDetails.LEVEL_LOAD_ERROR ||
+                    data.details === Hls.ErrorDetails.FRAG_LOAD_ERROR;
+
+      if (is404 || data.fatal) {
         setPlayerOffline();
-        switch (data.type) {
-          case Hls.ErrorTypes.NETWORK_ERROR:
-            setTimeout(() => {
-              try { hls.startLoad(); } catch(e) {}
-            }, 1500);
-            break;
-          case Hls.ErrorTypes.MEDIA_ERROR:
-            hls.recoverMediaError();
-            break;
-          default:
-            setTimeout(() => {
-              try { hls.loadSource(url); } catch(e) {}
-            }, 2000);
-            break;
+        if (data.fatal) {
+          switch (data.type) {
+            case Hls.ErrorTypes.NETWORK_ERROR:
+              setTimeout(() => {
+                try { hls.startLoad(); } catch(e) {}
+              }, 1500);
+              break;
+            case Hls.ErrorTypes.MEDIA_ERROR:
+              hls.recoverMediaError();
+              break;
+            default:
+              setTimeout(() => {
+                try { hls.loadSource(url); } catch(e) {}
+              }, 2000);
+              break;
+          }
         }
       }
     });
+
+    // Detectar cuando el video deja de recibir fotogramas al apagar OBS
+    videoElem.addEventListener('ended', setPlayerOffline);
+    videoElem.addEventListener('emptied', setPlayerOffline);
 
     // Iniciar carga de la fuente
     hls.loadSource(url);
