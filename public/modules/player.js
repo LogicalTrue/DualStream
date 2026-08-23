@@ -153,15 +153,19 @@ export function renderNativeVideo(url, initialSyncState = null) {
   videoElem.setAttribute('webkit-playsinline', 'true');
   videoElem.preload = 'auto';
   videoElem.volume = 1.0;
-  videoElem.muted = false;
+  videoElem.muted = true; // Muted inicial obligatorio para que Chrome no bloquee el autoplay a 60 FPS
 
+  let userInteracted = false;
   const enableSoundOnInteraction = () => {
+    userInteracted = true;
     videoElem.muted = false;
     videoElem.volume = 1.0;
     updateVideoVolume(100);
+    videoElem.play().catch(() => {});
   };
   videoElem.addEventListener('click', enableSoundOnInteraction);
   document.addEventListener('click', enableSoundOnInteraction, { once: true });
+  document.addEventListener('keydown', enableSoundOnInteraction, { once: true });
 
   activeNativeVideo = videoElem;
 
@@ -393,8 +397,12 @@ export function renderNativeVideo(url, initialSyncState = null) {
       };
 
       hls.on(Hls.Events.MANIFEST_PARSED, (ev, data) => {
-        addTelemetryLog(`Manifiesto parseado (${data.levels.length} calidades encontradas)`, 'info');
+        addTelemetryLog(`Manifiesto parseado (${data.levels ? data.levels.length : 1} calidades encontradas)`, 'info');
         setStreamOnline();
+        videoElem.play().catch(() => {
+          videoElem.muted = true;
+          videoElem.play().catch(() => {});
+        });
       });
 
       hls.on(Hls.Events.FRAG_LOADED, (ev, data) => {
@@ -407,6 +415,10 @@ export function renderNativeVideo(url, initialSyncState = null) {
         telemetryState.downloadLatencyMs = loadTimeMs;
 
         addTelemetryLog(`Fragmento #${data.frag.sn} (${durationSec}s) cargado en ${loadTimeMs}ms (${mbps} Mbps)`, 'success');
+        
+        if (videoElem.paused && isPlayingLive) {
+          videoElem.play().catch(() => {});
+        }
       });
 
       videoElem.addEventListener('playing', () => {
