@@ -206,15 +206,18 @@ export function renderNativeVideo(url, initialSyncState = null) {
 
     let retryTimer = null;
 
-    videoElem.addEventListener('playing', () => {
+    const onOnlineTrigger = () => {
       if (retryTimer) {
         clearTimeout(retryTimer);
         retryTimer = null;
       }
       setPlayerOnline();
-    });
+    };
 
+    videoElem.addEventListener('playing', onOnlineTrigger);
+    hls.on(Hls.Events.FRAG_LOADED, onOnlineTrigger);
     hls.on(Hls.Events.MANIFEST_PARSED, () => {
+      onOnlineTrigger();
       const playPromise = videoElem.play();
       if (playPromise !== undefined) {
         playPromise.catch(() => {
