@@ -394,12 +394,9 @@ export function renderNativeVideo(url, initialSyncState = null) {
       };
 
       const setStreamOnline = () => {
-        if (!isPlayingLive) {
-          isPlayingLive = true;
-          clearTimeout(reconnectTimer);
-          setPlayerOnline();
-          addTelemetryLog('Transmisión en vivo conectada (60 FPS)', 'success');
-        }
+        isPlayingLive = true;
+        clearTimeout(reconnectTimer);
+        setPlayerOnline();
       };
 
       const setStreamOffline = () => {
@@ -427,7 +424,7 @@ export function renderNativeVideo(url, initialSyncState = null) {
 
         addTelemetryLog(`Fragmento #${data.frag.sn} (${durationSec}s) cargado en ${loadTimeMs}ms (${mbps} Mbps)`, 'success');
         
-        // Pasar a online ÚNICAMENTE cuando un fragmento real de video fue descargado
+        // Revelar video de inmediato al decodificar fragmento
         setStreamOnline();
 
         if (videoElem.paused) {
@@ -440,24 +437,12 @@ export function renderNativeVideo(url, initialSyncState = null) {
       });
 
       hls.on(Hls.Events.ERROR, (event, data) => {
-        const isLevelOrManifestError = (
-          data.details === Hls.ErrorDetails.LEVEL_LOAD_ERROR || 
-          data.details === Hls.ErrorDetails.MANIFEST_LOAD_ERROR ||
-          data.details === Hls.ErrorDetails.MANIFEST_LOAD_TIMEOUT ||
-          data.details === Hls.ErrorDetails.LEVEL_LOAD_TIMEOUT
-        );
-
-        if (isLevelOrManifestError) {
-          // OBS detenido o apagado
-          setStreamOffline();
-          return;
-        }
-
         if (data.fatal) {
+          addTelemetryLog(`Error Fatal HLS [${data.type}]: ${data.details}`, 'error');
           switch (data.type) {
             case Hls.ErrorTypes.NETWORK_ERROR:
-              if (data.details === Hls.ErrorDetails.FRAG_LOAD_ERROR) {
-                // Fragmento puntual expirado: saltar al directo
+              if (data.details === Hls.ErrorDetails.FRAG_LOAD_ERROR && isPlayingLive) {
+                // Fragmento puntual expirado en directo: saltar al live-edge sin pasar a offline
                 try { hls.startLoad(-1); } catch (e) {}
               } else {
                 setStreamOffline();
