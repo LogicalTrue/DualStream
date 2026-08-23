@@ -242,9 +242,32 @@ export function renderNativeVideo(url, initialSyncState = null) {
       });
 
       hls.on(Hls.Events.ERROR, (event, data) => {
-        if (data.fatal || data.response?.code === 404 || data.details === Hls.ErrorDetails.MANIFEST_LOAD_ERROR || data.details === Hls.ErrorDetails.LEVEL_LOAD_ERROR) {
-          isLive = false;
-          setPlayerOffline();
+        if (data.fatal) {
+          switch (data.type) {
+            case Hls.ErrorTypes.NETWORK_ERROR:
+              if (data.response?.code === 404 || data.details === Hls.ErrorDetails.MANIFEST_LOAD_ERROR) {
+                isLive = false;
+                setPlayerOffline();
+              } else {
+                hls.startLoad();
+              }
+              break;
+            case Hls.ErrorTypes.MEDIA_ERROR:
+              hls.recoverMediaError();
+              break;
+            default:
+              isLive = false;
+              setPlayerOffline();
+              break;
+          }
+        }
+      });
+
+      // Si el buffer se traba por micro-desfase, adelantar al punto vivo suavemente
+      videoElem.addEventListener('waiting', () => {
+        if (isLive && hls && hls.liveSyncPosition) {
+          videoElem.currentTime = hls.liveSyncPosition;
+          videoElem.play().catch(() => {});
         }
       });
 
