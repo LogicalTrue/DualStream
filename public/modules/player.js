@@ -165,8 +165,7 @@ export function renderNativeVideo(url, initialSyncState = null) {
   };
   videoElem.addEventListener('click', enableSoundOnInteraction);
   document.addEventListener('click', enableSoundOnInteraction, { once: true });
-  document.addEventListener('keydown', enableSoundOnInteraction, { once: true });
-
+  videoElem.dataset.url = url;
   activeNativeVideo = videoElem;
 
   const setPlayerOffline = () => {

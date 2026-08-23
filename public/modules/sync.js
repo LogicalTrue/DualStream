@@ -9,7 +9,7 @@ import { DOM } from './dom.js';
 import { AppState, STORAGE_KEY, syncChannel, DEFAULT_STREAMER } from './state.js';
 import { STREAM_CONFIG } from '../stream-config.js';
 import { sendCloudConfig, fetchLatestCloudState } from './api.js';
-import { ytPlayerInstance, activeNativeVideo, loadVideoSource, unloadVideo, setPlaybackSyncEmitter } from './player.js';
+import { ytPlayerInstance, activeNativeVideo, loadVideoSource, unloadVideo, setPlaybackSyncEmitter, isHlsStream } from './player.js';
 import { showToast, applyWebcamPosition, openModal } from './ui.js';
 import { updateKickViews } from './kick.js';
 
@@ -152,13 +152,22 @@ export function applyViewerPlaybackSync(data) {
 
   // 2. Sincronización para Video Nativo HTML5 (.mp4, etc.)
   if (activeNativeVideo) {
-    const isLive = activeNativeVideo.src && (activeNativeVideo.src.includes('.m3u8') || activeNativeVideo.src.includes('blob:'));
+    const isLive = isHlsStream(activeNativeVideo.dataset.url || AppState.videoUrl);
+    
+    // Si es una transmisión en vivo de OBS (HLS), nunca debe pausarse por sincronización de VOD
+    if (isLive) {
+      if (activeNativeVideo.paused) {
+        activeNativeVideo.play().catch(() => {});
+      }
+      return;
+    }
+
     try {
       if (!isPlaying) {
         if (!activeNativeVideo.paused) {
           activeNativeVideo.pause();
         }
-        if (!isLive && Math.abs(activeNativeVideo.currentTime - targetTime) > 0.5) {
+        if (Math.abs(activeNativeVideo.currentTime - targetTime) > 0.5) {
           activeNativeVideo.currentTime = targetTime;
         }
       } else {
@@ -166,11 +175,9 @@ export function applyViewerPlaybackSync(data) {
           activeNativeVideo.play().catch(() => {});
         }
 
-        if (!isLive) {
-          const diff = Math.abs(activeNativeVideo.currentTime - targetTime);
-          if (diff > 4.5) {
-            activeNativeVideo.currentTime = targetTime;
-          }
+        const diff = Math.abs(activeNativeVideo.currentTime - targetTime);
+        if (diff > 4.5) {
+          activeNativeVideo.currentTime = targetTime;
         }
       }
     } catch (e) {}
