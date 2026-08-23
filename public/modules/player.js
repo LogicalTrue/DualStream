@@ -212,13 +212,9 @@ export function renderNativeVideo(url, initialSyncState = null) {
         maxBufferLength: 30,
         maxMaxBufferLength: 60,
         maxBufferSize: 60 * 1000 * 1000,
-        liveSyncDurationCount: 4,
-        liveMaxLatencyDurationCount: 10,
+        liveSyncDurationCount: 3,
+        liveMaxLatencyDurationCount: 8,
         liveDurationInfinity: true,
-        highBufferWatchdogPeriod: 3,
-        nudgeOffset: 0.2,
-        nudgeMaxRetry: 10,
-        maxFragLookUpTolerance: 0.5,
         fragLoadingMaxRetry: 10,
         fragLoadingRetryDelay: 500,
         manifestLoadingMaxRetry: Infinity,
@@ -260,14 +256,6 @@ export function renderNativeVideo(url, initialSyncState = null) {
               setPlayerOffline();
               break;
           }
-        }
-      });
-
-      // Si el buffer se traba por micro-desfase, adelantar al punto vivo suavemente
-      videoElem.addEventListener('waiting', () => {
-        if (isLive && hls && hls.liveSyncPosition) {
-          videoElem.currentTime = hls.liveSyncPosition;
-          videoElem.play().catch(() => {});
         }
       });
 
