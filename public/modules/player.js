@@ -379,10 +379,24 @@ export function renderNativeVideo(url, initialSyncState = null) {
       activeHlsInstance = hls;
 
       let isPlayingLive = false;
+      let reconnectTimer = null;
+
+      const scheduleManifestRetry = () => {
+        if (isPlayingLive) return;
+        clearTimeout(reconnectTimer);
+        reconnectTimer = setTimeout(() => {
+          if (activeHlsInstance === hls && !isPlayingLive) {
+            try {
+              hls.loadSource(url);
+            } catch (e) {}
+          }
+        }, 2000);
+      };
 
       const setStreamOnline = () => {
         if (!isPlayingLive) {
           isPlayingLive = true;
+          clearTimeout(reconnectTimer);
           setPlayerOnline();
           addTelemetryLog('Transmisión en vivo conectada (60 FPS)', 'success');
         }
@@ -394,6 +408,7 @@ export function renderNativeVideo(url, initialSyncState = null) {
           setPlayerOffline();
           addTelemetryLog('OBS detenido / Stream fuera de línea', 'warn');
         }
+        scheduleManifestRetry();
       };
 
       hls.on(Hls.Events.MANIFEST_PARSED, (ev, data) => {
@@ -401,6 +416,7 @@ export function renderNativeVideo(url, initialSyncState = null) {
       });
 
       hls.on(Hls.Events.FRAG_LOADED, (ev, data) => {
+        clearTimeout(reconnectTimer);
         const durationSec = data.frag.duration || 2;
         const loadTimeMs = Math.round(data.stats.loading.end - data.stats.loading.start);
         const bytes = data.stats.total || 0;
@@ -414,7 +430,7 @@ export function renderNativeVideo(url, initialSyncState = null) {
         // Pasar a online ÚNICAMENTE cuando un fragmento real de video fue descargado
         setStreamOnline();
 
-        if (videoElem.paused && !videoElem.dataset.offline) {
+        if (videoElem.paused) {
           videoElem.play().catch(() => {});
         }
       });
@@ -432,8 +448,9 @@ export function renderNativeVideo(url, initialSyncState = null) {
         );
 
         if (isLevelOrManifestError) {
-          // OBS detenido: mostrar cartel offline de inmediato
+          // OBS detenido o apagado
           setStreamOffline();
+          return;
         }
 
         if (data.fatal) {
@@ -444,7 +461,6 @@ export function renderNativeVideo(url, initialSyncState = null) {
                 try { hls.startLoad(-1); } catch (e) {}
               } else {
                 setStreamOffline();
-                try { hls.startLoad(); } catch (e) {}
               }
               break;
             case Hls.ErrorTypes.MEDIA_ERROR:
