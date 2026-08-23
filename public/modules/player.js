@@ -168,6 +168,12 @@ export function renderNativeVideo(url, initialSyncState = null) {
   videoElem.dataset.url = url;
   activeNativeVideo = videoElem;
 
+  const wrapper = document.getElementById('movie-media-wrapper') || DOM.movieMediaWrapper;
+  if (wrapper) {
+    wrapper.innerHTML = '';
+    wrapper.appendChild(videoElem);
+  }
+
   const setPlayerOffline = () => {
     videoElem.dataset.offline = 'true';
     document.body.classList.add('viewer-standby');
@@ -436,13 +442,11 @@ export function renderNativeVideo(url, initialSyncState = null) {
       activeHlsInstance = hls;
 
       hls.on(Hls.Events.MANIFEST_PARSED, () => {
-        const playPromise = videoElem.play();
-        if (playPromise !== undefined) {
-          playPromise.catch(() => {
-            videoElem.muted = true;
-            videoElem.play().catch(() => {});
-          });
-        }
+        console.log('%c[DualStream] 🟢 MANIFEST_PARSED: ¡Manifiesto recibido! Destapando video en vivo...', 'color: #53fc18; font-weight: bold;');
+        clearInterval(pollerTimer);
+        isAttemptingPlayback = false;
+        isPlayingLive = true;
+        setPlayerOnline();
       });
 
       hls.on(Hls.Events.FRAG_LOADED, (ev, data) => {
