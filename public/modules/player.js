@@ -563,9 +563,6 @@ export function renderNativeVideo(url, initialSyncState = null) {
       if (!isHlsStream(url) && typeof playbackSyncEmitter === 'function') playbackSyncEmitter(videoElem.currentTime, !videoElem.paused);
     });
   }
-
-  const wrapper = document.getElementById('movie-media-wrapper') || DOM.movieMediaWrapper;
-  if (wrapper) wrapper.appendChild(videoElem);
 }
 
 export function renderIframeVideo(embedUrl) {
