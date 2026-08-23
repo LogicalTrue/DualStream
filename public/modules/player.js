@@ -249,17 +249,24 @@ export function renderNativeVideo(url, initialSyncState = null) {
       if (data.fatal) {
         switch (data.type) {
           case Hls.ErrorTypes.NETWORK_ERROR:
-            // OBS desconectado o error temporal de red: seguir esperando a OBS sin destruir el reproductor
             setPlayerOffline();
             setTimeout(() => {
-              try { hls.startLoad(); } catch (e) {}
+              try {
+                if (hls && hls.levels && hls.levels.length > 0) {
+                  hls.startLoad();
+                } else if (hls) {
+                  hls.loadSource(url);
+                }
+              } catch (e) {}
             }, 2000);
             break;
           case Hls.ErrorTypes.MEDIA_ERROR:
-            hls.recoverMediaError();
+            try { hls.recoverMediaError(); } catch (e) {}
             break;
           default:
-            try { hls.startLoad(); } catch (e) {}
+            setTimeout(() => {
+              try { hls.loadSource(url); } catch (e) {}
+            }, 2000);
             break;
         }
       }
