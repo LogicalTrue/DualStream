@@ -184,8 +184,6 @@ export function renderNativeVideo(url, initialSyncState = null) {
     }
   };
 
-  videoElem.addEventListener('playing', setPlayerOnline);
-
   // ==========================================
   // PROTOCOLO 1: WEBRTC / WHEP (0.3s Delay, 60 FPS)
   // ==========================================
