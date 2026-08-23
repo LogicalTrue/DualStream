@@ -190,70 +190,33 @@ export function renderNativeVideo(url, initialSyncState = null) {
   };
 
   // ==========================================
-  // PROTOCOLO: HLS (.m3u8) Live Streaming
+  // PROTOCOLO: MediaMTX Live Stream Viewer
   // ==========================================
-  if (isHlsStream(url) && window.Hls && Hls.isSupported()) {
-    let isLive = false;
-    let hls = null;
-    let poller = null;
+  if (isHlsStream(url)) {
+    const iframe = document.createElement('iframe');
+    iframe.className = 'native-video-player';
+    iframe.id = 'mediamtx-live-stream';
+    iframe.src = 'https://62-238-122-186.sslip.io/live/stream/';
+    iframe.setAttribute('allow', 'autoplay; fullscreen; encrypted-media; picture-in-picture');
+    iframe.setAttribute('title', 'BlackozuTR Live Stream');
+    iframe.style.border = 'none';
+    iframe.style.width = '100%';
+    iframe.style.height = '100%';
 
-    const startHls = () => {
-      if (hls) {
-        try { hls.destroy(); } catch(e) {}
-        hls = null;
-      }
+    const offlineScreen = document.getElementById('theater-offline-screen');
+    const mediaWrapper = document.getElementById('movie-media-wrapper');
+    const title = document.getElementById('current-video-title');
 
-      hls = new Hls({
-        enableWorker: true,
-        lowLatencyMode: false,
-        liveSyncDurationCount: 3,
-        liveMaxLatencyDurationCount: 6,
-        maxBufferLength: 20,
-        maxMaxBufferLength: 40,
-        backBufferLength: 0,
-        manifestLoadingMaxRetry: 2,
-        levelLoadingMaxRetry: 2,
-        fragLoadingMaxRetry: 4
-      });
+    if (offlineScreen) offlineScreen.style.display = 'none';
+    if (mediaWrapper) mediaWrapper.style.display = 'block';
+    if (title) title.textContent = 'En Vivo';
 
-      hls.on(Hls.Events.MANIFEST_PARSED, () => {
-        isLive = true;
-        setPlayerOnline();
-      });
-
-      hls.on(Hls.Events.FRAG_LOADED, () => {
-        isLive = true;
-        setPlayerOnline();
-      });
-
-      hls.on(Hls.Events.ERROR, (event, data) => {
-        if (data.fatal || data.response?.code === 404 || data.details === Hls.ErrorDetails.MANIFEST_LOAD_ERROR || data.details === Hls.ErrorDetails.LEVEL_LOAD_ERROR) {
-          isLive = false;
-          setPlayerOffline();
-        }
-      });
-
-      hls.loadSource(url);
-      hls.attachMedia(videoElem);
-      activeHlsInstance = hls;
-    };
-
-    // Iniciar intento de reproducción
-    startHls();
-
-    // Sondeo activo continuo: si está offline, reintenta conectar cada 2.5s
-    poller = setInterval(() => {
-      const offlineScreen = document.getElementById('theater-offline-screen');
-      if (!isLive || (offlineScreen && offlineScreen.style.display !== 'none')) {
-        startHls();
-      }
-    }, 2500);
-
-    videoElem._hlsPoller = poller;
-  } else if (isHlsStream(url) && videoElem.canPlayType('application/vnd.apple.mpegurl')) {
-    videoElem.src = url;
-  } else {
-    videoElem.src = url;
+    const wrapper = document.getElementById('movie-media-wrapper') || DOM.movieMediaWrapper;
+    if (wrapper) {
+      wrapper.innerHTML = '';
+      wrapper.appendChild(iframe);
+    }
+    return;
   }
 
   let initialSynced = false;
