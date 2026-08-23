@@ -198,124 +198,75 @@ export function renderNativeVideo(url, initialSyncState = null) {
   // PROTOCOLO: HLS (.m3u8) Live Streaming
   // ==========================================
   if (isHlsStream(url) && window.Hls && Hls.isSupported()) {
-    let isLive = false;
-    let hlsInstance = null;
-    let isProbing = false;
-
-    const probeAndConnect = async () => {
-      if (isLive || isProbing) return;
-      isProbing = true;
-      try {
-        const probeUrl = url + (url.includes('?') ? '&' : '?') + '_t=' + Date.now();
-        const resp = await fetch(probeUrl);
-        if (resp.ok) {
-          const text = await resp.text();
-          if (text.includes('#EXTM3U')) {
-            startStreamPlayback();
-          }
-        }
-      } catch (e) {
-        // OBS apagado, sondeo silencioso
-      } finally {
-        isProbing = false;
-      }
-    };
-
-    const startStreamPlayback = () => {
-      if (isLive) return;
-
-      if (activeHlsPoller) {
-        clearInterval(activeHlsPoller);
-        activeHlsPoller = null;
-      }
-
-      if (hlsInstance) {
-        try { hlsInstance.destroy(); } catch (e) {}
-        hlsInstance = null;
-      }
-
-      const hls = new Hls({
-        enableWorker: true,
-        lowLatencyMode: false,
-        backBufferLength: 60,
-        maxBufferLength: 30,
-        maxMaxBufferLength: 60,
-        maxBufferSize: 60 * 1000 * 1000,
-        liveSyncDurationCount: 3,
-        liveMaxLatencyDurationCount: 8,
-        liveDurationInfinity: true,
-        manifestLoadingMaxRetry: 10,
-        manifestLoadingRetryDelay: 1000,
-        levelLoadingMaxRetry: 10,
-        levelLoadingRetryDelay: 1000,
-        fragLoadingMaxRetry: 10,
-        fragLoadingRetryDelay: 1000,
-      });
-
-      hlsInstance = hls;
-      activeHlsInstance = hls;
-
-      let activated = false;
-      const activateLiveUI = () => {
-        if (activated) return;
-        activated = true;
-        isLive = true;
-        setPlayerOnline();
-      };
-
-      videoElem.addEventListener('playing', activateLiveUI);
-      videoElem.addEventListener('canplay', activateLiveUI);
-      hls.on(Hls.Events.FRAG_BUFFERED, activateLiveUI);
-
-      hls.on(Hls.Events.MANIFEST_PARSED, () => {
-        videoElem.play().catch(() => {
-          videoElem.muted = true;
-          videoElem.play().catch(() => {});
-        });
-      });
-
-      hls.on(Hls.Events.ERROR, (event, data) => {
-        if (data.fatal) {
-          switch (data.type) {
-            case Hls.ErrorTypes.NETWORK_ERROR:
-              if (data.response?.code === 404 || data.details === Hls.ErrorDetails.MANIFEST_LOAD_ERROR) {
-                stopStreamAndPoll();
-              } else {
-                hls.startLoad();
-              }
-              break;
-            case Hls.ErrorTypes.MEDIA_ERROR:
-              hls.recoverMediaError();
-              break;
-            default:
-              stopStreamAndPoll();
-              break;
-          }
-        }
-      });
-
-      hls.attachMedia(videoElem);
-      hls.loadSource(url);
-    };
-
-    const stopStreamAndPoll = () => {
-      isLive = false;
-      if (hlsInstance) {
-        try { hlsInstance.destroy(); } catch (e) {}
-        hlsInstance = null;
-        activeHlsInstance = null;
-      }
-      setPlayerOffline();
-      if (!activeHlsPoller) {
-        activeHlsPoller = setInterval(probeAndConnect, 3000);
-      }
-    };
-
-    // Estado inicial: pantalla offline y sondeo limpio
     setPlayerOffline();
-    probeAndConnect();
-    activeHlsPoller = setInterval(probeAndConnect, 3000);
-    videoElem._hlsPoller = activeHlsPoller;
+
+    const hls = new Hls({
+      enableWorker: true,
+      lowLatencyMode: false,
+      backBufferLength: 60,
+      maxBufferLength: 30,
+      maxMaxBufferLength: 60,
+      maxBufferSize: 60 * 1000 * 1000,
+      liveSyncDurationCount: 4,
+      liveMaxLatencyDurationCount: 12,
+      liveDurationInfinity: true,
+      manifestLoadingMaxRetry: Infinity,
+      manifestLoadingRetryDelay: 1500,
+      levelLoadingMaxRetry: Infinity,
+      levelLoadingRetryDelay: 1500,
+      fragLoadingMaxRetry: 10,
+      fragLoadingRetryDelay: 1000,
+    });
+
+    activeHlsInstance = hls;
+
+    const onPlaybackActive = () => {
+      setPlayerOnline();
+    };
+
+    videoElem.addEventListener('playing', onPlaybackActive);
+    videoElem.addEventListener('timeupdate', () => {
+      if (!videoElem.paused && videoElem.currentTime > 0) {
+        setPlayerOnline();
+      }
+    });
+
+    hls.on(Hls.Events.FRAG_BUFFERED, () => {
+      videoElem.play().catch(() => {
+        videoElem.muted = true;
+        videoElem.play().catch(() => {});
+      });
+    });
+
+    hls.on(Hls.Events.MANIFEST_PARSED, () => {
+      videoElem.play().catch(() => {
+        videoElem.muted = true;
+        videoElem.play().catch(() => {});
+      });
+    });
+
+    hls.on(Hls.Events.ERROR, (event, data) => {
+      if (data.fatal) {
+        switch (data.type) {
+          case Hls.ErrorTypes.NETWORK_ERROR:
+            // OBS desconectado o error temporal de red: seguir esperando a OBS sin destruir el reproductor
+            setPlayerOffline();
+            setTimeout(() => {
+              try { hls.startLoad(); } catch (e) {}
+            }, 2000);
+            break;
+          case Hls.ErrorTypes.MEDIA_ERROR:
+            hls.recoverMediaError();
+            break;
+          default:
+            try { hls.startLoad(); } catch (e) {}
+            break;
+        }
+      }
+    });
+
+    hls.attachMedia(videoElem);
+    hls.loadSource(url);
   } else if (isHlsStream(url) && videoElem.canPlayType('application/vnd.apple.mpegurl')) {
     videoElem.src = url;
     setPlayerOnline();
