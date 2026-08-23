@@ -249,30 +249,28 @@ export function renderNativeVideo(url, initialSyncState = null) {
         if (data.fatal) {
           switch (data.type) {
             case Hls.ErrorTypes.NETWORK_ERROR:
-              // Error de red fatal (OBS apagado o caída de conexión)
-              setStreamOffline();
-              clearTimeout(offlineRetryTimer);
-              offlineRetryTimer = setTimeout(() => {
+              // Si ya estábamos reproduciendo en vivo y se venció un fragmento, saltar al directo sin pausar
+              if (hls && hls.levels && hls.levels.length > 0 && isPlayingLive) {
                 try {
-                  if (activeHlsInstance === hls) {
-                    hls.loadSource(url);
-                  }
+                  hls.startLoad(-1);
                 } catch (e) {}
-              }, 2500);
+              } else {
+                setStreamOffline();
+                clearTimeout(offlineRetryTimer);
+                offlineRetryTimer = setTimeout(() => {
+                  try {
+                    if (activeHlsInstance === hls) {
+                      hls.loadSource(url);
+                    }
+                  } catch (e) {}
+                }, 2500);
+              }
               break;
             case Hls.ErrorTypes.MEDIA_ERROR:
               try { hls.recoverMediaError(); } catch (e) {}
               break;
             default:
-              setStreamOffline();
-              clearTimeout(offlineRetryTimer);
-              offlineRetryTimer = setTimeout(() => {
-                try {
-                  if (activeHlsInstance === hls) {
-                    hls.loadSource(url);
-                  }
-                } catch (e) {}
-              }, 2500);
+              try { hls.recoverMediaError(); } catch (e) {}
               break;
           }
         }
