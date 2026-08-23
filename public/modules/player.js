@@ -411,7 +411,10 @@ export function renderNativeVideo(url, initialSyncState = null) {
 
     hls.on(Hls.Events.MANIFEST_PARSED, () => {
       clearTimeout(retryTimeout);
-      console.log('%c[DualStream] 🟢 Transmisión detectada. Iniciando video en vivo...', 'color: #53fc18; font-weight: bold;');
+    });
+
+    hls.on(Hls.Events.LEVEL_LOADED, () => {
+      clearTimeout(retryTimeout);
       setPlayerOnline();
     });
 
