@@ -35,8 +35,8 @@ export function updateKickViews() {
     bgFrame.src = bgUrl;
   }
 
-  // Kick Popout Live Chat (Soporte nativo y 7TV)
-  const chatUrl = `https://kick.com/popout/${encodeURIComponent(channel)}/chat`;
+  // Kick Popout Live Chat (Exacto de MiluLive con 7TV y Login OAuth integrado: https://chat.kick.cx/embed/{streamer})
+  const chatUrl = `https://chat.kick.cx/embed/${encodeURIComponent(channel)}`;
   if (DOM.kickChatFrame && DOM.kickChatFrame.src !== chatUrl) {
     DOM.kickChatFrame.src = chatUrl;
   }
