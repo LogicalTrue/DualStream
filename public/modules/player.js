@@ -121,6 +121,7 @@ export function isDirectVideoFile(url) {
 }
 
 export let activeHlsInstance = null;
+export let activeHlsPoller = null;
 export let activeWhepPc = null;
 export let whepReconnectTimer = null;
 
@@ -129,6 +130,10 @@ export function renderNativeVideo(url, initialSyncState = null) {
   if (activeHlsInstance) {
     try { activeHlsInstance.destroy(); } catch (e) {}
     activeHlsInstance = null;
+  }
+  if (activeHlsPoller) {
+    clearInterval(activeHlsPoller);
+    activeHlsPoller = null;
   }
   if (activeWhepPc) {
     try { activeWhepPc.close(); } catch (e) {}
@@ -194,76 +199,129 @@ export function renderNativeVideo(url, initialSyncState = null) {
   // ==========================================
   if (isHlsStream(url) && window.Hls && Hls.isSupported()) {
     let isLive = false;
-    let hls = null;
-    const startHls = () => {
+    let hlsInstance = null;
+    let isProbing = false;
+
+    const probeAndConnect = async () => {
+      if (isLive || isProbing) return;
+      isProbing = true;
+      try {
+        const resp = await fetch(url, {
+          method: 'GET',
+          cache: 'no-store',
+          headers: { 'Cache-Control': 'no-cache' }
+        });
+        if (resp.ok) {
+          const text = await resp.text();
+          if (text.includes('#EXTM3U')) {
+            startStreamPlayback();
+          }
+        }
+      } catch (e) {
+        // OBS apagado, sondeo silencioso
+      } finally {
+        isProbing = false;
+      }
+    };
+
+    const startStreamPlayback = () => {
       if (isLive) return;
 
-      if (!hls) {
-        hls = new Hls({
-          enableWorker: true,
-          lowLatencyMode: false,
-          backBufferLength: 60,
-          maxBufferLength: 60,
-          maxMaxBufferLength: 120,
-          maxBufferSize: 60 * 1000 * 1000,
-          liveSyncDurationCount: 6,
-          liveMaxLatencyDurationCount: 15,
-          liveDurationInfinity: true,
-          fragLoadingMaxRetry: 10,
-          fragLoadingRetryDelay: 500,
-          manifestLoadingMaxRetry: Infinity,
-          manifestLoadingRetryDelay: 1000,
-          startLevel: -1
-        });
-
-        const onStreamActive = () => {
-          isLive = true;
-          setPlayerOnline();
-        };
-
-        videoElem.addEventListener('playing', onStreamActive);
-        hls.on(Hls.Events.FRAG_LOADED, onStreamActive);
-        hls.on(Hls.Events.MANIFEST_PARSED, () => {
-          onStreamActive();
-          videoElem.play().catch(() => {
-            videoElem.muted = true;
-            videoElem.play().catch(() => {});
-          });
-        });
-
-        hls.on(Hls.Events.ERROR, (event, data) => {
-          if (data.fatal) {
-            isLive = false;
-            setPlayerOffline();
-            if (data.type === Hls.ErrorTypes.NETWORK_ERROR) {
-              setTimeout(() => {
-                if (!isLive && hls) hls.loadSource(url);
-              }, 2000);
-            } else if (data.type === Hls.ErrorTypes.MEDIA_ERROR) {
-              hls.recoverMediaError();
-            }
-          }
-        });
-
-        hls.attachMedia(videoElem);
-        activeHlsInstance = hls;
+      if (activeHlsPoller) {
+        clearInterval(activeHlsPoller);
+        activeHlsPoller = null;
       }
 
+      if (hlsInstance) {
+        try { hlsInstance.destroy(); } catch (e) {}
+        hlsInstance = null;
+      }
+
+      const hls = new Hls({
+        enableWorker: true,
+        lowLatencyMode: false,
+        backBufferLength: 60,
+        maxBufferLength: 30,
+        maxMaxBufferLength: 60,
+        maxBufferSize: 60 * 1000 * 1000,
+        liveSyncDurationCount: 3,
+        liveMaxLatencyDurationCount: 8,
+        liveDurationInfinity: true,
+        manifestLoadingMaxRetry: 10,
+        manifestLoadingRetryDelay: 1000,
+        levelLoadingMaxRetry: 10,
+        levelLoadingRetryDelay: 1000,
+        fragLoadingMaxRetry: 10,
+        fragLoadingRetryDelay: 1000,
+      });
+
+      hlsInstance = hls;
+      activeHlsInstance = hls;
+
+      let activated = false;
+      const activateLiveUI = () => {
+        if (activated) return;
+        activated = true;
+        isLive = true;
+        setPlayerOnline();
+      };
+
+      videoElem.addEventListener('playing', activateLiveUI);
+      videoElem.addEventListener('canplay', activateLiveUI);
+      hls.on(Hls.Events.FRAG_BUFFERED, activateLiveUI);
+
+      hls.on(Hls.Events.MANIFEST_PARSED, () => {
+        videoElem.play().catch(() => {
+          videoElem.muted = true;
+          videoElem.play().catch(() => {});
+        });
+      });
+
+      hls.on(Hls.Events.ERROR, (event, data) => {
+        if (data.fatal) {
+          switch (data.type) {
+            case Hls.ErrorTypes.NETWORK_ERROR:
+              if (data.response?.code === 404 || data.details === Hls.ErrorDetails.MANIFEST_LOAD_ERROR) {
+                stopStreamAndPoll();
+              } else {
+                hls.startLoad();
+              }
+              break;
+            case Hls.ErrorTypes.MEDIA_ERROR:
+              hls.recoverMediaError();
+              break;
+            default:
+              stopStreamAndPoll();
+              break;
+          }
+        }
+      });
+
+      hls.attachMedia(videoElem);
       hls.loadSource(url);
     };
 
-    let pollTimer = null;
-    startHls();
-
-    pollTimer = setInterval(() => {
-      if (!isLive) {
-        startHls();
+    const stopStreamAndPoll = () => {
+      isLive = false;
+      if (hlsInstance) {
+        try { hlsInstance.destroy(); } catch (e) {}
+        hlsInstance = null;
+        activeHlsInstance = null;
       }
-    }, 2500);
+      setPlayerOffline();
+      if (!activeHlsPoller) {
+        activeHlsPoller = setInterval(probeAndConnect, 3000);
+      }
+    };
 
-    videoElem._hlsPoller = pollTimer;
+    // Estado inicial: pantalla offline y sondeo limpio
+    setPlayerOffline();
+    probeAndConnect();
+    activeHlsPoller = setInterval(probeAndConnect, 3000);
+    videoElem._hlsPoller = activeHlsPoller;
   } else if (isHlsStream(url) && videoElem.canPlayType('application/vnd.apple.mpegurl')) {
     videoElem.src = url;
+    setPlayerOnline();
   } else {
     videoElem.src = url;
   }
@@ -369,6 +427,14 @@ export function loadVideoSource(rawInput, initialSyncState = null) {
 }
 
 export function unloadVideo() {
+  if (activeHlsInstance) {
+    try { activeHlsInstance.destroy(); } catch (e) {}
+    activeHlsInstance = null;
+  }
+  if (activeHlsPoller) {
+    clearInterval(activeHlsPoller);
+    activeHlsPoller = null;
+  }
   AppState.videoUrl = '';
   syncUrlParams();
   if (DOM.movieMediaWrapper) {
