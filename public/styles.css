@@ -736,6 +736,10 @@ body.mode-viewer.viewer-standby #floating-video-controls {
   display: block;
 }
 
+.media-container {
+  z-index: 100;
+}
+
 .native-video-player {
   object-fit: contain;
   background-color: #000000;
