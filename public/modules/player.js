@@ -193,11 +193,21 @@ export function renderNativeVideo(url, initialSyncState = null) {
       }
     };
 
+    let retryTimer = null;
+
     hls.on(Hls.Events.MANIFEST_PARSED, () => {
+      if (retryTimer) {
+        clearTimeout(retryTimer);
+        retryTimer = null;
+      }
       setPlayerOnline();
     });
 
     hls.on(Hls.Events.FRAG_LOADED, () => {
+      if (retryTimer) {
+        clearTimeout(retryTimer);
+        retryTimer = null;
+      }
       setPlayerOnline();
     });
 
@@ -205,15 +215,18 @@ export function renderNativeVideo(url, initialSyncState = null) {
       const is404 = (data.response && (data.response.code === 404 || data.response.code === 0)) ||
                     (data.details && (data.details.includes('404') || data.details === Hls.ErrorDetails.LEVEL_LOAD_ERROR || data.details === Hls.ErrorDetails.MANIFEST_LOAD_ERROR));
 
-      // Si el servidor responde 404 en index.m3u8 o main_stream.m3u8 (OBS apagado):
       if (is404 || data.fatal) {
         setPlayerOffline();
-        setTimeout(() => {
-          try {
-            hls.loadSource(url);
-            hls.startLoad();
-          } catch(e) {}
-        }, 1500);
+        if (!retryTimer) {
+          retryTimer = setTimeout(() => {
+            retryTimer = null;
+            if (!isStreamLive) {
+              try {
+                hls.loadSource(url);
+              } catch(e) {}
+            }
+          }, 3000);
+        }
       }
     });
 
