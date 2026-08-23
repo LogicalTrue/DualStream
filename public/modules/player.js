@@ -251,6 +251,7 @@ export function renderNativeVideo(url, initialSyncState = null) {
       hls.loadSource(url);
     };
 
+    let pollTimer = null;
     startHls();
 
     pollTimer = setInterval(() => {
