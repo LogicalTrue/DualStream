@@ -169,37 +169,60 @@ export function renderNativeVideo(url, initialSyncState = null) {
       levelLoadingRetryDelay: 1000
     });
 
+    let reconnectInterval = null;
+
     const setPlayerOffline = () => {
-      if (!isLive) return;
       isLive = false;
       if (DOM.theaterOfflineScreen) DOM.theaterOfflineScreen.style.display = 'flex';
       if (DOM.movieMediaWrapper) DOM.movieMediaWrapper.style.display = 'none';
       if (DOM.currentVideoTitle) DOM.currentVideoTitle.textContent = 'Stream Fuera de Línea';
+
+      // Si está offline, iniciar vigilante que compruebe cada 1.5s si el stream levantó
+      if (!reconnectInterval) {
+        reconnectInterval = setInterval(async () => {
+          if (isLive) {
+            clearInterval(reconnectInterval);
+            reconnectInterval = null;
+            return;
+          }
+          try {
+            const res = await fetch(url, { method: 'HEAD', cache: 'no-store' });
+            if (res.ok) {
+              clearInterval(reconnectInterval);
+              reconnectInterval = null;
+              hls.loadSource(url);
+              hls.attachMedia(videoElem);
+            }
+          } catch(e) {}
+        }, 1500);
+      }
     };
 
     const setPlayerOnline = () => {
+      isLive = true;
+      if (reconnectInterval) {
+        clearInterval(reconnectInterval);
+        reconnectInterval = null;
+      }
       if (DOM.theaterOfflineScreen) DOM.theaterOfflineScreen.style.display = 'none';
       if (DOM.movieMediaWrapper) DOM.movieMediaWrapper.style.display = 'block';
       if (DOM.currentVideoTitle) DOM.currentVideoTitle.textContent = 'En Vivo';
 
-      // Saltar al borde en vivo si se quedó atrás para evitar congelamiento
+      // Saltar al borde en vivo
       if (videoElem.buffered.length > 0) {
         const end = videoElem.buffered.end(videoElem.buffered.length - 1);
-        if (Math.abs(videoElem.currentTime - end) > 4) {
-          videoElem.currentTime = end - 1.5;
+        if (Math.abs(videoElem.currentTime - end) > 3) {
+          videoElem.currentTime = end - 1.0;
         }
       }
 
-      if (videoElem.paused) {
-        const playPromise = videoElem.play();
-        if (playPromise !== undefined) {
-          playPromise.catch(() => {
-            videoElem.muted = true;
-            videoElem.play().catch(() => {});
-          });
-        }
+      const playPromise = videoElem.play();
+      if (playPromise !== undefined) {
+        playPromise.catch(() => {
+          videoElem.muted = true;
+          videoElem.play().catch(() => {});
+        });
       }
-      isLive = true;
     };
 
     hls.on(Hls.Events.MANIFEST_PARSED, setPlayerOnline);
@@ -207,27 +230,17 @@ export function renderNativeVideo(url, initialSyncState = null) {
     hls.on(Hls.Events.FRAG_LOADED, setPlayerOnline);
 
     hls.on(Hls.Events.ERROR, (event, data) => {
+      const is404 = (data.response && (data.response.code === 404 || data.response.code === 0)) ||
+                    (data.details && data.details.includes('404')) ||
+                    data.details === Hls.ErrorDetails.MANIFEST_LOAD_ERROR ||
+                    data.details === Hls.ErrorDetails.LEVEL_LOAD_ERROR;
+
+      if (is404) {
+        setPlayerOffline();
+      }
+
       if (data.fatal) {
-        switch (data.type) {
-          case Hls.ErrorTypes.NETWORK_ERROR:
-            setPlayerOffline();
-            setTimeout(() => {
-              try { hls.startLoad(); } catch(e) {}
-            }, 1000);
-            break;
-          case Hls.ErrorTypes.MEDIA_ERROR:
-            hls.recoverMediaError();
-            break;
-          default:
-            setPlayerOffline();
-            setTimeout(() => {
-              try {
-                hls.loadSource(url);
-                hls.attachMedia(videoElem);
-              } catch(e) {}
-            }, 1500);
-            break;
-        }
+        setPlayerOffline();
       }
     });
 
