@@ -424,16 +424,23 @@ export function renderNativeVideo(url, initialSyncState = null) {
         setStreamOnline();
       });
 
+      videoElem.addEventListener('ended', () => {
+        setStreamOffline();
+      });
+
       hls.on(Hls.Events.ERROR, (event, data) => {
         if (data.fatal) {
           addTelemetryLog(`Error Fatal HLS [${data.type}]: ${data.details}`, 'error');
           switch (data.type) {
             case Hls.ErrorTypes.NETWORK_ERROR:
-              // Si falla durante el directo porque se venció un fragmento, saltar al vivo
-              if (hls && hls.levels && hls.levels.length > 0 && isPlayingLive) {
-                addTelemetryLog('Saltando automáticamente al live-edge tras fragmento vencido...', 'warn');
-                try { hls.startLoad(-1); } catch (e) {}
-              } else {
+              // Comprobar si es un error de lista/manifiesto (OBS apagado)
+              if (
+                data.details === Hls.ErrorDetails.LEVEL_LOAD_ERROR || 
+                data.details === Hls.ErrorDetails.MANIFEST_LOAD_ERROR ||
+                data.details === Hls.ErrorDetails.MANIFEST_LOAD_TIMEOUT ||
+                data.details === Hls.ErrorDetails.LEVEL_LOAD_TIMEOUT
+              ) {
+                // OBS detenido: mostrar cartel de fuera de línea de inmediato
                 setStreamOffline();
                 clearTimeout(offlineCheckTimer);
                 offlineCheckTimer = setTimeout(() => {
@@ -443,14 +450,20 @@ export function renderNativeVideo(url, initialSyncState = null) {
                     }
                   } catch (e) {}
                 }, 2500);
+              } else if (data.details === Hls.ErrorDetails.FRAG_LOAD_ERROR) {
+                // Error en un solo fragmento .ts durante el vivo: saltar al live-edge
+                addTelemetryLog('Saltando al directo tras fragmento expirado...', 'warn');
+                try { hls.startLoad(-1); } catch (e) {}
+              } else {
+                setStreamOffline();
               }
               break;
             case Hls.ErrorTypes.MEDIA_ERROR:
-              addTelemetryLog('Recuperando error de decodificación de medios...', 'warn');
+              addTelemetryLog('Recuperando decodificación de medios...', 'warn');
               try { hls.recoverMediaError(); } catch (e) {}
               break;
             default:
-              try { hls.recoverMediaError(); } catch (e) {}
+              setStreamOffline();
               break;
           }
         }
