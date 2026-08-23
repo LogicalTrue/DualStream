@@ -399,19 +399,7 @@ export function renderNativeVideo(url, initialSyncState = null) {
       activeHlsInstance = null;
     };
 
-    let targetStreamUrl = url;
-
-    const candidateUrls = [
-      url,
-      'https://62-238-122-186.sslip.io/live/stream/index.m3u8',
-      'https://62-238-122-186.sslip.io/stream/index.m3u8',
-      'https://62-238-122-186.sslip.io/live/index.m3u8',
-      'https://62-238-122-186.sslip.io/live/stream/stream/index.m3u8',
-      'https://62-238-122-186.sslip.io/stream/stream/index.m3u8'
-    ];
-
     const startHlsPlayback = (streamUrl = url) => {
-      targetStreamUrl = streamUrl;
       cleanupHls();
 
       if (!window.Hls || !Hls.isSupported()) {
@@ -501,32 +489,27 @@ export function renderNativeVideo(url, initialSyncState = null) {
         if (isPlayingLive || isAttemptingPlayback) {
           return;
         }
-        for (const testUrl of candidateUrls) {
-          try {
-            const res = await fetch(testUrl, { method: 'GET', cache: 'no-store' });
-            if (res.ok) {
-              const text = await res.text();
-              if (text && text.includes('#EXTM3U')) {
-                isAttemptingPlayback = true;
-                addTelemetryLog(`¡Señal detectada en: ${testUrl}!`, 'info');
-                startHlsPlayback(testUrl);
-                break;
-              }
+        try {
+          const res = await fetch(url, { method: 'GET', cache: 'no-store' });
+          if (res.ok) {
+            const text = await res.text();
+            if (text && text.includes('#EXTM3U')) {
+              isAttemptingPlayback = true;
+              addTelemetryLog('¡Señal de OBS detectada! Iniciando reproductor...', 'info');
+              startHlsPlayback(url);
             }
-          } catch (e) {}
-        }
-      }, 1500);
+          }
+        } catch (e) {}
+      }, 2500);
     };
 
     schedulePoller();
-    for (const testUrl of candidateUrls) {
-      fetch(testUrl, { method: 'GET', cache: 'no-store' }).then(res => {
-        if (res.ok && !isPlayingLive && !isAttemptingPlayback) {
-          isAttemptingPlayback = true;
-          startHlsPlayback(testUrl);
-        }
-      }).catch(() => {});
-    }
+    fetch(url, { method: 'GET', cache: 'no-store' }).then(res => {
+      if (res.ok && !isPlayingLive && !isAttemptingPlayback) {
+        isAttemptingPlayback = true;
+        startHlsPlayback(url);
+      }
+    }).catch(() => {});
   } else {
     videoElem.src = url;
   }
