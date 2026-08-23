@@ -429,7 +429,17 @@ export function renderNativeVideo(url, initialSyncState = null) {
     });
 
     hls.on(Hls.Events.ERROR, (event, data) => {
-      if (data.fatal) {
+      const isStreamCutoff = (
+        data.details === Hls.ErrorDetails.LEVEL_LOAD_ERROR || 
+        data.details === Hls.ErrorDetails.MANIFEST_LOAD_ERROR ||
+        data.details === Hls.ErrorDetails.LEVEL_LOAD_TIMEOUT ||
+        data.details === Hls.ErrorDetails.MANIFEST_LOAD_TIMEOUT ||
+        data.details === Hls.ErrorDetails.BUFFER_STALLED_ERROR ||
+        (data.response && data.response.code === 404) ||
+        data.fatal
+      );
+
+      if (isStreamCutoff) {
         setPlayerOffline();
         clearTimeout(retryTimeout);
         retryTimeout = setTimeout(() => {
