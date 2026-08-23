@@ -145,7 +145,7 @@ export function renderNativeVideo(url, initialSyncState = null) {
 
   activeNativeVideo = videoElem;
 
-  // Soporte HLS en vivo (OBS / m3u8) - Transmisión en tiempo real 60 FPS sin congelamientos
+  // Soporte HLS en vivo (OBS / m3u8) - Transmisión en tiempo real 60 FPS fluida y continua
   if (isHlsStream(url) && window.Hls && Hls.isSupported()) {
     let isLive = false;
 
@@ -154,19 +154,16 @@ export function renderNativeVideo(url, initialSyncState = null) {
       lowLatencyMode: false,
       liveSyncDurationCount: 3,
       liveMaxLatencyDurationCount: 8,
-      maxBufferLength: 30,
-      maxMaxBufferLength: 60,
+      maxBufferLength: 20,
+      maxMaxBufferLength: 40,
       backBufferLength: 0,
       liveDurationInfinity: true,
-      highBufferWatchdogPeriod: 1,
-      nudgeOffset: 0.1,
-      nudgeMaxRetry: 20,
-      manifestLoadingTimeOut: 8000,
+      manifestLoadingTimeOut: 10000,
       manifestLoadingMaxRetry: Infinity,
-      manifestLoadingRetryDelay: 1000,
-      levelLoadingTimeOut: 8000,
+      manifestLoadingRetryDelay: 1500,
+      levelLoadingTimeOut: 10000,
       levelLoadingMaxRetry: Infinity,
-      levelLoadingRetryDelay: 1000
+      levelLoadingRetryDelay: 1500
     });
 
     let reconnectInterval = null;
@@ -201,14 +198,6 @@ export function renderNativeVideo(url, initialSyncState = null) {
       if (DOM.movieMediaWrapper) DOM.movieMediaWrapper.style.display = 'block';
       if (DOM.currentVideoTitle) DOM.currentVideoTitle.textContent = 'En Vivo';
 
-      // Saltar al borde en vivo
-      if (videoElem.buffered.length > 0) {
-        const end = videoElem.buffered.end(videoElem.buffered.length - 1);
-        if (Math.abs(videoElem.currentTime - end) > 2) {
-          videoElem.currentTime = end - 0.8;
-        }
-      }
-
       const playPromise = videoElem.play();
       if (playPromise !== undefined) {
         playPromise.catch(() => {
@@ -224,21 +213,14 @@ export function renderNativeVideo(url, initialSyncState = null) {
 
     hls.on(Hls.Events.ERROR, (event, data) => {
       if (data.fatal) {
-        setPlayerOffline();
-      }
-    });
-
-    // Detectar si el video se congeló o se trabó para destrabarlo instantáneamente
-    videoElem.addEventListener('waiting', () => {
-      if (isLive && videoElem.buffered.length > 0) {
-        const end = videoElem.buffered.end(videoElem.buffered.length - 1);
-        videoElem.currentTime = end - 0.5;
-      }
-    });
-
-    videoElem.addEventListener('stalled', () => {
-      if (isLive && hls) {
-        hls.startLoad();
+        if (data.type === Hls.ErrorTypes.NETWORK_ERROR) {
+          setPlayerOffline();
+          hls.startLoad();
+        } else if (data.type === Hls.ErrorTypes.MEDIA_ERROR) {
+          hls.recoverMediaError();
+        } else {
+          setPlayerOffline();
+        }
       }
     });
 
