@@ -195,20 +195,33 @@ export function renderNativeVideo(url, initialSyncState = null) {
 
     let retryTimer = null;
 
-    hls.on(Hls.Events.MANIFEST_PARSED, () => {
+    // Solo pasar a EN VIVO cuando el elemento de video REALMENTE comience a emitir fotogramas
+    const onActualVideoPlaying = () => {
+      isStreamLive = true;
       if (retryTimer) {
         clearTimeout(retryTimer);
         retryTimer = null;
       }
-      setPlayerOnline();
+      if (DOM.theaterOfflineScreen) DOM.theaterOfflineScreen.style.display = 'none';
+      if (DOM.movieMediaWrapper) DOM.movieMediaWrapper.style.display = 'block';
+      if (DOM.currentVideoTitle) DOM.currentVideoTitle.textContent = 'En Vivo';
+    };
+
+    videoElem.addEventListener('playing', onActualVideoPlaying);
+    videoElem.addEventListener('timeupdate', () => {
+      if (videoElem.currentTime > 0 && !videoElem.paused) {
+        onActualVideoPlaying();
+      }
     });
 
-    hls.on(Hls.Events.FRAG_LOADED, () => {
-      if (retryTimer) {
-        clearTimeout(retryTimer);
-        retryTimer = null;
+    hls.on(Hls.Events.MANIFEST_PARSED, () => {
+      const playPromise = videoElem.play();
+      if (playPromise !== undefined) {
+        playPromise.catch(() => {
+          videoElem.muted = true;
+          videoElem.play().catch(() => {});
+        });
       }
-      setPlayerOnline();
     });
 
     hls.on(Hls.Events.ERROR, (event, data) => {
