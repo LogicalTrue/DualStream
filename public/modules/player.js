@@ -145,31 +145,32 @@ export function renderNativeVideo(url, initialSyncState = null) {
 
   activeNativeVideo = videoElem;
 
-  // Soporte HLS en vivo (OBS / m3u8) - Transmisión en tiempo real sin lag ni congelamientos
+  // Soporte HLS en vivo (OBS / m3u8) - Transmisión en tiempo real 60 FPS sin congelamientos
   if (isHlsStream(url) && window.Hls && Hls.isSupported()) {
     let isLive = false;
-    let autoReconnectTimer = null;
 
     const hls = new Hls({
       enableWorker: true,
       lowLatencyMode: false,
       liveSyncDurationCount: 3,
       liveMaxLatencyDurationCount: 8,
-      maxBufferLength: 15,
-      maxMaxBufferLength: 30,
+      maxBufferLength: 30,
+      maxMaxBufferLength: 60,
       backBufferLength: 0,
-      highBufferWatchdogPeriod: 2,
+      liveDurationInfinity: true,
+      highBufferWatchdogPeriod: 1,
       nudgeOffset: 0.1,
-      nudgeMaxRetry: 10,
-      manifestLoadingTimeOut: 10000,
+      nudgeMaxRetry: 20,
+      manifestLoadingTimeOut: 8000,
       manifestLoadingMaxRetry: Infinity,
-      manifestLoadingRetryDelay: 1500,
-      levelLoadingTimeOut: 10000,
+      manifestLoadingRetryDelay: 1000,
+      levelLoadingTimeOut: 8000,
       levelLoadingMaxRetry: Infinity,
-      levelLoadingRetryDelay: 1500
+      levelLoadingRetryDelay: 1000
     });
 
     const setPlayerOffline = () => {
+      if (!isLive) return;
       isLive = false;
       if (DOM.theaterOfflineScreen) DOM.theaterOfflineScreen.style.display = 'flex';
       if (DOM.movieMediaWrapper) DOM.movieMediaWrapper.style.display = 'none';
@@ -177,23 +178,33 @@ export function renderNativeVideo(url, initialSyncState = null) {
     };
 
     const setPlayerOnline = () => {
-      if (isLive) return;
-      isLive = true;
       if (DOM.theaterOfflineScreen) DOM.theaterOfflineScreen.style.display = 'none';
       if (DOM.movieMediaWrapper) DOM.movieMediaWrapper.style.display = 'block';
       if (DOM.currentVideoTitle) DOM.currentVideoTitle.textContent = 'En Vivo';
 
-      const playPromise = videoElem.play();
-      if (playPromise !== undefined) {
-        playPromise.catch(() => {
-          videoElem.muted = true;
-          videoElem.play().catch(() => {});
-        });
+      // Saltar al borde en vivo si se quedó atrás para evitar congelamiento
+      if (videoElem.buffered.length > 0) {
+        const end = videoElem.buffered.end(videoElem.buffered.length - 1);
+        if (Math.abs(videoElem.currentTime - end) > 4) {
+          videoElem.currentTime = end - 1.5;
+        }
       }
+
+      if (videoElem.paused) {
+        const playPromise = videoElem.play();
+        if (playPromise !== undefined) {
+          playPromise.catch(() => {
+            videoElem.muted = true;
+            videoElem.play().catch(() => {});
+          });
+        }
+      }
+      isLive = true;
     };
 
     hls.on(Hls.Events.MANIFEST_PARSED, setPlayerOnline);
     hls.on(Hls.Events.LEVEL_LOADED, setPlayerOnline);
+    hls.on(Hls.Events.FRAG_LOADED, setPlayerOnline);
 
     hls.on(Hls.Events.ERROR, (event, data) => {
       if (data.fatal) {
@@ -202,7 +213,7 @@ export function renderNativeVideo(url, initialSyncState = null) {
             setPlayerOffline();
             setTimeout(() => {
               try { hls.startLoad(); } catch(e) {}
-            }, 1500);
+            }, 1000);
             break;
           case Hls.ErrorTypes.MEDIA_ERROR:
             hls.recoverMediaError();
@@ -210,10 +221,27 @@ export function renderNativeVideo(url, initialSyncState = null) {
           default:
             setPlayerOffline();
             setTimeout(() => {
-              try { hls.loadSource(url); } catch(e) {}
-            }, 2000);
+              try {
+                hls.loadSource(url);
+                hls.attachMedia(videoElem);
+              } catch(e) {}
+            }, 1500);
             break;
         }
+      }
+    });
+
+    // Detectar si el video se congeló o se trabó para destrabarlo instantáneamente
+    videoElem.addEventListener('waiting', () => {
+      if (isLive && videoElem.buffered.length > 0) {
+        const end = videoElem.buffered.end(videoElem.buffered.length - 1);
+        videoElem.currentTime = end - 0.5;
+      }
+    });
+
+    videoElem.addEventListener('stalled', () => {
+      if (isLive && hls) {
+        hls.startLoad();
       }
     });
 
