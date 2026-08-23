@@ -195,6 +195,159 @@ export function renderNativeVideo(url, initialSyncState = null) {
   };
 
   // ==========================================
+  // TELEMETRÍA & DIAGNÓSTICO EN VIVO (HUD)
+  // ==========================================
+  const telemetryState = {
+    isOpen: false,
+    lastFrameCount: 0,
+    lastFrameTime: performance.now(),
+    currentFps: 0,
+    droppedFrames: 0,
+    bufferSeconds: 0,
+    downloadSpeedMbps: 0,
+    downloadLatencyMs: 0,
+    liveDelaySec: 0,
+    resolution: '--',
+    events: [],
+    pollTimer: null
+  };
+
+  const addTelemetryLog = (msg, type = 'info') => {
+    const timeStr = new Date().toLocaleTimeString();
+    const logItem = `[${timeStr}] ${msg}`;
+    telemetryState.events.unshift({ text: logItem, type });
+    if (telemetryState.events.length > 30) telemetryState.events.pop();
+
+    const logContainer = document.getElementById('hud-events-log');
+    if (logContainer) {
+      logContainer.innerHTML = telemetryState.events.map(ev => 
+        `<div class="telemetry-log-item ${ev.type}">${ev.text}</div>`
+      ).join('');
+    }
+  };
+
+  const updateTelemetryHud = () => {
+    if (!videoElem) return;
+
+    // 1. FPS y Cuadros Perdidos
+    if (typeof videoElem.getVideoPlaybackQuality === 'function') {
+      const q = videoElem.getVideoPlaybackQuality();
+      const now = performance.now();
+      const timeDiff = (now - telemetryState.lastFrameTime) / 1000;
+      if (timeDiff >= 0.8) {
+        const frameDiff = q.totalVideoFrames - telemetryState.lastFrameCount;
+        telemetryState.currentFps = Math.max(0, Math.round(frameDiff / timeDiff));
+        telemetryState.lastFrameCount = q.totalVideoFrames;
+        telemetryState.lastFrameTime = now;
+      }
+      telemetryState.droppedFrames = q.droppedVideoFrames;
+    }
+
+    // 2. Búfer Acumulado
+    if (videoElem.buffered && videoElem.buffered.length > 0) {
+      const curr = videoElem.currentTime;
+      let bufEnd = 0;
+      for (let i = 0; i < videoElem.buffered.length; i++) {
+        if (videoElem.buffered.start(i) <= curr && curr <= videoElem.buffered.end(i)) {
+          bufEnd = videoElem.buffered.end(i);
+          break;
+        }
+      }
+      telemetryState.bufferSeconds = Math.max(0, parseFloat((bufEnd - curr).toFixed(2)));
+    } else {
+      telemetryState.bufferSeconds = 0;
+    }
+
+    // 3. Resolución
+    if (videoElem.videoWidth && videoElem.videoHeight) {
+      telemetryState.resolution = `${videoElem.videoWidth}x${videoElem.videoHeight}`;
+    }
+
+    // 4. Retraso al Vivo (HLS)
+    if (activeHlsInstance && activeHlsInstance.liveSyncPosition) {
+      telemetryState.liveDelaySec = Math.max(0, parseFloat((activeHlsInstance.liveSyncPosition - videoElem.currentTime).toFixed(1)));
+    }
+
+    // Actualizar DOM del HUD si está visible
+    const hudFps = document.getElementById('hud-fps');
+    const hudDropped = document.getElementById('hud-dropped-frames');
+    const hudBuffer = document.getElementById('hud-buffer');
+    const hudBufferFill = document.getElementById('hud-buffer-bar-fill');
+    const hudSpeed = document.getElementById('hud-speed');
+    const hudLatency = document.getElementById('hud-latency');
+    const hudLiveDelay = document.getElementById('hud-live-delay');
+    const hudRes = document.getElementById('hud-resolution');
+
+    if (hudFps) {
+      hudFps.textContent = `${telemetryState.currentFps} FPS`;
+      hudFps.className = 'telemetry-val ' + (telemetryState.currentFps >= 50 ? 'good' : telemetryState.currentFps >= 25 ? 'warn' : 'bad');
+    }
+    if (hudDropped) hudDropped.textContent = `${telemetryState.droppedFrames} cuadros perdidos`;
+    if (hudBuffer) {
+      hudBuffer.textContent = `${telemetryState.bufferSeconds} s`;
+      hudBuffer.className = 'telemetry-val ' + (telemetryState.bufferSeconds >= 3.0 ? 'good' : telemetryState.bufferSeconds >= 1.0 ? 'warn' : 'bad');
+    }
+    if (hudBufferFill) {
+      const pct = Math.min(100, Math.round((telemetryState.bufferSeconds / 10) * 100));
+      hudBufferFill.style.width = `${pct}%`;
+      hudBufferFill.style.backgroundColor = telemetryState.bufferSeconds >= 3.0 ? '#53fc18' : telemetryState.bufferSeconds >= 1.0 ? '#f59e0b' : '#ef4444';
+    }
+    if (hudSpeed) hudSpeed.textContent = telemetryState.downloadSpeedMbps ? `${telemetryState.downloadSpeedMbps} Mbps` : '-- Mbps';
+    if (hudLatency) hudLatency.textContent = `Descarga: ${telemetryState.downloadLatencyMs} ms`;
+    if (hudLiveDelay) hudLiveDelay.textContent = `${telemetryState.liveDelaySec} s`;
+    if (hudRes) hudRes.textContent = `Resolución: ${telemetryState.resolution}`;
+  };
+
+  const telemetryInterval = setInterval(updateTelemetryHud, 1000);
+
+  // Botón y Atajo para abrir/cerrar HUD
+  const btnStats = document.getElementById('btn-stats-movie');
+  const btnHudClose = document.getElementById('btn-telemetry-close');
+  const btnHudCopy = document.getElementById('btn-telemetry-copy');
+  const hudElement = document.getElementById('stream-telemetry-hud');
+
+  const toggleHud = () => {
+    telemetryState.isOpen = !telemetryState.isOpen;
+    if (hudElement) hudElement.style.display = telemetryState.isOpen ? 'block' : 'none';
+    if (telemetryState.isOpen) updateTelemetryHud();
+  };
+
+  if (btnStats) btnStats.onclick = toggleHud;
+  if (btnHudClose) btnHudClose.onclick = toggleHud;
+
+  if (btnHudCopy) {
+    btnHudCopy.onclick = () => {
+      const report = [
+        `=== INFORME DE RENDIMIENTO & DIAGNÓSTICO DUALSTREAM ===`,
+        `Fecha: ${new Date().toISOString()}`,
+        `Streamer: ${AppState.streamer || 'BlackozuTR'}`,
+        `URL Video: ${url}`,
+        `Estado: ${!videoElem.paused ? 'REPRODUCIENDO' : 'PAUSADO/OFFLINE'}`,
+        `FPS: ${telemetryState.currentFps} FPS | Perdidos: ${telemetryState.droppedFrames}`,
+        `Búfer Acumulado: ${telemetryState.bufferSeconds} s`,
+        `Velocidad Fragmento: ${telemetryState.downloadSpeedMbps} Mbps (${telemetryState.downloadLatencyMs} ms)`,
+        `Retraso al Vivo: ${telemetryState.liveDelaySec} s`,
+        `Resolución: ${telemetryState.resolution}`,
+        `Navegador: ${navigator.userAgent}`,
+        `--- ÚLTIMOS EVENTOS ---`,
+        ...telemetryState.events.map(e => e.text)
+      ].join('\n');
+
+      navigator.clipboard.writeText(report).then(() => {
+        btnHudCopy.textContent = '✅ ¡Copiado!';
+        setTimeout(() => { btnHudCopy.textContent = '📋 Copiar Reporte'; }, 2000);
+      });
+    };
+  }
+
+  // Atajo de teclado: Shift + D
+  window.addEventListener('keydown', (e) => {
+    if (e.shiftKey && (e.key === 'D' || e.key === 'd')) {
+      toggleHud();
+    }
+  });
+
+  // ==========================================
   // PROTOCOLO: HLS (.m3u8) Live Streaming
   // ==========================================
   if (isHlsStream(url)) {
@@ -221,12 +374,13 @@ export function renderNativeVideo(url, initialSyncState = null) {
       activeHlsInstance = hls;
 
       let isPlayingLive = false;
-      let offlineRetryTimer = null;
+      let offlineCheckTimer = null;
 
       const setStreamOnline = () => {
         if (!isPlayingLive) {
           isPlayingLive = true;
           setPlayerOnline();
+          addTelemetryLog('Transmisión conectada y reproduciendo a 60 FPS', 'success');
         }
       };
 
@@ -234,11 +388,25 @@ export function renderNativeVideo(url, initialSyncState = null) {
         if (isPlayingLive) {
           isPlayingLive = false;
           setPlayerOffline();
+          addTelemetryLog('OBS detenido / Stream fuera de línea', 'warn');
         }
       };
 
-      hls.on(Hls.Events.MANIFEST_PARSED, () => {
+      hls.on(Hls.Events.MANIFEST_PARSED, (ev, data) => {
+        addTelemetryLog(`Manifiesto parseado (${data.levels.length} calidades encontradas)`, 'info');
         setStreamOnline();
+      });
+
+      hls.on(Hls.Events.FRAG_LOADED, (ev, data) => {
+        const durationSec = data.frag.duration || 2;
+        const loadTimeMs = Math.round(data.stats.loading.end - data.stats.loading.start);
+        const bytes = data.stats.total || 0;
+        const mbps = loadTimeMs > 0 ? parseFloat(((bytes * 8) / (loadTimeMs / 1000) / 1000000).toFixed(2)) : 0;
+
+        telemetryState.downloadSpeedMbps = mbps;
+        telemetryState.downloadLatencyMs = loadTimeMs;
+
+        addTelemetryLog(`Fragmento #${data.frag.sn} (${durationSec}s) cargado en ${loadTimeMs}ms (${mbps} Mbps)`, 'success');
       });
 
       videoElem.addEventListener('playing', () => {
@@ -247,17 +415,17 @@ export function renderNativeVideo(url, initialSyncState = null) {
 
       hls.on(Hls.Events.ERROR, (event, data) => {
         if (data.fatal) {
+          addTelemetryLog(`Error Fatal HLS [${data.type}]: ${data.details}`, 'error');
           switch (data.type) {
             case Hls.ErrorTypes.NETWORK_ERROR:
-              // Si ya estábamos reproduciendo en vivo y se venció un fragmento, saltar al directo sin pausar
+              // Si falla durante el directo porque se venció un fragmento, saltar al vivo
               if (hls && hls.levels && hls.levels.length > 0 && isPlayingLive) {
-                try {
-                  hls.startLoad(-1);
-                } catch (e) {}
+                addTelemetryLog('Saltando automáticamente al live-edge tras fragmento vencido...', 'warn');
+                try { hls.startLoad(-1); } catch (e) {}
               } else {
                 setStreamOffline();
-                clearTimeout(offlineRetryTimer);
-                offlineRetryTimer = setTimeout(() => {
+                clearTimeout(offlineCheckTimer);
+                offlineCheckTimer = setTimeout(() => {
                   try {
                     if (activeHlsInstance === hls) {
                       hls.loadSource(url);
@@ -267,6 +435,7 @@ export function renderNativeVideo(url, initialSyncState = null) {
               }
               break;
             case Hls.ErrorTypes.MEDIA_ERROR:
+              addTelemetryLog('Recuperando error de decodificación de medios...', 'warn');
               try { hls.recoverMediaError(); } catch (e) {}
               break;
             default:
@@ -278,6 +447,7 @@ export function renderNativeVideo(url, initialSyncState = null) {
 
       hls.attachMedia(videoElem);
       hls.loadSource(url);
+      addTelemetryLog(`Iniciando conexión a: ${url}`, 'info');
     } else if (videoElem.canPlayType('application/vnd.apple.mpegurl')) {
       videoElem.src = url;
       setPlayerOnline();

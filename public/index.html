@@ -172,6 +172,13 @@
               </button>
               <input type="range" id="slider-video-volume" class="viewer-volume-slider" min="0" max="100" value="100" aria-label="Volumen">
             </div>
+            <button class="control-badge-btn" id="btn-stats-movie" aria-label="Estadísticas y Rendimiento" title="Ver Diagnóstico en Vivo (Shift+D)">
+              <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="18" y1="20" x2="18" y2="10"></line>
+                <line x1="12" y1="20" x2="12" y2="4"></line>
+                <line x1="6" y1="20" x2="6" y2="14"></line>
+              </svg>
+            </button>
             <button class="control-badge-btn" id="btn-reload-movie" aria-label="Recargar reproductor">
               <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <polyline points="23 4 23 10 17 10"></polyline>
@@ -183,6 +190,48 @@
                 <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"></path>
               </svg>
             </button>
+          </div>
+
+          <!-- DIAGNOSTIC & TELEMETRY HUD (Stats for Nerds) -->
+          <div class="stream-telemetry-hud" id="stream-telemetry-hud" style="display: none;">
+            <div class="telemetry-header">
+              <div class="telemetry-title">
+                <span class="telemetry-pulse"></span>
+                <span>TELEMETRÍA & DIAGNÓSTICO EN VIVO</span>
+              </div>
+              <div class="telemetry-actions">
+                <button class="btn-telemetry-copy" id="btn-telemetry-copy" title="Copiar informe para soporte">📋 Copiar Reporte</button>
+                <button class="btn-telemetry-close" id="btn-telemetry-close" title="Cerrar (Shift+D)">✕</button>
+              </div>
+            </div>
+            <div class="telemetry-grid">
+              <div class="telemetry-card">
+                <span class="telemetry-label">FPS Renderizados</span>
+                <span class="telemetry-val" id="hud-fps">-- FPS</span>
+                <small class="telemetry-sub" id="hud-dropped-frames">0 cuadros perdidos</small>
+              </div>
+              <div class="telemetry-card">
+                <span class="telemetry-label">Búfer Acumulado</span>
+                <span class="telemetry-val" id="hud-buffer">-- s</span>
+                <div class="telemetry-buffer-bar"><div class="telemetry-buffer-fill" id="hud-buffer-bar-fill"></div></div>
+              </div>
+              <div class="telemetry-card">
+                <span class="telemetry-label">Velocidad de Descarga</span>
+                <span class="telemetry-val" id="hud-speed">-- Mbps</span>
+                <small class="telemetry-sub" id="hud-latency">Ping descarga: -- ms</small>
+              </div>
+              <div class="telemetry-card">
+                <span class="telemetry-label">Retraso al Vivo</span>
+                <span class="telemetry-val" id="hud-live-delay">-- s</span>
+                <small class="telemetry-sub" id="hud-resolution">Resolución: --</small>
+              </div>
+            </div>
+            <div class="telemetry-logs-wrapper">
+              <div class="telemetry-logs-title">Registro de Eventos de Red:</div>
+              <div class="telemetry-logs" id="hud-events-log">
+                <div class="telemetry-log-item info">Iniciando monitor de diagnóstico...</div>
+              </div>
+            </div>
           </div>
 
           <!-- WEBCAM / STREAMER CAMERA OVERLAY (Directamente sobre el video 16:9) -->
