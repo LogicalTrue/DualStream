@@ -373,6 +373,7 @@ export function renderNativeVideo(url, initialSyncState = null) {
     setPlayerOffline();
 
     let isPlayingLive = false;
+    let isAttemptingPlayback = false;
     let hls = null;
     let pollerTimer = null;
 
@@ -408,9 +409,9 @@ export function renderNativeVideo(url, initialSyncState = null) {
         liveSyncDurationCount: 3,
         liveMaxLatencyDurationCount: 12,
         liveDurationInfinity: true,
-        manifestLoadingMaxRetry: 3,
+        manifestLoadingMaxRetry: 5,
         manifestLoadingRetryDelay: 1500,
-        levelLoadingMaxRetry: 3,
+        levelLoadingMaxRetry: 5,
         levelLoadingRetryDelay: 1500,
         fragLoadingMaxRetry: 5,
         fragLoadingRetryDelay: 1000,
@@ -429,7 +430,10 @@ export function renderNativeVideo(url, initialSyncState = null) {
       });
 
       hls.on(Hls.Events.FRAG_LOADED, (ev, data) => {
-        clearInterval(pollerTimer); // Solo detener el sondeo cuando ya hay video confirmado
+        clearInterval(pollerTimer);
+        isAttemptingPlayback = false;
+        isPlayingLive = true;
+
         const durationSec = data.frag.duration || 2;
         const loadTimeMs = Math.round(data.stats.loading.end - data.stats.loading.start);
         const bytes = data.stats.total || 0;
@@ -440,7 +444,6 @@ export function renderNativeVideo(url, initialSyncState = null) {
 
         addTelemetryLog(`Fragmento #${data.frag.sn} (${durationSec}s) cargado en ${loadTimeMs}ms (${mbps} Mbps)`, 'success');
         
-        isPlayingLive = true;
         setPlayerOnline();
 
         if (videoElem.paused) {
@@ -451,6 +454,7 @@ export function renderNativeVideo(url, initialSyncState = null) {
       hls.on(Hls.Events.ERROR, (event, data) => {
         if (data.fatal) {
           addTelemetryLog(`Error HLS [${data.type}]: ${data.details}`, 'warn');
+          isAttemptingPlayback = false;
           isPlayingLive = false;
           setPlayerOffline();
           cleanupHls();
@@ -459,6 +463,7 @@ export function renderNativeVideo(url, initialSyncState = null) {
       });
 
       videoElem.addEventListener('ended', () => {
+        isAttemptingPlayback = false;
         isPlayingLive = false;
         setPlayerOffline();
         cleanupHls();
@@ -473,8 +478,7 @@ export function renderNativeVideo(url, initialSyncState = null) {
     const schedulePoller = () => {
       clearInterval(pollerTimer);
       pollerTimer = setInterval(async () => {
-        if (isPlayingLive) {
-          clearInterval(pollerTimer);
+        if (isPlayingLive || isAttemptingPlayback) {
           return;
         }
         try {
@@ -482,6 +486,7 @@ export function renderNativeVideo(url, initialSyncState = null) {
           if (res.ok) {
             const text = await res.text();
             if (text && text.includes('#EXTM3U')) {
+              isAttemptingPlayback = true;
               addTelemetryLog('¡Señal de OBS detectada! Iniciando reproductor...', 'info');
               startHlsPlayback();
             }
@@ -493,6 +498,7 @@ export function renderNativeVideo(url, initialSyncState = null) {
     schedulePoller();
     fetch(url, { method: 'GET', cache: 'no-store' }).then(res => {
       if (res.ok) {
+        isAttemptingPlayback = true;
         startHlsPlayback();
       }
     }).catch(() => {});
