@@ -163,33 +163,24 @@ export function renderNativeVideo(url, initialSyncState = null) {
       fragLoadingRetryDelay: 1000
     });
 
-    let checkLiveTimer = null;
+    let isStreamLive = false;
 
     const setPlayerOffline = () => {
+      if (!isStreamLive && DOM.theaterOfflineScreen && DOM.theaterOfflineScreen.style.display === 'flex') {
+        return;
+      }
+      isStreamLive = false;
+      try { videoElem.pause(); } catch(e) {}
+
       if (DOM.theaterOfflineScreen) DOM.theaterOfflineScreen.style.display = 'flex';
       if (DOM.movieMediaWrapper) DOM.movieMediaWrapper.style.display = 'none';
       if (DOM.currentVideoTitle) DOM.currentVideoTitle.textContent = 'Stream Fuera de Línea';
-
-      // Reintentar cargar el manifiesto en bucle continuo mientras esté offline
-      if (!checkLiveTimer) {
-        checkLiveTimer = setInterval(() => {
-          if (DOM.theaterOfflineScreen && DOM.theaterOfflineScreen.style.display === 'none') {
-            clearInterval(checkLiveTimer);
-            checkLiveTimer = null;
-            return;
-          }
-          try {
-            hls.loadSource(url);
-          } catch(e) {}
-        }, 1500);
-      }
     };
 
     const setPlayerOnline = () => {
-      if (checkLiveTimer) {
-        clearInterval(checkLiveTimer);
-        checkLiveTimer = null;
-      }
+      if (isStreamLive) return;
+      isStreamLive = true;
+
       if (DOM.theaterOfflineScreen) DOM.theaterOfflineScreen.style.display = 'none';
       if (DOM.movieMediaWrapper) DOM.movieMediaWrapper.style.display = 'block';
       if (DOM.currentVideoTitle) DOM.currentVideoTitle.textContent = 'En Vivo';
@@ -203,8 +194,7 @@ export function renderNativeVideo(url, initialSyncState = null) {
       }
     };
 
-    hls.on(Hls.Events.MANIFEST_PARSED, setPlayerOnline);
-    hls.on(Hls.Events.LEVEL_LOADED, setPlayerOnline);
+    // Cambiar a online solo cuando los datos y el primer fragmento de video estén listos
     hls.on(Hls.Events.FRAG_LOADED, setPlayerOnline);
 
     hls.on(Hls.Events.ERROR, (event, data) => {
@@ -216,22 +206,10 @@ export function renderNativeVideo(url, initialSyncState = null) {
 
       if (is404 || data.fatal) {
         setPlayerOffline();
-        if (data.fatal) {
-          switch (data.type) {
-            case Hls.ErrorTypes.NETWORK_ERROR:
-              setTimeout(() => {
-                try { hls.startLoad(); } catch(e) {}
-              }, 1500);
-              break;
-            case Hls.ErrorTypes.MEDIA_ERROR:
-              hls.recoverMediaError();
-              break;
-            default:
-              setTimeout(() => {
-                try { hls.loadSource(url); } catch(e) {}
-              }, 2000);
-              break;
-          }
+        if (data.fatal && data.type === Hls.ErrorTypes.NETWORK_ERROR) {
+          setTimeout(() => {
+            try { hls.startLoad(); } catch(e) {}
+          }, 2000);
         }
       }
     });
