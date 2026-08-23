@@ -179,8 +179,6 @@ export function renderNativeVideo(url, initialSyncState = null) {
     document.body.classList.add('viewer-standby');
     try { 
       videoElem.pause();
-      videoElem.removeAttribute('src');
-      videoElem.load();
     } catch(e) {}
     const offlineScreen = document.getElementById('theater-offline-screen');
     const onlineScreen = document.getElementById('theater-online-screen');
