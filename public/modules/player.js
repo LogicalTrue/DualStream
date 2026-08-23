@@ -202,17 +202,18 @@ export function renderNativeVideo(url, initialSyncState = null) {
         hls = new Hls({
           enableWorker: true,
           lowLatencyMode: false,
-          backBufferLength: 30,
+          backBufferLength: 60,
           maxBufferLength: 60,
           maxMaxBufferLength: 120,
           maxBufferSize: 60 * 1000 * 1000,
-          liveSyncDurationCount: 5,
-          liveMaxLatencyDurationCount: 12,
+          liveSyncDurationCount: 6,
+          liveMaxLatencyDurationCount: 15,
           liveDurationInfinity: true,
           fragLoadingMaxRetry: 10,
           fragLoadingRetryDelay: 500,
           manifestLoadingMaxRetry: Infinity,
-          manifestLoadingRetryDelay: 1000
+          manifestLoadingRetryDelay: 1000,
+          startLevel: -1
         });
 
         const onStreamActive = () => {
