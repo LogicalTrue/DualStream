@@ -243,26 +243,37 @@ export function renderNativeVideo(url, initialSyncState = null) {
       });
     });
 
+    let retryTimer = null;
+
     hls.on(Hls.Events.ERROR, (event, data) => {
       if (data.fatal) {
         switch (data.type) {
           case Hls.ErrorTypes.NETWORK_ERROR:
-            // Si el stream aún no ha cargado nunca (offline), reintentar cargar manifiesto
-            if (!isStreamOnline) {
-              setPlayerOffline();
-              setTimeout(() => {
-                try { hls.loadSource(url); } catch (e) {}
-              }, 2000);
-            } else {
-              // Si ya estaba reproduciendo, intentar recargar sin pausar el video ni mostrar pantalla offline
-              try { hls.startLoad(); } catch (e) {}
-            }
+            isStreamOnline = false;
+            setPlayerOffline();
+            clearTimeout(retryTimer);
+            retryTimer = setTimeout(() => {
+              try {
+                if (activeHlsInstance === hls) {
+                  hls.loadSource(url);
+                }
+              } catch (e) {}
+            }, 2500);
             break;
           case Hls.ErrorTypes.MEDIA_ERROR:
             try { hls.recoverMediaError(); } catch (e) {}
             break;
           default:
-            try { hls.loadSource(url); } catch (e) {}
+            isStreamOnline = false;
+            setPlayerOffline();
+            clearTimeout(retryTimer);
+            retryTimer = setTimeout(() => {
+              try {
+                if (activeHlsInstance === hls) {
+                  hls.loadSource(url);
+                }
+              } catch (e) {}
+            }, 2500);
             break;
         }
       }
