@@ -145,33 +145,37 @@ export function renderNativeVideo(url, initialSyncState = null) {
 
   activeNativeVideo = videoElem;
 
-  // Soporte HLS en vivo (OBS / m3u8)
+  // Soporte HLS en vivo (OBS / m3u8) - Transmisión en tiempo real sin lag ni congelamientos
   if (isHlsStream(url) && window.Hls && Hls.isSupported()) {
-    let hls = new Hls({
+    let isLive = false;
+    let autoReconnectTimer = null;
+
+    const hls = new Hls({
       enableWorker: true,
       lowLatencyMode: false,
-      liveSyncDuration: 3,
-      liveMaxLatencyDuration: 8,
-      maxBufferLength: 30,
-      maxMaxBufferLength: 60,
+      liveSyncDurationCount: 2,
+      liveMaxLatencyDurationCount: 5,
+      maxBufferLength: 10,
+      maxMaxBufferLength: 20,
+      maxBufferSize: 30 * 1000 * 1000,
       backBufferLength: 0,
-      nudgeOffset: 0.1,
-      nudgeMaxRetry: 10,
-      manifestLoadingTimeOut: 8000,
-      manifestLoadingMaxRetry: Infinity,
-      manifestLoadingRetryDelay: 3500,
-      levelLoadingTimeOut: 8000,
-      levelLoadingMaxRetry: Infinity,
-      levelLoadingRetryDelay: 3500,
-      fragLoadingTimeOut: 20000,
-      fragLoadingMaxRetry: 6,
-      fragLoadingRetryDelay: 1000
+      nudgeOffset: 0.2,
+      nudgeMaxRetry: 20,
+      manifestLoadingTimeOut: 6000,
+      levelLoadingTimeOut: 6000,
+      fragLoadingTimeOut: 15000
     });
 
-    hls.loadSource(url);
-    hls.attachMedia(videoElem);
+    const setPlayerOffline = () => {
+      isLive = false;
+      if (DOM.theaterOfflineScreen) DOM.theaterOfflineScreen.style.display = 'flex';
+      if (DOM.movieMediaWrapper) DOM.movieMediaWrapper.style.display = 'none';
+      if (DOM.currentVideoTitle) DOM.currentVideoTitle.textContent = 'Stream Fuera de Línea';
+    };
 
-    const onStreamLive = () => {
+    const setPlayerOnline = () => {
+      if (isLive) return;
+      isLive = true;
       if (DOM.theaterOfflineScreen) DOM.theaterOfflineScreen.style.display = 'none';
       if (DOM.movieMediaWrapper) DOM.movieMediaWrapper.style.display = 'block';
       if (DOM.currentVideoTitle) DOM.currentVideoTitle.textContent = 'En Vivo';
@@ -185,9 +189,9 @@ export function renderNativeVideo(url, initialSyncState = null) {
       }
     };
 
-    hls.on(Hls.Events.MANIFEST_PARSED, onStreamLive);
-    hls.on(Hls.Events.LEVEL_LOADED, onStreamLive);
-    hls.on(Hls.Events.FRAG_LOADED, onStreamLive);
+    hls.on(Hls.Events.MANIFEST_PARSED, setPlayerOnline);
+    hls.on(Hls.Events.LEVEL_LOADED, setPlayerOnline);
+    hls.on(Hls.Events.FRAG_LOADED, setPlayerOnline);
 
     hls.on(Hls.Events.ERROR, (event, data) => {
       const is404 = (data.response && (data.response.code === 404 || data.response.code === 0)) ||
@@ -196,28 +200,38 @@ export function renderNativeVideo(url, initialSyncState = null) {
                     data.details === Hls.ErrorDetails.LEVEL_LOAD_ERROR;
 
       if (is404) {
-        if (DOM.theaterOfflineScreen) DOM.theaterOfflineScreen.style.display = 'flex';
-        if (DOM.movieMediaWrapper) DOM.movieMediaWrapper.style.display = 'none';
+        setPlayerOffline();
       }
 
       if (data.fatal) {
-        if (data.type === Hls.ErrorTypes.NETWORK_ERROR) {
-          setTimeout(() => {
-            try { hls.startLoad(); } catch(e) {}
-          }, 3500);
-        } else if (data.type === Hls.ErrorTypes.MEDIA_ERROR) {
-          hls.recoverMediaError();
-        } else {
-          setTimeout(() => {
-            try {
-              hls.loadSource(url);
-              hls.attachMedia(videoElem);
-            } catch (e) {}
-          }, 4000);
+        switch (data.type) {
+          case Hls.ErrorTypes.NETWORK_ERROR:
+            setPlayerOffline();
+            hls.startLoad();
+            break;
+          case Hls.ErrorTypes.MEDIA_ERROR:
+            hls.recoverMediaError();
+            break;
+          default:
+            try { hls.destroy(); } catch(e) {}
+            break;
         }
       }
     });
 
+    hls.loadSource(url);
+    hls.attachMedia(videoElem);
+
+    // Vigilante de reconexión continua en segundo plano: si está offline, reintenta conectar la fuente cada 1.5s
+    autoReconnectTimer = setInterval(() => {
+      if (!isLive || (DOM.theaterOfflineScreen && DOM.theaterOfflineScreen.style.display !== 'none')) {
+        try {
+          hls.loadSource(url);
+        } catch (e) {}
+      }
+    }, 1500);
+
+    videoElem._reconnectTimer = autoReconnectTimer;
     activeHlsInstance = hls;
   } else if (isHlsStream(url) && videoElem.canPlayType('application/vnd.apple.mpegurl')) {
     // Safari nativo para HLS
