@@ -248,13 +248,26 @@ body.mode-admin .viewer-only {
   color: var(--kick-green);
 }
 
-/* Center Video Host Pill & Social Buttons */
+/* Center Social Buttons (Centrado Absoluto Perfecto en la Pantalla) */
+.topbar {
+  position: relative;
+}
+
+.topbar-left,
+.topbar-right {
+  flex: 1;
+}
+
 .topbar-center {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  flex: 1;
+  gap: 10px;
+  z-index: 10;
 }
 
 .video-info-pill {
