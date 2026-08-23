@@ -382,134 +382,74 @@ export function renderNativeVideo(url, initialSyncState = null) {
   if (isHlsStream(url)) {
     setPlayerOffline();
 
-    let isPlayingLive = false;
-    let isAttemptingPlayback = false;
-    let hls = null;
-    let pollerTimer = null;
-
-    const cleanupHls = () => {
-      if (hls) {
-        try {
-          hls.stopLoad();
-          hls.detachMedia();
-          hls.destroy();
-        } catch (e) {}
-        hls = null;
+    if (!window.Hls || !Hls.isSupported()) {
+      if (videoElem.canPlayType('application/vnd.apple.mpegurl')) {
+        videoElem.src = url;
+        videoElem.addEventListener('loadedmetadata', () => setPlayerOnline());
       }
-      activeHlsInstance = null;
-    };
+      return;
+    }
 
-    const startHlsPlayback = (streamUrl = url) => {
-      cleanupHls();
+    const hls = new Hls({
+      enableWorker: true,
+      lowLatencyMode: false,
+      backBufferLength: 60,
+      maxBufferLength: 30,
+      maxMaxBufferLength: 60,
+      liveSyncDurationCount: 3,
+      liveMaxLatencyDurationCount: 12,
+      liveDurationInfinity: true,
+      manifestLoadingMaxRetry: Infinity,
+      manifestLoadingRetryDelay: 2000,
+      levelLoadingMaxRetry: Infinity,
+      levelLoadingRetryDelay: 2000,
+      fragLoadingMaxRetry: 10,
+      fragLoadingRetryDelay: 1000,
+    });
 
-      if (!window.Hls || !Hls.isSupported()) {
-        if (videoElem.canPlayType('application/vnd.apple.mpegurl')) {
-          videoElem.src = streamUrl;
-          setPlayerOnline();
-        }
-        return;
-      }
+    activeHlsInstance = hls;
 
-      hls = new Hls({
-        enableWorker: true,
-        lowLatencyMode: false,
-        backBufferLength: 60,
-        maxBufferLength: 30,
-        maxMaxBufferLength: 60,
-        liveSyncDurationCount: 3,
-        liveMaxLatencyDurationCount: 12,
-        liveDurationInfinity: true,
-        manifestLoadingMaxRetry: 5,
-        manifestLoadingRetryDelay: 1500,
-        levelLoadingMaxRetry: 5,
-        levelLoadingRetryDelay: 1500,
-        fragLoadingMaxRetry: 5,
-        fragLoadingRetryDelay: 1000,
-      });
+    hls.on(Hls.Events.MANIFEST_PARSED, () => {
+      console.log('%c[DualStream] 🟢 Transmisión detectada. Iniciando video en vivo...', 'color: #53fc18; font-weight: bold;');
+      setPlayerOnline();
+    });
 
-      activeHlsInstance = hls;
+    hls.on(Hls.Events.FRAG_LOADED, (ev, data) => {
+      setPlayerOnline();
+      const durationSec = data.frag.duration || 2;
+      const loadTimeMs = Math.round(data.stats.loading.end - data.stats.loading.start);
+      const bytes = data.stats.total || 0;
+      const mbps = loadTimeMs > 0 ? parseFloat(((bytes * 8) / (loadTimeMs / 1000) / 1000000).toFixed(2)) : 0;
 
-      hls.on(Hls.Events.MANIFEST_PARSED, () => {
-        console.log('%c[DualStream] 🟢 MANIFEST_PARSED: ¡Manifiesto recibido! Destapando video en vivo...', 'color: #53fc18; font-weight: bold;');
-        clearInterval(pollerTimer);
-        isAttemptingPlayback = false;
-        isPlayingLive = true;
-        setPlayerOnline();
-      });
+      telemetryState.downloadSpeedMbps = mbps;
+      telemetryState.downloadLatencyMs = loadTimeMs;
+      addTelemetryLog(`Fragmento #${data.frag.sn} (${durationSec}s) cargado en ${loadTimeMs}ms (${mbps} Mbps)`, 'success');
+    });
 
-      hls.on(Hls.Events.FRAG_LOADED, (ev, data) => {
-        clearInterval(pollerTimer);
-        isAttemptingPlayback = false;
-        isPlayingLive = true;
-
-        const durationSec = data.frag.duration || 2;
-        const loadTimeMs = Math.round(data.stats.loading.end - data.stats.loading.start);
-        const bytes = data.stats.total || 0;
-        const mbps = loadTimeMs > 0 ? parseFloat(((bytes * 8) / (loadTimeMs / 1000) / 1000000).toFixed(2)) : 0;
-
-        telemetryState.downloadSpeedMbps = mbps;
-        telemetryState.downloadLatencyMs = loadTimeMs;
-
-        addTelemetryLog(`Fragmento #${data.frag.sn} (${durationSec}s) cargado en ${loadTimeMs}ms (${mbps} Mbps)`, 'success');
-        
-        setPlayerOnline();
-
-        if (videoElem.paused) {
-          videoElem.play().catch(() => {});
-        }
-      });
-
-      hls.on(Hls.Events.ERROR, (event, data) => {
-        if (data.fatal) {
-          addTelemetryLog(`Error HLS [${data.type}]: ${data.details}`, 'warn');
-          isAttemptingPlayback = false;
-          isPlayingLive = false;
-          setPlayerOffline();
-          cleanupHls();
-          schedulePoller();
-        }
-      });
-
-      videoElem.addEventListener('ended', () => {
-        isAttemptingPlayback = false;
-        isPlayingLive = false;
+    hls.on(Hls.Events.ERROR, (event, data) => {
+      if (data.fatal) {
         setPlayerOffline();
-        cleanupHls();
-        schedulePoller();
-      });
-
-      hls.attachMedia(videoElem);
-      hls.loadSource(streamUrl);
-      addTelemetryLog(`Iniciando conexión a: ${streamUrl}`, 'info');
-    };
-
-    const schedulePoller = () => {
-      clearInterval(pollerTimer);
-      pollerTimer = setInterval(async () => {
-        if (isPlayingLive || isAttemptingPlayback) {
-          return;
+        switch (data.type) {
+          case Hls.ErrorTypes.NETWORK_ERROR:
+            hls.startLoad();
+            break;
+          case Hls.ErrorTypes.MEDIA_ERROR:
+            hls.recoverMediaError();
+            break;
+          default:
+            hls.loadSource(url);
+            break;
         }
-        try {
-          const res = await fetch(url, { method: 'GET', cache: 'no-store' });
-          if (res.ok) {
-            const text = await res.text();
-            if (text && text.includes('#EXTM3U')) {
-              isAttemptingPlayback = true;
-              addTelemetryLog('¡Señal de OBS detectada! Iniciando reproductor...', 'info');
-              startHlsPlayback(url);
-            }
-          }
-        } catch (e) {}
-      }, 2500);
-    };
-
-    schedulePoller();
-    fetch(url, { method: 'GET', cache: 'no-store' }).then(res => {
-      if (res.ok && !isPlayingLive && !isAttemptingPlayback) {
-        isAttemptingPlayback = true;
-        startHlsPlayback(url);
       }
-    }).catch(() => {});
+    });
+
+    videoElem.addEventListener('ended', () => {
+      setPlayerOffline();
+      hls.loadSource(url);
+    });
+
+    hls.attachMedia(videoElem);
+    hls.loadSource(url);
   } else {
     videoElem.src = url;
   }
