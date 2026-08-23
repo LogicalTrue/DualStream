@@ -193,6 +193,10 @@ export function renderNativeVideo(url, initialSyncState = null) {
       setPlayerOnline();
     });
 
+    hls.on(Hls.Events.MANIFEST_PARSED, () => {
+      setPlayerOnline();
+    });
+
     hls.on(Hls.Events.FRAG_LOADED, () => {
       setPlayerOnline();
     });
@@ -203,7 +207,10 @@ export function renderNativeVideo(url, initialSyncState = null) {
         switch (data.type) {
           case Hls.ErrorTypes.NETWORK_ERROR:
             setTimeout(() => {
-              try { hls.startLoad(); } catch(e) {}
+              try {
+                hls.loadSource(url);
+                hls.startLoad();
+              } catch(e) {}
             }, 1500);
             break;
           case Hls.ErrorTypes.MEDIA_ERROR:
@@ -211,7 +218,10 @@ export function renderNativeVideo(url, initialSyncState = null) {
             break;
           default:
             setTimeout(() => {
-              try { hls.loadSource(url); } catch(e) {}
+              try {
+                hls.loadSource(url);
+                hls.attachMedia(videoElem);
+              } catch(e) {}
             }, 2000);
             break;
         }
