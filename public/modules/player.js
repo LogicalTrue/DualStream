@@ -177,24 +177,17 @@ export function renderNativeVideo(url, initialSyncState = null) {
       if (DOM.movieMediaWrapper) DOM.movieMediaWrapper.style.display = 'none';
       if (DOM.currentVideoTitle) DOM.currentVideoTitle.textContent = 'Stream Fuera de Línea';
 
-      // Si está offline, iniciar vigilante que compruebe cada 1.5s si el stream levantó
       if (!reconnectInterval) {
-        reconnectInterval = setInterval(async () => {
+        reconnectInterval = setInterval(() => {
           if (isLive) {
             clearInterval(reconnectInterval);
             reconnectInterval = null;
             return;
           }
           try {
-            const res = await fetch(url, { method: 'HEAD', cache: 'no-store' });
-            if (res.ok) {
-              clearInterval(reconnectInterval);
-              reconnectInterval = null;
-              hls.loadSource(url);
-              hls.attachMedia(videoElem);
-            }
+            hls.loadSource(url);
           } catch(e) {}
-        }, 1500);
+        }, 2000);
       }
     };
 
@@ -211,8 +204,8 @@ export function renderNativeVideo(url, initialSyncState = null) {
       // Saltar al borde en vivo
       if (videoElem.buffered.length > 0) {
         const end = videoElem.buffered.end(videoElem.buffered.length - 1);
-        if (Math.abs(videoElem.currentTime - end) > 3) {
-          videoElem.currentTime = end - 1.0;
+        if (Math.abs(videoElem.currentTime - end) > 2) {
+          videoElem.currentTime = end - 0.8;
         }
       }
 
@@ -230,15 +223,6 @@ export function renderNativeVideo(url, initialSyncState = null) {
     hls.on(Hls.Events.FRAG_LOADED, setPlayerOnline);
 
     hls.on(Hls.Events.ERROR, (event, data) => {
-      const is404 = (data.response && (data.response.code === 404 || data.response.code === 0)) ||
-                    (data.details && data.details.includes('404')) ||
-                    data.details === Hls.ErrorDetails.MANIFEST_LOAD_ERROR ||
-                    data.details === Hls.ErrorDetails.LEVEL_LOAD_ERROR;
-
-      if (is404) {
-        setPlayerOffline();
-      }
-
       if (data.fatal) {
         setPlayerOffline();
       }
