@@ -22,25 +22,6 @@ export function updateKickViews() {
     DOM.btnOpenKickExternal.href = `https://kick.com/${channel}`;
   }
 
-  // Kick Stream Player oficial (Webcam)
-  const playerUrl = `https://player.kick.com/${encodeURIComponent(channel)}?autoplay=true&muted=true`;
-  if (DOM.kickPlayerFrame && DOM.kickPlayerFrame.src !== playerUrl) {
-    DOM.kickPlayerFrame.src = playerUrl;
-  }
-
-  // Kick Background Stream & Chat (1x1 px para asegurar views de Kick en todo momento, igual a MiluLive)
-  const bgFrame = document.getElementById('kick-background-frame');
-  const bgUrl = `https://player.kick.com/${encodeURIComponent(channel)}?autoplay=true&muted=true&allowfullscreen=false`;
-  if (bgFrame && bgFrame.src !== bgUrl) {
-    bgFrame.src = bgUrl;
-  }
-
-  const bgChatFrame = document.getElementById('kick-background-chat-frame');
-  const bgChatUrl = `https://kick.com/popout/${encodeURIComponent(channel)}/chat`;
-  if (bgChatFrame && bgChatFrame.src !== bgChatUrl) {
-    bgChatFrame.src = bgChatUrl;
-  }
-
   // Kick Popout Live Chat (Exacto de MiluLive con 7TV y Login OAuth integrado: https://chat.kick.cx/embed/{streamer})
   const chatUrl = `https://chat.kick.cx/embed/${encodeURIComponent(channel)}`;
   if (DOM.kickChatFrame && DOM.kickChatFrame.src !== chatUrl) {

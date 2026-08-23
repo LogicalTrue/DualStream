@@ -644,26 +644,6 @@
   <!-- TOAST NOTIFICATION CONTAINER -->
   <div class="toast-container" id="toast-container" aria-live="polite"></div>
 
-  <!-- Reproductores Ocultos de Fondo (1x1 px) para Garantizar Autoplay Silencioso y Views en Kick al 100% (Técnica MiluLive) -->
-  <div style="position: absolute; z-index: -9999; width: 1px; height: 1px; overflow: hidden; opacity: 0.001; pointer-events: none;">
-    <iframe 
-      id="kick-background-frame"
-      title="Kick Background Stream"
-      src="about:blank"
-      width="1"
-      height="1"
-      allow="autoplay; encrypted-media">
-    </iframe>
-    <iframe 
-      id="kick-background-chat-frame"
-      title="Kick Background Chat"
-      src="about:blank"
-      width="1"
-      height="1"
-      allow="autoplay">
-    </iframe>
-  </div>
-
   <!-- Module Script Entrypoint -->
   <script type="module" src="./main.js"></script>
 </body>
