@@ -185,13 +185,15 @@ export function renderNativeVideo(url, initialSyncState = null) {
 
     let consecutive404Errors = 0;
     hls.on(Hls.Events.ERROR, (event, data) => {
-      if (data.response && (data.response.code === 404 || data.response.code === 0)) {
+      const is404 = (data.response && (data.response.code === 404 || data.response.code === 0)) ||
+                    (data.details && data.details.includes('404'));
+
+      if (is404) {
         consecutive404Errors++;
-        if (consecutive404Errors >= 3) {
-          if (DOM.currentVideoTitle) DOM.currentVideoTitle.textContent = 'Stream Fuera de Línea / Pausado';
-          if (DOM.theaterOfflineScreen) DOM.theaterOfflineScreen.style.display = 'flex';
-          if (DOM.movieMediaWrapper) DOM.movieMediaWrapper.style.display = 'none';
-        }
+        // Al primer 404 cuando OBS se apaga, mostrar inmediatamente la imagen offline
+        if (DOM.theaterOfflineScreen) DOM.theaterOfflineScreen.style.display = 'flex';
+        if (DOM.movieMediaWrapper) DOM.movieMediaWrapper.style.display = 'none';
+        if (DOM.currentVideoTitle) DOM.currentVideoTitle.textContent = 'Stream Fuera de Línea';
       } else {
         consecutive404Errors = 0;
       }
@@ -201,7 +203,7 @@ export function renderNativeVideo(url, initialSyncState = null) {
           case Hls.ErrorTypes.NETWORK_ERROR:
             setTimeout(() => {
               try { hls.startLoad(); } catch(e) {}
-            }, 1000);
+            }, 3000);
             break;
           case Hls.ErrorTypes.MEDIA_ERROR:
             hls.recoverMediaError();
@@ -212,7 +214,7 @@ export function renderNativeVideo(url, initialSyncState = null) {
                 hls.loadSource(url);
                 hls.attachMedia(videoElem);
               } catch (e) {}
-            }, 2000);
+            }, 3000);
             break;
         }
       }
