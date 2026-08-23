@@ -163,7 +163,6 @@ export function renderNativeVideo(url, initialSyncState = null) {
   const setPlayerOffline = () => {
     try {
       videoElem.pause();
-      videoElem.srcObject = null;
     } catch(e) {}
     if (DOM.theaterOfflineScreen) DOM.theaterOfflineScreen.style.display = 'flex';
     if (DOM.movieMediaWrapper) DOM.movieMediaWrapper.style.display = 'none';
@@ -173,7 +172,7 @@ export function renderNativeVideo(url, initialSyncState = null) {
   const setPlayerOnline = () => {
     if (DOM.theaterOfflineScreen) DOM.theaterOfflineScreen.style.display = 'none';
     if (DOM.movieMediaWrapper) DOM.movieMediaWrapper.style.display = 'block';
-    if (DOM.currentVideoTitle) DOM.currentVideoTitle.textContent = 'En Vivo (WebRTC 60 FPS)';
+    if (DOM.currentVideoTitle) DOM.currentVideoTitle.textContent = 'En Vivo';
 
     const playPromise = videoElem.play();
     if (playPromise !== undefined) {
@@ -216,16 +215,7 @@ export function renderNativeVideo(url, initialSyncState = null) {
 
     videoElem.addEventListener('playing', onOnlineTrigger);
     hls.on(Hls.Events.FRAG_LOADED, onOnlineTrigger);
-    hls.on(Hls.Events.MANIFEST_PARSED, () => {
-      onOnlineTrigger();
-      const playPromise = videoElem.play();
-      if (playPromise !== undefined) {
-        playPromise.catch(() => {
-          videoElem.muted = true;
-          videoElem.play().catch(() => {});
-        });
-      }
-    });
+    hls.on(Hls.Events.MANIFEST_PARSED, onOnlineTrigger);
 
     hls.on(Hls.Events.ERROR, (event, data) => {
       const is404 = (data.response && (data.response.code === 404 || data.response.code === 0)) ||
