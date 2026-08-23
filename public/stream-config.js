@@ -10,7 +10,7 @@ export const STREAM_CONFIG = {
   kickChannel: 'BlackozuTR',
 
   // URL del Video o Transmisión en Vivo (HLS .m3u8 de OBS)
-  videoUrl: 'https://62-238-122-186.sslip.io/live/stream/main_stream.m3u8',
+  videoUrl: 'https://62-238-122-186.sslip.io/live/stream/index.m3u8',
 
   // Pantallas de espera:
   // Imagen de Portada cuando el stream está APAGADO / OFFLINE (opcional)
