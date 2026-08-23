@@ -389,12 +389,24 @@ export function renderNativeVideo(url, initialSyncState = null) {
       activeHlsInstance = null;
     };
 
-    const startHlsPlayback = () => {
+    let targetStreamUrl = url;
+
+    const candidateUrls = [
+      url,
+      'https://62-238-122-186.sslip.io/live/stream/index.m3u8',
+      'https://62-238-122-186.sslip.io/stream/index.m3u8',
+      'https://62-238-122-186.sslip.io/live/index.m3u8',
+      'https://62-238-122-186.sslip.io/live/stream/stream/index.m3u8',
+      'https://62-238-122-186.sslip.io/stream/stream/index.m3u8'
+    ];
+
+    const startHlsPlayback = (streamUrl = url) => {
+      targetStreamUrl = streamUrl;
       cleanupHls();
 
       if (!window.Hls || !Hls.isSupported()) {
         if (videoElem.canPlayType('application/vnd.apple.mpegurl')) {
-          videoElem.src = url;
+          videoElem.src = streamUrl;
           setPlayerOnline();
         }
         return;
@@ -471,8 +483,8 @@ export function renderNativeVideo(url, initialSyncState = null) {
       });
 
       hls.attachMedia(videoElem);
-      hls.loadSource(url);
-      addTelemetryLog(`Iniciando conexión a: ${url}`, 'info');
+      hls.loadSource(streamUrl);
+      addTelemetryLog(`Iniciando conexión a: ${streamUrl}`, 'info');
     };
 
     const schedulePoller = () => {
@@ -481,27 +493,32 @@ export function renderNativeVideo(url, initialSyncState = null) {
         if (isPlayingLive || isAttemptingPlayback) {
           return;
         }
-        try {
-          const res = await fetch(url, { method: 'GET', cache: 'no-store' });
-          if (res.ok) {
-            const text = await res.text();
-            if (text && text.includes('#EXTM3U')) {
-              isAttemptingPlayback = true;
-              addTelemetryLog('¡Señal de OBS detectada! Iniciando reproductor...', 'info');
-              startHlsPlayback();
+        for (const testUrl of candidateUrls) {
+          try {
+            const res = await fetch(testUrl, { method: 'GET', cache: 'no-store' });
+            if (res.ok) {
+              const text = await res.text();
+              if (text && text.includes('#EXTM3U')) {
+                isAttemptingPlayback = true;
+                addTelemetryLog(`¡Señal detectada en: ${testUrl}!`, 'info');
+                startHlsPlayback(testUrl);
+                break;
+              }
             }
-          }
-        } catch (e) {}
+          } catch (e) {}
+        }
       }, 1500);
     };
 
     schedulePoller();
-    fetch(url, { method: 'GET', cache: 'no-store' }).then(res => {
-      if (res.ok) {
-        isAttemptingPlayback = true;
-        startHlsPlayback();
-      }
-    }).catch(() => {});
+    for (const testUrl of candidateUrls) {
+      fetch(testUrl, { method: 'GET', cache: 'no-store' }).then(res => {
+        if (res.ok && !isPlayingLive && !isAttemptingPlayback) {
+          isAttemptingPlayback = true;
+          startHlsPlayback(testUrl);
+        }
+      }).catch(() => {});
+    }
   } else {
     videoElem.src = url;
   }
