@@ -169,6 +169,7 @@ export function renderNativeVideo(url, initialSyncState = null) {
   activeNativeVideo = videoElem;
 
   const setPlayerOffline = () => {
+    videoElem.dataset.offline = 'true';
     try { videoElem.pause(); } catch(e) {}
     const offlineScreen = document.getElementById('theater-offline-screen');
     const mediaWrapper = document.getElementById('movie-media-wrapper');
@@ -180,6 +181,7 @@ export function renderNativeVideo(url, initialSyncState = null) {
   };
 
   const setPlayerOnline = () => {
+    videoElem.dataset.offline = 'false';
     const offlineScreen = document.getElementById('theater-offline-screen');
     const mediaWrapper = document.getElementById('movie-media-wrapper');
     const title = document.getElementById('current-video-title');
@@ -439,10 +441,6 @@ export function renderNativeVideo(url, initialSyncState = null) {
         if (videoElem.paused) {
           videoElem.play().catch(() => {});
         }
-      });
-
-      videoElem.addEventListener('playing', () => {
-        setStreamOnline();
       });
 
       videoElem.addEventListener('ended', () => {

@@ -154,8 +154,11 @@ export function applyViewerPlaybackSync(data) {
   if (activeNativeVideo) {
     const isLive = isHlsStream(activeNativeVideo.dataset.url || AppState.videoUrl);
     
-    // Si es una transmisión en vivo de OBS (HLS), nunca debe pausarse por sincronización de VOD
+    // Si es una transmisión en vivo de OBS (HLS), no tocar si está offline
     if (isLive) {
+      if (activeNativeVideo.dataset.offline === 'true') {
+        return;
+      }
       if (activeNativeVideo.paused) {
         activeNativeVideo.play().catch(() => {});
       }
