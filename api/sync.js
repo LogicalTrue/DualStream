@@ -4,13 +4,15 @@
  */
 
 let memoryStateStore = {
-  streamer: 'blackozutr',
-  videoUrl: 'https://www.youtube.com/watch?v=A8qw5r6aDYo',
+  streamer: 'BlackozuTR',
+  videoUrl: 'https://62-238-122-186.sslip.io/live/stream/index.m3u8',
   camX: 2,
   camY: 3,
   camW: 26,
+  isOnline: true,
+  isViewerConnected: true,
   currentTime: 0,
-  isPlaying: false,
+  isPlaying: true,
   updatedAt: Date.now()
 };
 

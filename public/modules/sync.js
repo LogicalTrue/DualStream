@@ -7,6 +7,7 @@
 
 import { DOM } from './dom.js';
 import { AppState, STORAGE_KEY, syncChannel, DEFAULT_STREAMER } from './state.js';
+import { STREAM_CONFIG } from '../stream-config.js';
 import { sendCloudConfig, fetchLatestCloudState } from './api.js';
 import { ytPlayerInstance, activeNativeVideo, loadVideoSource, unloadVideo, setPlaybackSyncEmitter } from './player.js';
 import { showToast, applyWebcamPosition, openModal } from './ui.js';
@@ -259,33 +260,12 @@ export function updateTheaterStandbyScreens() {
 export function applyIncomingConfig(config) {
   if (!config || AppState.isAdmin) return;
 
-  let changed = false;
-
-  if (config.isOnline !== undefined) {
-    AppState.isOnline = Boolean(config.isOnline);
-  }
-  if (config.offlineImg !== undefined) AppState.offlineImg = config.offlineImg;
-  if (config.onlineImg !== undefined) AppState.onlineImg = config.onlineImg;
-
-  updateTheaterStandbyScreens();
-
-  if (config.streamer && config.streamer !== AppState.streamer) {
-    AppState.streamer = config.streamer;
-    updateKickViews();
-    changed = true;
-  }
-
-  if (config.videoUrl !== undefined && config.videoUrl !== AppState.videoUrl) {
-    AppState.videoUrl = config.videoUrl;
-    latestSyncPlaybackState = config;
-    if (AppState.videoUrl && AppState.videoUrl.trim() !== '') {
-      if (AppState.isViewerConnected) {
-        loadVideoSource(AppState.videoUrl, config);
-      }
-    } else {
-      unloadVideo();
-    }
-    changed = true;
+  // STREAM_CONFIG es la autoridad absoluta de configuración
+  if (STREAM_CONFIG) {
+    if (STREAM_CONFIG.kickChannel) AppState.streamer = STREAM_CONFIG.kickChannel;
+    if (STREAM_CONFIG.videoUrl) AppState.videoUrl = STREAM_CONFIG.videoUrl;
+    if (STREAM_CONFIG.offlinePoster) AppState.offlineImg = STREAM_CONFIG.offlinePoster;
+    if (STREAM_CONFIG.onlinePoster) AppState.onlineImg = STREAM_CONFIG.onlinePoster;
   }
 
   if (config.camX !== undefined) AppState.camX = config.camX;
@@ -295,10 +275,6 @@ export function applyIncomingConfig(config) {
 
   if (AppState.isViewerConnected && (config.type === 'PLAYBACK_SYNC' || config.currentTime !== undefined || config.type === 'MASTER_STATE')) {
     applyViewerPlaybackSync(config);
-  }
-
-  if (changed && AppState.isViewerConnected) {
-    showToast('🎬 ¡El streamer ha actualizado la Watch Party en vivo!', 'info');
   }
 }
 
