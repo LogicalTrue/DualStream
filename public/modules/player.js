@@ -210,10 +210,7 @@ export function renderNativeVideo(url, initialSyncState = null) {
           stream.addTrack(event.track);
           videoElem.srcObject = stream;
         }
-        videoElem.play().catch(() => {
-          videoElem.muted = true;
-          videoElem.play().catch(() => {});
-        });
+        setPlayerOnline();
       };
 
       pc.onconnectionstatechange = () => {
@@ -234,10 +231,26 @@ export function renderNativeVideo(url, initialSyncState = null) {
         const offer = await pc.createOffer();
         await pc.setLocalDescription(offer);
 
+        // Esperar a que los candidatos ICE locales terminen de reunirse
+        await new Promise((resolve) => {
+          if (pc.iceGatheringState === 'complete') {
+            resolve();
+          } else {
+            const checkIce = () => {
+              if (pc.iceGatheringState === 'complete') {
+                pc.removeEventListener('icegatheringstatechange', checkIce);
+                resolve();
+              }
+            };
+            pc.addEventListener('icegatheringstatechange', checkIce);
+            setTimeout(resolve, 1000); // Timeout de seguridad
+          }
+        });
+
         const response = await fetch(url, {
           method: 'POST',
           headers: { 'Content-Type': 'application/sdp' },
-          body: offer.sdp
+          body: pc.localDescription.sdp
         });
 
         if (!response.ok) {
