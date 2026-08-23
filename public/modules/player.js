@@ -161,18 +161,24 @@ export function renderNativeVideo(url, initialSyncState = null) {
   activeNativeVideo = videoElem;
 
   const setPlayerOffline = () => {
-    try {
-      videoElem.pause();
-    } catch(e) {}
-    if (DOM.theaterOfflineScreen) DOM.theaterOfflineScreen.style.display = 'flex';
-    if (DOM.movieMediaWrapper) DOM.movieMediaWrapper.style.display = 'none';
-    if (DOM.currentVideoTitle) DOM.currentVideoTitle.textContent = 'Stream Fuera de Línea';
+    try { videoElem.pause(); } catch(e) {}
+    const offlineScreen = document.getElementById('theater-offline-screen');
+    const mediaWrapper = document.getElementById('movie-media-wrapper');
+    const title = document.getElementById('current-video-title');
+
+    if (offlineScreen) offlineScreen.style.display = 'flex';
+    if (mediaWrapper) mediaWrapper.style.display = 'none';
+    if (title) title.textContent = 'Stream Fuera de Línea';
   };
 
   const setPlayerOnline = () => {
-    if (DOM.theaterOfflineScreen) DOM.theaterOfflineScreen.style.display = 'none';
-    if (DOM.movieMediaWrapper) DOM.movieMediaWrapper.style.display = 'block';
-    if (DOM.currentVideoTitle) DOM.currentVideoTitle.textContent = 'En Vivo';
+    const offlineScreen = document.getElementById('theater-offline-screen');
+    const mediaWrapper = document.getElementById('movie-media-wrapper');
+    const title = document.getElementById('current-video-title');
+
+    if (offlineScreen) offlineScreen.style.display = 'none';
+    if (mediaWrapper) mediaWrapper.style.display = 'block';
+    if (title) title.textContent = 'En Vivo';
 
     const playPromise = videoElem.play();
     if (playPromise !== undefined) {
@@ -237,7 +243,8 @@ export function renderNativeVideo(url, initialSyncState = null) {
 
     // Sondeo activo continuo: si está offline, reintenta conectar cada 2.5s
     poller = setInterval(() => {
-      if (!isLive || (DOM.theaterOfflineScreen && DOM.theaterOfflineScreen.style.display !== 'none')) {
+      const offlineScreen = document.getElementById('theater-offline-screen');
+      if (!isLive || (offlineScreen && offlineScreen.style.display !== 'none')) {
         startHls();
       }
     }, 2500);
