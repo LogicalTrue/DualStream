@@ -289,7 +289,8 @@ export function renderNativeVideo(url, initialSyncState = null) {
     });
   }
 
-  if (DOM.movieMediaWrapper) DOM.movieMediaWrapper.appendChild(videoElem);
+  const wrapper = document.getElementById('movie-media-wrapper') || DOM.movieMediaWrapper;
+  if (wrapper) wrapper.appendChild(videoElem);
 }
 
 export function renderIframeVideo(embedUrl) {
@@ -302,7 +303,8 @@ export function renderIframeVideo(embedUrl) {
   iframe.setAttribute('referrerpolicy', 'no-referrer-when-downgrade');
   iframe.setAttribute('title', 'Movie Player');
 
-  if (DOM.movieMediaWrapper) DOM.movieMediaWrapper.appendChild(iframe);
+  const wrapper = document.getElementById('movie-media-wrapper') || DOM.movieMediaWrapper;
+  if (wrapper) wrapper.appendChild(iframe);
 }
 
 export function loadVideoSource(rawInput, initialSyncState = null) {
@@ -321,7 +323,8 @@ export function loadVideoSource(rawInput, initialSyncState = null) {
   AppState.videoUrl = url;
   syncUrlParams();
 
-  if (DOM.movieMediaWrapper) DOM.movieMediaWrapper.innerHTML = '';
+  const wrapper = document.getElementById('movie-media-wrapper') || DOM.movieMediaWrapper;
+  if (wrapper) wrapper.innerHTML = '';
   activeNativeVideo = null;
   if (ytPlayerInstance && typeof ytPlayerInstance.destroy === 'function') {
     try { ytPlayerInstance.destroy(); } catch (e) {}
