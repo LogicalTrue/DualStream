@@ -255,14 +255,12 @@ export function renderNativeVideo(url, initialSyncState = null) {
 
     startHls();
 
-    // El intervalo solo busca el stream cuando el reproductor esté offline
+    // El intervalo solo busca el stream cuando el reproductor esté 100% desconectado
     pollTimer = setInterval(() => {
-      const offlineScreen = document.getElementById('theater-offline-screen');
-      const isActuallyOffline = !isLive || (offlineScreen && offlineScreen.style.display !== 'none');
-      if (isActuallyOffline) {
+      if (!isLive) {
         startHls();
       }
-    }, 3000);
+    }, 4000);
 
     videoElem._hlsPoller = pollTimer;
   } else if (isHlsStream(url) && videoElem.canPlayType('application/vnd.apple.mpegurl')) {
