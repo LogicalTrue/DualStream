@@ -163,13 +163,33 @@ export function renderNativeVideo(url, initialSyncState = null) {
       fragLoadingRetryDelay: 1000
     });
 
+    let checkLiveTimer = null;
+
     const setPlayerOffline = () => {
       if (DOM.theaterOfflineScreen) DOM.theaterOfflineScreen.style.display = 'flex';
       if (DOM.movieMediaWrapper) DOM.movieMediaWrapper.style.display = 'none';
       if (DOM.currentVideoTitle) DOM.currentVideoTitle.textContent = 'Stream Fuera de Línea';
+
+      // Reintentar cargar el manifiesto en bucle continuo mientras esté offline
+      if (!checkLiveTimer) {
+        checkLiveTimer = setInterval(() => {
+          if (DOM.theaterOfflineScreen && DOM.theaterOfflineScreen.style.display === 'none') {
+            clearInterval(checkLiveTimer);
+            checkLiveTimer = null;
+            return;
+          }
+          try {
+            hls.loadSource(url);
+          } catch(e) {}
+        }, 1500);
+      }
     };
 
     const setPlayerOnline = () => {
+      if (checkLiveTimer) {
+        clearInterval(checkLiveTimer);
+        checkLiveTimer = null;
+      }
       if (DOM.theaterOfflineScreen) DOM.theaterOfflineScreen.style.display = 'none';
       if (DOM.movieMediaWrapper) DOM.movieMediaWrapper.style.display = 'block';
       if (DOM.currentVideoTitle) DOM.currentVideoTitle.textContent = 'En Vivo';
@@ -192,7 +212,9 @@ export function renderNativeVideo(url, initialSyncState = null) {
         setPlayerOffline();
         switch (data.type) {
           case Hls.ErrorTypes.NETWORK_ERROR:
-            hls.startLoad();
+            setTimeout(() => {
+              try { hls.startLoad(); } catch(e) {}
+            }, 1500);
             break;
           case Hls.ErrorTypes.MEDIA_ERROR:
             hls.recoverMediaError();
@@ -206,8 +228,10 @@ export function renderNativeVideo(url, initialSyncState = null) {
       }
     });
 
+    // Iniciar carga de la fuente
     hls.loadSource(url);
     hls.attachMedia(videoElem);
+    setPlayerOffline();
 
     activeHlsInstance = hls;
   } else if (isHlsStream(url) && videoElem.canPlayType('application/vnd.apple.mpegurl')) {
