@@ -170,6 +170,12 @@ export function renderNativeVideo(url, initialSyncState = null) {
 
     const setPlayerOffline = () => {
       isLive = false;
+      try {
+        videoElem.pause();
+        videoElem.removeAttribute('src');
+        videoElem.load();
+      } catch(e) {}
+
       if (DOM.theaterOfflineScreen) DOM.theaterOfflineScreen.style.display = 'flex';
       if (DOM.movieMediaWrapper) DOM.movieMediaWrapper.style.display = 'none';
       if (DOM.currentVideoTitle) DOM.currentVideoTitle.textContent = 'Stream Fuera de Línea';
@@ -184,16 +190,16 @@ export function renderNativeVideo(url, initialSyncState = null) {
           try {
             hls.loadSource(url);
           } catch(e) {}
-        }, 2000);
+        }, 1500);
       }
     };
 
     const setPlayerOnline = () => {
-      isLive = true;
       if (reconnectInterval) {
         clearInterval(reconnectInterval);
         reconnectInterval = null;
       }
+      isLive = true;
       if (DOM.theaterOfflineScreen) DOM.theaterOfflineScreen.style.display = 'none';
       if (DOM.movieMediaWrapper) DOM.movieMediaWrapper.style.display = 'block';
       if (DOM.currentVideoTitle) DOM.currentVideoTitle.textContent = 'En Vivo';
@@ -212,14 +218,16 @@ export function renderNativeVideo(url, initialSyncState = null) {
     hls.on(Hls.Events.FRAG_LOADED, setPlayerOnline);
 
     hls.on(Hls.Events.ERROR, (event, data) => {
-      if (data.fatal) {
-        if (data.type === Hls.ErrorTypes.NETWORK_ERROR) {
-          setPlayerOffline();
+      const is404 = (data.response && (data.response.code === 404 || data.response.code === 0)) ||
+                    (data.details && data.details.includes('404')) ||
+                    data.details === Hls.ErrorDetails.MANIFEST_LOAD_ERROR ||
+                    data.details === Hls.ErrorDetails.LEVEL_LOAD_ERROR;
+
+      // Si OBS se apaga, cortar el cuadro congelado y pasar al cartel offline al instante
+      if (is404 || data.fatal) {
+        setPlayerOffline();
+        if (data.fatal && data.type === Hls.ErrorTypes.NETWORK_ERROR) {
           hls.startLoad();
-        } else if (data.type === Hls.ErrorTypes.MEDIA_ERROR) {
-          hls.recoverMediaError();
-        } else {
-          setPlayerOffline();
         }
       }
     });
