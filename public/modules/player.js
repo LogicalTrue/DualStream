@@ -94,18 +94,10 @@ export function initYouTubePlayer(videoId, initialSyncState = null) {
   }
 }
 
-export function isDirectVideoFile(url) {
+export function isWhepStream(url) {
   if (!url) return false;
   const cleanUrl = url.toLowerCase().split('?')[0];
-  return cleanUrl.endsWith('.mp4') || 
-    cleanUrl.endsWith('.webm') || 
-    cleanUrl.endsWith('.ogg') || 
-    cleanUrl.endsWith('.mkv') || 
-    cleanUrl.endsWith('.m3u8') ||
-    cleanUrl.includes('.m3u8?') ||
-    cleanUrl.includes('.mp4?') ||
-    cleanUrl.includes('blob.vercel-storage') ||
-    cleanUrl.includes('catbox.moe');
+  return cleanUrl.endsWith('/whep') || cleanUrl.includes('/whep?');
 }
 
 export function isHlsStream(url) {
@@ -114,13 +106,37 @@ export function isHlsStream(url) {
   return cleanUrl.endsWith('.m3u8') || cleanUrl.includes('.m3u8?');
 }
 
+export function isDirectVideoFile(url) {
+  if (!url) return false;
+  const cleanUrl = url.toLowerCase().split('?')[0];
+  return isWhepStream(url) ||
+    isHlsStream(url) ||
+    cleanUrl.endsWith('.mp4') || 
+    cleanUrl.endsWith('.webm') || 
+    cleanUrl.endsWith('.ogg') || 
+    cleanUrl.endsWith('.mkv') ||
+    cleanUrl.includes('.mp4?') ||
+    cleanUrl.includes('blob.vercel-storage') ||
+    cleanUrl.includes('catbox.moe');
+}
+
 export let activeHlsInstance = null;
+export let activeWhepPc = null;
+export let whepReconnectTimer = null;
 
 export function renderNativeVideo(url, initialSyncState = null) {
-  // Destruir instancia previa de HLS si existía
+  // Destruir instancias previas
   if (activeHlsInstance) {
     try { activeHlsInstance.destroy(); } catch (e) {}
     activeHlsInstance = null;
+  }
+  if (activeWhepPc) {
+    try { activeWhepPc.close(); } catch (e) {}
+    activeWhepPc = null;
+  }
+  if (whepReconnectTimer) {
+    clearTimeout(whepReconnectTimer);
+    whepReconnectTimer = null;
   }
 
   const videoElem = document.createElement('video');
@@ -134,7 +150,6 @@ export function renderNativeVideo(url, initialSyncState = null) {
   videoElem.volume = 1.0;
   videoElem.muted = false;
 
-  // Si el navegador bloquea autoplay con sonido, arrancamos muteado y desmuteamos al primer toque
   const enableSoundOnInteraction = () => {
     videoElem.muted = false;
     videoElem.volume = 1.0;
@@ -145,8 +160,112 @@ export function renderNativeVideo(url, initialSyncState = null) {
 
   activeNativeVideo = videoElem;
 
-  // Soporte HLS en vivo (OBS / m3u8) - Transmisión en tiempo real ultra estable
-  if (isHlsStream(url) && window.Hls && Hls.isSupported()) {
+  const setPlayerOffline = () => {
+    try {
+      videoElem.pause();
+      videoElem.srcObject = null;
+    } catch(e) {}
+    if (DOM.theaterOfflineScreen) DOM.theaterOfflineScreen.style.display = 'flex';
+    if (DOM.movieMediaWrapper) DOM.movieMediaWrapper.style.display = 'none';
+    if (DOM.currentVideoTitle) DOM.currentVideoTitle.textContent = 'Stream Fuera de Línea';
+  };
+
+  const setPlayerOnline = () => {
+    if (DOM.theaterOfflineScreen) DOM.theaterOfflineScreen.style.display = 'none';
+    if (DOM.movieMediaWrapper) DOM.movieMediaWrapper.style.display = 'block';
+    if (DOM.currentVideoTitle) DOM.currentVideoTitle.textContent = 'En Vivo (WebRTC 60 FPS)';
+
+    const playPromise = videoElem.play();
+    if (playPromise !== undefined) {
+      playPromise.catch(() => {
+        videoElem.muted = true;
+        videoElem.play().catch(() => {});
+      });
+    }
+  };
+
+  videoElem.addEventListener('playing', setPlayerOnline);
+
+  // ==========================================
+  // PROTOCOLO 1: WEBRTC / WHEP (0.3s Delay, 60 FPS)
+  // ==========================================
+  if (isWhepStream(url)) {
+    const startWhepConnection = async () => {
+      if (activeWhepPc) {
+        try { activeWhepPc.close(); } catch(e) {}
+        activeWhepPc = null;
+      }
+
+      const pc = new RTCPeerConnection({
+        iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
+      });
+      activeWhepPc = pc;
+
+      pc.addTransceiver('video', { direction: 'recvonly' });
+      pc.addTransceiver('audio', { direction: 'recvonly' });
+
+      pc.ontrack = (event) => {
+        if (event.streams && event.streams[0]) {
+          videoElem.srcObject = event.streams[0];
+        } else {
+          const stream = new MediaStream();
+          stream.addTrack(event.track);
+          videoElem.srcObject = stream;
+        }
+      };
+
+      pc.onconnectionstatechange = () => {
+        if (pc.connectionState === 'failed' || pc.connectionState === 'disconnected' || pc.connectionState === 'closed') {
+          setPlayerOffline();
+          if (!whepReconnectTimer) {
+            whepReconnectTimer = setTimeout(() => {
+              whepReconnectTimer = null;
+              startWhepConnection();
+            }, 2000);
+          }
+        }
+      };
+
+      try {
+        const offer = await pc.createOffer();
+        await pc.setLocalDescription(offer);
+
+        const response = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/sdp' },
+          body: offer.sdp
+        });
+
+        if (!response.ok) {
+          setPlayerOffline();
+          if (!whepReconnectTimer) {
+            whepReconnectTimer = setTimeout(() => {
+              whepReconnectTimer = null;
+              startWhepConnection();
+            }, 2000);
+          }
+          return;
+        }
+
+        const answerSdp = await response.text();
+        await pc.setRemoteDescription({ type: 'answer', sdp: answerSdp });
+      } catch (err) {
+        setPlayerOffline();
+        if (!whepReconnectTimer) {
+          whepReconnectTimer = setTimeout(() => {
+            whepReconnectTimer = null;
+            startWhepConnection();
+          }, 2000);
+        }
+      }
+    };
+
+    startWhepConnection();
+  } 
+  // ==========================================
+  // PROTOCOLO 2: HLS (.m3u8) Fallback
+  // ==========================================
+  else if (isHlsStream(url) && window.Hls && Hls.isSupported()) {
     let isStreamLive = false;
 
     const hls = new Hls({
@@ -165,53 +284,15 @@ export function renderNativeVideo(url, initialSyncState = null) {
       fragLoadingRetryDelay: 1000
     });
 
-    const setPlayerOffline = () => {
-      isStreamLive = false;
-      try {
-        videoElem.pause();
-        videoElem.currentTime = 0;
-      } catch(e) {}
-      if (DOM.theaterOfflineScreen) DOM.theaterOfflineScreen.style.display = 'flex';
-      if (DOM.movieMediaWrapper) DOM.movieMediaWrapper.style.display = 'none';
-      if (DOM.currentVideoTitle) DOM.currentVideoTitle.textContent = 'Stream Fuera de Línea';
-    };
-
-    const setPlayerOnline = () => {
-      if (isStreamLive) return;
-      isStreamLive = true;
-
-      if (DOM.theaterOfflineScreen) DOM.theaterOfflineScreen.style.display = 'none';
-      if (DOM.movieMediaWrapper) DOM.movieMediaWrapper.style.display = 'block';
-      if (DOM.currentVideoTitle) DOM.currentVideoTitle.textContent = 'En Vivo';
-
-      const playPromise = videoElem.play();
-      if (playPromise !== undefined) {
-        playPromise.catch(() => {
-          videoElem.muted = true;
-          videoElem.play().catch(() => {});
-        });
-      }
-    };
-
     let retryTimer = null;
 
-    // Solo pasar a EN VIVO cuando el elemento de video REALMENTE comience a emitir fotogramas
-    const onActualVideoPlaying = () => {
+    videoElem.addEventListener('playing', () => {
       isStreamLive = true;
       if (retryTimer) {
         clearTimeout(retryTimer);
         retryTimer = null;
       }
-      if (DOM.theaterOfflineScreen) DOM.theaterOfflineScreen.style.display = 'none';
-      if (DOM.movieMediaWrapper) DOM.movieMediaWrapper.style.display = 'block';
-      if (DOM.currentVideoTitle) DOM.currentVideoTitle.textContent = 'En Vivo';
-    };
-
-    videoElem.addEventListener('playing', onActualVideoPlaying);
-    videoElem.addEventListener('timeupdate', () => {
-      if (videoElem.currentTime > 0 && !videoElem.paused) {
-        onActualVideoPlaying();
-      }
+      setPlayerOnline();
     });
 
     hls.on(Hls.Events.MANIFEST_PARSED, () => {
@@ -243,13 +324,10 @@ export function renderNativeVideo(url, initialSyncState = null) {
       }
     });
 
-    // Iniciar carga de la fuente
     hls.loadSource(url);
     hls.attachMedia(videoElem);
-
     activeHlsInstance = hls;
   } else if (isHlsStream(url) && videoElem.canPlayType('application/vnd.apple.mpegurl')) {
-    // Safari nativo para HLS
     videoElem.src = url;
   } else {
     videoElem.src = url;
