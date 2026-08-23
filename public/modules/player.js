@@ -147,6 +147,8 @@ export function renderNativeVideo(url, initialSyncState = null) {
 
   // Soporte HLS en vivo (OBS / m3u8) - Transmisión en tiempo real ultra estable
   if (isHlsStream(url) && window.Hls && Hls.isSupported()) {
+    let isStreamLive = false;
+
     const hls = new Hls({
       enableWorker: true,
       lowLatencyMode: false,
@@ -163,15 +165,8 @@ export function renderNativeVideo(url, initialSyncState = null) {
       fragLoadingRetryDelay: 1000
     });
 
-    let isStreamLive = false;
-
     const setPlayerOffline = () => {
-      if (!isStreamLive && DOM.theaterOfflineScreen && DOM.theaterOfflineScreen.style.display === 'flex') {
-        return;
-      }
       isStreamLive = false;
-      try { videoElem.pause(); } catch(e) {}
-
       if (DOM.theaterOfflineScreen) DOM.theaterOfflineScreen.style.display = 'flex';
       if (DOM.movieMediaWrapper) DOM.movieMediaWrapper.style.display = 'none';
       if (DOM.currentVideoTitle) DOM.currentVideoTitle.textContent = 'Stream Fuera de Línea';
@@ -194,34 +189,38 @@ export function renderNativeVideo(url, initialSyncState = null) {
       }
     };
 
-    // Cambiar a online solo cuando los datos y el primer fragmento de video estén listos
-    hls.on(Hls.Events.FRAG_LOADED, setPlayerOnline);
+    hls.on(Hls.Events.MANIFEST_PARSED, () => {
+      setPlayerOnline();
+    });
+
+    hls.on(Hls.Events.FRAG_LOADED, () => {
+      setPlayerOnline();
+    });
 
     hls.on(Hls.Events.ERROR, (event, data) => {
-      const is404 = (data.response && (data.response.code === 404 || data.response.code === 0)) ||
-                    (data.details && data.details.includes('404')) ||
-                    data.details === Hls.ErrorDetails.MANIFEST_LOAD_ERROR ||
-                    data.details === Hls.ErrorDetails.LEVEL_LOAD_ERROR ||
-                    data.details === Hls.ErrorDetails.FRAG_LOAD_ERROR;
-
-      if (is404 || data.fatal) {
+      if (data.fatal) {
         setPlayerOffline();
-        if (data.fatal && data.type === Hls.ErrorTypes.NETWORK_ERROR) {
-          setTimeout(() => {
-            try { hls.startLoad(); } catch(e) {}
-          }, 2000);
+        switch (data.type) {
+          case Hls.ErrorTypes.NETWORK_ERROR:
+            setTimeout(() => {
+              try { hls.startLoad(); } catch(e) {}
+            }, 1500);
+            break;
+          case Hls.ErrorTypes.MEDIA_ERROR:
+            hls.recoverMediaError();
+            break;
+          default:
+            setTimeout(() => {
+              try { hls.loadSource(url); } catch(e) {}
+            }, 2000);
+            break;
         }
       }
     });
 
-    // Detectar cuando el video deja de recibir fotogramas al apagar OBS
-    videoElem.addEventListener('ended', setPlayerOffline);
-    videoElem.addEventListener('emptied', setPlayerOffline);
-
     // Iniciar carga de la fuente
     hls.loadSource(url);
     hls.attachMedia(videoElem);
-    setPlayerOffline();
 
     activeHlsInstance = hls;
   } else if (isHlsStream(url) && videoElem.canPlayType('application/vnd.apple.mpegurl')) {
