@@ -224,14 +224,27 @@ export function renderNativeVideo(url, initialSyncState = null) {
       }
     });
 
-    // Polling automático constante cada 2s si estaba offline para entrar en vivo apenas prendas OBS
-    const liveWatcher = setInterval(() => {
+    // Verificación limpia y silenciosa en segundo plano (vía HTTP HEAD) cada 3 segundos
+    let checkingLive = false;
+    const liveWatcher = setInterval(async () => {
       if (DOM.theaterOfflineScreen && DOM.theaterOfflineScreen.style.display !== 'none') {
+        if (checkingLive) return;
+        checkingLive = true;
         try {
-          hls.loadSource(url);
-        } catch(e) {}
+          const res = await fetch(url, { method: 'HEAD', cache: 'no-store' });
+          if (res.ok) {
+            hls.loadSource(url);
+            hls.attachMedia(videoElem);
+          }
+        } catch (e) {
+          // Servidor offline, espera silenciosa
+        } finally {
+          checkingLive = false;
+        }
       }
-    }, 2000);
+    }, 3000);
+
+    videoElem._liveWatcher = liveWatcher;
     activeHlsInstance = hls;
   } else if (isHlsStream(url) && videoElem.canPlayType('application/vnd.apple.mpegurl')) {
     // Safari nativo para HLS
