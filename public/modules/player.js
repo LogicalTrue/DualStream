@@ -207,35 +207,33 @@ export function renderNativeVideo(url, initialSyncState = null) {
       maxBufferLength: 30,
       maxMaxBufferLength: 60,
       maxBufferSize: 60 * 1000 * 1000,
-      liveSyncDurationCount: 4,
-      liveMaxLatencyDurationCount: 12,
+      liveSyncDurationCount: 3,
+      liveMaxLatencyDurationCount: 10,
       liveDurationInfinity: true,
       manifestLoadingMaxRetry: Infinity,
-      manifestLoadingRetryDelay: 1500,
+      manifestLoadingRetryDelay: 1000,
       levelLoadingMaxRetry: Infinity,
-      levelLoadingRetryDelay: 1500,
+      levelLoadingRetryDelay: 1000,
       fragLoadingMaxRetry: 10,
       fragLoadingRetryDelay: 1000,
     });
 
     activeHlsInstance = hls;
 
-    const onPlaybackActive = () => {
-      setPlayerOnline();
-    };
+    let isStreamOnline = false;
 
-    videoElem.addEventListener('playing', onPlaybackActive);
-    videoElem.addEventListener('timeupdate', () => {
-      if (!videoElem.paused && videoElem.currentTime > 0) {
+    const setStreamActive = () => {
+      if (!isStreamOnline) {
+        isStreamOnline = true;
         setPlayerOnline();
       }
-    });
+    };
 
-    hls.on(Hls.Events.FRAG_BUFFERED, () => {
-      videoElem.play().catch(() => {
-        videoElem.muted = true;
-        videoElem.play().catch(() => {});
-      });
+    videoElem.addEventListener('playing', setStreamActive);
+    videoElem.addEventListener('timeupdate', () => {
+      if (!videoElem.paused && videoElem.currentTime > 0) {
+        setStreamActive();
+      }
     });
 
     hls.on(Hls.Events.MANIFEST_PARSED, () => {
@@ -249,24 +247,22 @@ export function renderNativeVideo(url, initialSyncState = null) {
       if (data.fatal) {
         switch (data.type) {
           case Hls.ErrorTypes.NETWORK_ERROR:
-            setPlayerOffline();
-            setTimeout(() => {
-              try {
-                if (hls && hls.levels && hls.levels.length > 0) {
-                  hls.startLoad();
-                } else if (hls) {
-                  hls.loadSource(url);
-                }
-              } catch (e) {}
-            }, 2000);
+            // Si el stream aún no ha cargado nunca (offline), reintentar cargar manifiesto
+            if (!isStreamOnline) {
+              setPlayerOffline();
+              setTimeout(() => {
+                try { hls.loadSource(url); } catch (e) {}
+              }, 2000);
+            } else {
+              // Si ya estaba reproduciendo, intentar recargar sin pausar el video ni mostrar pantalla offline
+              try { hls.startLoad(); } catch (e) {}
+            }
             break;
           case Hls.ErrorTypes.MEDIA_ERROR:
             try { hls.recoverMediaError(); } catch (e) {}
             break;
           default:
-            setTimeout(() => {
-              try { hls.loadSource(url); } catch (e) {}
-            }, 2000);
+            try { hls.loadSource(url); } catch (e) {}
             break;
         }
       }
