@@ -145,25 +145,27 @@ export function renderNativeVideo(url, initialSyncState = null) {
 
   activeNativeVideo = videoElem;
 
-  // Soporte HLS en vivo (OBS / m3u8) Ultra Low Latency & Auto-Recovery
+  // Soporte HLS en vivo (OBS / m3u8) Fluido a 60 FPS sin congelamientos
   if (isHlsStream(url) && window.Hls && Hls.isSupported()) {
     const hls = new Hls({
       enableWorker: true,
-      lowLatencyMode: true,
-      liveSyncDurationCount: 3,
-      liveMaxLatencyDurationCount: 6,
-      maxBufferLength: 8,
-      maxMaxBufferLength: 16,
+      lowLatencyMode: false,
+      liveSyncDuration: 3,
+      liveMaxLatencyDuration: 8,
+      maxBufferLength: 30,
+      maxMaxBufferLength: 60,
       backBufferLength: 0,
+      nudgeOffset: 0.1,
+      nudgeMaxRetry: 10,
       manifestLoadingTimeOut: 10000,
       manifestLoadingMaxRetry: Infinity,
-      manifestLoadingRetryDelay: 1500,
+      manifestLoadingRetryDelay: 1000,
       levelLoadingTimeOut: 10000,
       levelLoadingMaxRetry: Infinity,
-      levelLoadingRetryDelay: 1500,
+      levelLoadingRetryDelay: 1000,
       fragLoadingTimeOut: 20000,
       fragLoadingMaxRetry: 6,
-      fragLoadingRetryDelay: 1000
+      fragLoadingRetryDelay: 500
     });
     hls.loadSource(url);
     hls.attachMedia(videoElem);
