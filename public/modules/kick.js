@@ -23,7 +23,7 @@ export function updateKickViews() {
   }
 
   // Kick Stream Player oficial (Webcam)
-  const playerUrl = `https://player.kick.com/${encodeURIComponent(channel)}?autoplay=true`;
+  const playerUrl = `https://player.kick.com/${encodeURIComponent(channel)}?autoplay=true&muted=true`;
   if (DOM.kickPlayerFrame && DOM.kickPlayerFrame.src !== playerUrl) {
     DOM.kickPlayerFrame.src = playerUrl;
   }

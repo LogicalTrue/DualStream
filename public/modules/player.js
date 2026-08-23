@@ -190,6 +190,7 @@ export function renderNativeVideo(url, initialSyncState = null) {
   };
 
   const setPlayerOnline = () => {
+    console.log('%c[DualStream] 🟢 SET PLAYER ONLINE: Destapando video en vivo y ocultando pantalla offline', 'color: #53fc18; font-weight: bold;');
     videoElem.dataset.offline = 'false';
     document.body.classList.remove('viewer-standby');
     const offlineScreen = document.getElementById('theater-offline-screen');
@@ -206,7 +207,10 @@ export function renderNativeVideo(url, initialSyncState = null) {
 
     const playPromise = videoElem.play();
     if (playPromise !== undefined) {
-      playPromise.catch(() => {
+      playPromise.then(() => {
+        console.log('[DualStream] ▶️ Video reproduciéndose a 60 FPS');
+      }).catch((e) => {
+        console.warn('[DualStream] Autoplay bloqueado por navegador, muting inicial:', e);
         videoElem.muted = true;
         videoElem.play().catch(() => {});
       });
