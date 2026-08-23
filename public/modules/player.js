@@ -200,92 +200,90 @@ export function renderNativeVideo(url, initialSyncState = null) {
   if (isHlsStream(url)) {
     setPlayerOffline();
 
-    let hls = null;
-    let isPlayingLive = false;
-    let pollInterval = null;
+    if (window.Hls && Hls.isSupported()) {
+      const hls = new Hls({
+        enableWorker: true,
+        lowLatencyMode: false,
+        backBufferLength: 60,
+        maxBufferLength: 30,
+        maxMaxBufferLength: 60,
+        liveSyncDurationCount: 3,
+        liveMaxLatencyDurationCount: 12,
+        liveDurationInfinity: true,
+        manifestLoadingMaxRetry: Infinity,
+        manifestLoadingRetryDelay: 1500,
+        levelLoadingMaxRetry: Infinity,
+        levelLoadingRetryDelay: 1500,
+        fragLoadingMaxRetry: Infinity,
+        fragLoadingRetryDelay: 1000,
+      });
 
-    const startHlsPlayback = () => {
-      if (isPlayingLive && hls) return;
+      activeHlsInstance = hls;
 
-      if (hls) {
-        try { hls.destroy(); } catch (e) {}
-        hls = null;
-      }
+      let isPlayingLive = false;
+      let offlineRetryTimer = null;
 
-      if (window.Hls && Hls.isSupported()) {
-        hls = new Hls({
-          enableWorker: true,
-          lowLatencyMode: false,
-          backBufferLength: 30,
-          maxBufferLength: 20,
-          maxMaxBufferLength: 40,
-          liveSyncDurationCount: 3,
-          liveMaxLatencyDurationCount: 8,
-          liveDurationInfinity: true,
-        });
-
-        activeHlsInstance = hls;
-
-        hls.on(Hls.Events.MANIFEST_PARSED, () => {
+      const setStreamOnline = () => {
+        if (!isPlayingLive) {
           isPlayingLive = true;
           setPlayerOnline();
-        });
-
-        hls.on(Hls.Events.ERROR, (event, data) => {
-          if (data.fatal) {
-            switch (data.type) {
-              case Hls.ErrorTypes.NETWORK_ERROR:
-                stopHlsPlayback();
-                break;
-              case Hls.ErrorTypes.MEDIA_ERROR:
-                try { hls.recoverMediaError(); } catch (e) {}
-                break;
-              default:
-                stopHlsPlayback();
-                break;
-            }
-          }
-        });
-
-        hls.attachMedia(videoElem);
-        hls.loadSource(url);
-      } else if (videoElem.canPlayType('application/vnd.apple.mpegurl')) {
-        videoElem.src = url;
-        isPlayingLive = true;
-        setPlayerOnline();
-      }
-    };
-
-    const stopHlsPlayback = () => {
-      isPlayingLive = false;
-      setPlayerOffline();
-      if (hls) {
-        try { hls.destroy(); } catch (e) {}
-        hls = null;
-        activeHlsInstance = null;
-      }
-      try { videoElem.removeAttribute('src'); videoElem.load(); } catch (e) {}
-    };
-
-    const checkStreamAvailability = async () => {
-      if (isPlayingLive) return;
-
-      try {
-        const res = await fetch(url, { method: 'GET', cache: 'no-store' });
-        if (res.ok) {
-          startHlsPlayback();
-        } else {
-          stopHlsPlayback();
         }
-      } catch (err) {
-        stopHlsPlayback();
-      }
-    };
+      };
 
-    checkStreamAvailability();
+      const setStreamOffline = () => {
+        if (isPlayingLive) {
+          isPlayingLive = false;
+          setPlayerOffline();
+        }
+      };
 
-    pollInterval = setInterval(checkStreamAvailability, 3000);
-    activeHlsPoller = pollInterval;
+      hls.on(Hls.Events.MANIFEST_PARSED, () => {
+        setStreamOnline();
+      });
+
+      videoElem.addEventListener('playing', () => {
+        setStreamOnline();
+      });
+
+      hls.on(Hls.Events.ERROR, (event, data) => {
+        if (data.fatal) {
+          switch (data.type) {
+            case Hls.ErrorTypes.NETWORK_ERROR:
+              // Error de red fatal (OBS apagado o caída de conexión)
+              setStreamOffline();
+              clearTimeout(offlineRetryTimer);
+              offlineRetryTimer = setTimeout(() => {
+                try {
+                  if (activeHlsInstance === hls) {
+                    hls.loadSource(url);
+                  }
+                } catch (e) {}
+              }, 2500);
+              break;
+            case Hls.ErrorTypes.MEDIA_ERROR:
+              try { hls.recoverMediaError(); } catch (e) {}
+              break;
+            default:
+              setStreamOffline();
+              clearTimeout(offlineRetryTimer);
+              offlineRetryTimer = setTimeout(() => {
+                try {
+                  if (activeHlsInstance === hls) {
+                    hls.loadSource(url);
+                  }
+                } catch (e) {}
+              }, 2500);
+              break;
+          }
+        }
+      });
+
+      hls.attachMedia(videoElem);
+      hls.loadSource(url);
+    } else if (videoElem.canPlayType('application/vnd.apple.mpegurl')) {
+      videoElem.src = url;
+      setPlayerOnline();
+    }
   } else {
     videoElem.src = url;
   }
