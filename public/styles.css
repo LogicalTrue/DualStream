@@ -1199,76 +1199,45 @@ body.mode-viewer .webcam-resize-handle {
 }
 
 .chat-header {
-  height: 38px !important;
-  min-height: 38px !important;
+  height: 32px !important;
+  min-height: 32px !important;
   background: var(--bg-surface);
   border-bottom: 1px solid var(--border-subtle);
   display: flex !important;
   align-items: center;
-  justify-content: space-between;
-  padding: 0 10px;
+  justify-content: flex-end;
+  padding: 0 8px;
   z-index: 10;
   box-sizing: border-box;
 }
 
-/* Botón de Loguearse en Kick en el Header del Chat */
-.kick-login-quick-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 3px 8px;
-  height: 24px;
-  background: rgba(83, 252, 24, 0.12);
-  border: 1px solid rgba(83, 252, 24, 0.35);
-  border-radius: var(--radius-sm);
-  color: var(--kick-green);
-  font-family: var(--font-body);
-  font-size: 11px;
-  font-weight: 700;
-  text-decoration: none;
-  cursor: pointer;
-  transition: all var(--transition-fast);
-}
-
-.kick-login-quick-btn:hover {
-  background: var(--kick-green);
-  color: #000000;
-  border-color: var(--kick-green);
-  box-shadow: 0 0 10px var(--kick-green-glow);
-  transform: translateY(-1px);
-}
-
-.kick-login-quick-btn svg {
-  stroke-width: 2.2;
-}
-
-/* Botón Cerrar Chat de Alta Visibilidad */
+/* Botón Cerrar Chat Estilo Kick Verde con Cruz Elegante */
 .chat-close-btn {
   display: inline-flex !important;
   align-items: center;
-  gap: 5px;
-  padding: 4px 10px !important;
-  height: 26px !important;
-  background: linear-gradient(135deg, #ef4444, #dc2626) !important;
-  border: 1px solid rgba(255, 255, 255, 0.25) !important;
+  justify-content: center;
+  width: 24px !important;
+  height: 24px !important;
+  padding: 0 !important;
+  background: rgba(83, 252, 24, 0.12) !important;
+  border: 1px solid rgba(83, 252, 24, 0.35) !important;
   border-radius: var(--radius-sm) !important;
-  color: #ffffff !important;
-  font-family: var(--font-body);
-  font-size: 11px !important;
-  font-weight: 800 !important;
+  color: var(--kick-green) !important;
   cursor: pointer;
-  box-shadow: 0 2px 8px rgba(220, 38, 38, 0.45);
+  box-shadow: 0 0 8px rgba(83, 252, 24, 0.2);
   transition: all var(--transition-fast);
 }
 
 .chat-close-btn:hover {
-  background: linear-gradient(135deg, #f87171, #ef4444) !important;
-  box-shadow: 0 4px 12px rgba(220, 38, 38, 0.65);
-  transform: scale(1.05);
+  background: var(--kick-green) !important;
+  color: #000000 !important;
+  border-color: var(--kick-green) !important;
+  box-shadow: 0 0 14px var(--kick-green-glow);
+  transform: scale(1.08);
 }
 
 .chat-close-btn svg {
-  stroke-width: 2.8;
+  stroke-width: 2.6;
 }
 
 .btn-floating-chat-toggle {
