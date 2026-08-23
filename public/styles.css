@@ -1114,6 +1114,37 @@ body.mode-viewer .webcam-resize-handle {
   box-sizing: border-box;
 }
 
+/* Botón de Loguearse en Kick en el Header del Chat */
+.kick-login-quick-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  height: 24px;
+  background: rgba(83, 252, 24, 0.12);
+  border: 1px solid rgba(83, 252, 24, 0.35);
+  border-radius: var(--radius-sm);
+  color: var(--kick-green);
+  font-family: var(--font-body);
+  font-size: 11px;
+  font-weight: 700;
+  text-decoration: none;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.kick-login-quick-btn:hover {
+  background: var(--kick-green);
+  color: #000000;
+  border-color: var(--kick-green);
+  box-shadow: 0 0 10px var(--kick-green-glow);
+  transform: translateY(-1px);
+}
+
+.kick-login-quick-btn svg {
+  stroke-width: 2.2;
+}
+
 /* Botón Cerrar Chat de Alta Visibilidad */
 .chat-close-btn {
   display: inline-flex !important;
