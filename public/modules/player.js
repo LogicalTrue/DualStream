@@ -153,17 +153,20 @@ export function renderNativeVideo(url, initialSyncState = null) {
     const hls = new Hls({
       enableWorker: true,
       lowLatencyMode: false,
-      liveSyncDurationCount: 2,
-      liveMaxLatencyDurationCount: 5,
-      maxBufferLength: 10,
-      maxMaxBufferLength: 20,
-      maxBufferSize: 30 * 1000 * 1000,
+      liveSyncDurationCount: 3,
+      liveMaxLatencyDurationCount: 8,
+      maxBufferLength: 15,
+      maxMaxBufferLength: 30,
       backBufferLength: 0,
-      nudgeOffset: 0.2,
-      nudgeMaxRetry: 20,
-      manifestLoadingTimeOut: 6000,
-      levelLoadingTimeOut: 6000,
-      fragLoadingTimeOut: 15000
+      highBufferWatchdogPeriod: 2,
+      nudgeOffset: 0.1,
+      nudgeMaxRetry: 10,
+      manifestLoadingTimeOut: 10000,
+      manifestLoadingMaxRetry: Infinity,
+      manifestLoadingRetryDelay: 1500,
+      levelLoadingTimeOut: 10000,
+      levelLoadingMaxRetry: Infinity,
+      levelLoadingRetryDelay: 1500
     });
 
     const setPlayerOffline = () => {
@@ -191,29 +194,24 @@ export function renderNativeVideo(url, initialSyncState = null) {
 
     hls.on(Hls.Events.MANIFEST_PARSED, setPlayerOnline);
     hls.on(Hls.Events.LEVEL_LOADED, setPlayerOnline);
-    hls.on(Hls.Events.FRAG_LOADED, setPlayerOnline);
 
     hls.on(Hls.Events.ERROR, (event, data) => {
-      const is404 = (data.response && (data.response.code === 404 || data.response.code === 0)) ||
-                    (data.details && data.details.includes('404')) ||
-                    data.details === Hls.ErrorDetails.MANIFEST_LOAD_ERROR ||
-                    data.details === Hls.ErrorDetails.LEVEL_LOAD_ERROR;
-
-      if (is404) {
-        setPlayerOffline();
-      }
-
       if (data.fatal) {
         switch (data.type) {
           case Hls.ErrorTypes.NETWORK_ERROR:
             setPlayerOffline();
-            hls.startLoad();
+            setTimeout(() => {
+              try { hls.startLoad(); } catch(e) {}
+            }, 1500);
             break;
           case Hls.ErrorTypes.MEDIA_ERROR:
             hls.recoverMediaError();
             break;
           default:
-            try { hls.destroy(); } catch(e) {}
+            setPlayerOffline();
+            setTimeout(() => {
+              try { hls.loadSource(url); } catch(e) {}
+            }, 2000);
             break;
         }
       }
@@ -222,16 +220,6 @@ export function renderNativeVideo(url, initialSyncState = null) {
     hls.loadSource(url);
     hls.attachMedia(videoElem);
 
-    // Vigilante de reconexión continua en segundo plano: si está offline, reintenta conectar la fuente cada 1.5s
-    autoReconnectTimer = setInterval(() => {
-      if (!isLive || (DOM.theaterOfflineScreen && DOM.theaterOfflineScreen.style.display !== 'none')) {
-        try {
-          hls.loadSource(url);
-        } catch (e) {}
-      }
-    }, 1500);
-
-    videoElem._reconnectTimer = autoReconnectTimer;
     activeHlsInstance = hls;
   } else if (isHlsStream(url) && videoElem.canPlayType('application/vnd.apple.mpegurl')) {
     // Safari nativo para HLS
