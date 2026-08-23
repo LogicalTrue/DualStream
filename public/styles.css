@@ -710,7 +710,7 @@ body.mode-admin .viewer-video-shield {
 
 /* Pantallas de Espera y Standby */
 body.viewer-standby #theater-offline-screen {
-  display: flex !important;
+  display: flex;
 }
 
 /* Ocultar la webcam y controles flotantes si el espectador ve las pantallas de espera (desconectado o previo a conectar) */

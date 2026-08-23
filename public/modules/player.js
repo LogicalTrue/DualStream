@@ -170,24 +170,30 @@ export function renderNativeVideo(url, initialSyncState = null) {
 
   const setPlayerOffline = () => {
     videoElem.dataset.offline = 'true';
+    document.body.classList.add('viewer-standby');
     try { videoElem.pause(); } catch(e) {}
     const offlineScreen = document.getElementById('theater-offline-screen');
     const mediaWrapper = document.getElementById('movie-media-wrapper');
     const title = document.getElementById('current-video-title');
 
-    if (offlineScreen) offlineScreen.style.display = 'flex';
-    if (mediaWrapper) mediaWrapper.style.display = 'none';
+    if (offlineScreen) offlineScreen.style.setProperty('display', 'flex', 'important');
+    if (mediaWrapper) mediaWrapper.style.setProperty('display', 'none', 'important');
     if (title) title.textContent = 'Stream Fuera de Línea';
   };
 
   const setPlayerOnline = () => {
     videoElem.dataset.offline = 'false';
+    document.body.classList.remove('viewer-standby');
     const offlineScreen = document.getElementById('theater-offline-screen');
+    const onlineScreen = document.getElementById('theater-online-screen');
+    const placeholder = document.getElementById('movie-placeholder');
     const mediaWrapper = document.getElementById('movie-media-wrapper');
     const title = document.getElementById('current-video-title');
 
-    if (offlineScreen) offlineScreen.style.display = 'none';
-    if (mediaWrapper) mediaWrapper.style.display = 'block';
+    if (offlineScreen) offlineScreen.style.setProperty('display', 'none', 'important');
+    if (onlineScreen) onlineScreen.style.setProperty('display', 'none', 'important');
+    if (placeholder) placeholder.style.setProperty('display', 'none', 'important');
+    if (mediaWrapper) mediaWrapper.style.setProperty('display', 'block', 'important');
     if (title) title.textContent = 'En Vivo';
 
     const playPromise = videoElem.play();
