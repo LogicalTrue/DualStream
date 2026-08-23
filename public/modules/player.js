@@ -368,60 +368,36 @@ export function renderNativeVideo(url, initialSyncState = null) {
         liveSyncDurationCount: 3,
         liveMaxLatencyDurationCount: 12,
         liveDurationInfinity: true,
-        manifestLoadingMaxRetry: 2,
-        manifestLoadingRetryDelay: 1000,
-        levelLoadingMaxRetry: 2,
-        levelLoadingRetryDelay: 1000,
-        fragLoadingMaxRetry: 3,
+        manifestLoadingMaxRetry: Infinity,
+        manifestLoadingRetryDelay: 2000,
+        levelLoadingMaxRetry: Infinity,
+        levelLoadingRetryDelay: 2000,
+        fragLoadingMaxRetry: 5,
         fragLoadingRetryDelay: 1000,
       });
 
       activeHlsInstance = hls;
 
       let isPlayingLive = false;
-      let offlineCheckTimer = null;
 
       const setStreamOnline = () => {
         if (!isPlayingLive) {
           isPlayingLive = true;
-          clearInterval(offlineCheckTimer);
           setPlayerOnline();
           addTelemetryLog('Transmisión en vivo conectada (60 FPS)', 'success');
         }
-      };
-
-      const startQuietOfflinePoller = () => {
-        clearInterval(offlineCheckTimer);
-        offlineCheckTimer = setInterval(async () => {
-          try {
-            // Verificar directamente la sublista de segmentos activos de MediaMTX
-            const checkUrl = url.replace('index.m3u8', 'main_stream.m3u8') + '?t=' + Date.now();
-            const res = await fetch(checkUrl, { method: 'HEAD', cache: 'no-store' });
-            if (res.ok) {
-              clearInterval(offlineCheckTimer);
-              if (activeHlsInstance === hls) {
-                addTelemetryLog('OBS detectado en directo. Cargando flujo...', 'info');
-                hls.loadSource(url);
-                hls.startLoad();
-              }
-            }
-          } catch (e) {}
-        }, 3000);
       };
 
       const setStreamOffline = () => {
         if (isPlayingLive) {
           isPlayingLive = false;
           setPlayerOffline();
-          try { hls.stopLoad(); } catch (e) {}
           addTelemetryLog('OBS detenido / Stream fuera de línea', 'warn');
-          startQuietOfflinePoller();
         }
       };
 
       hls.on(Hls.Events.MANIFEST_PARSED, (ev, data) => {
         addTelemetryLog(`Manifiesto recibido (${data.levels ? data.levels.length : 1} calidades)`, 'info');
-        // No pasamos a online hasta que llegue el primer fragmento real
       });
 
       hls.on(Hls.Events.FRAG_LOADED, (ev, data) => {
@@ -435,22 +411,16 @@ export function renderNativeVideo(url, initialSyncState = null) {
 
         addTelemetryLog(`Fragmento #${data.frag.sn} (${durationSec}s) cargado en ${loadTimeMs}ms (${mbps} Mbps)`, 'success');
         
-        // Pasar a online únicamente cuando un fragmento real de video fue descargado
+        // Pasar a online ÚNICAMENTE cuando un fragmento real de video fue descargado
         setStreamOnline();
 
-        if (videoElem.paused) {
+        if (videoElem.paused && !videoElem.dataset.offline) {
           videoElem.play().catch(() => {});
         }
       });
 
       videoElem.addEventListener('ended', () => {
         setStreamOffline();
-      });
-
-      videoElem.addEventListener('pause', () => {
-        if (isPlayingLive && telemetryState.bufferSeconds <= 0.1) {
-          setStreamOffline();
-        }
       });
 
       hls.on(Hls.Events.ERROR, (event, data) => {
@@ -462,24 +432,22 @@ export function renderNativeVideo(url, initialSyncState = null) {
         );
 
         if (isLevelOrManifestError) {
-          // OBS detenido: el servidor ya no tiene la lista
+          // OBS detenido: mostrar cartel offline de inmediato
           setStreamOffline();
-          return;
         }
 
         if (data.fatal) {
-          addTelemetryLog(`Error Fatal HLS [${data.type}]: ${data.details}`, 'error');
           switch (data.type) {
             case Hls.ErrorTypes.NETWORK_ERROR:
               if (data.details === Hls.ErrorDetails.FRAG_LOAD_ERROR) {
-                // Fragmento vencido puntual: saltar al directo
+                // Fragmento puntual expirado: saltar al directo
                 try { hls.startLoad(-1); } catch (e) {}
               } else {
                 setStreamOffline();
+                try { hls.startLoad(); } catch (e) {}
               }
               break;
             case Hls.ErrorTypes.MEDIA_ERROR:
-              addTelemetryLog('Recuperando decodificación de medios...', 'warn');
               try { hls.recoverMediaError(); } catch (e) {}
               break;
             default:
@@ -492,7 +460,6 @@ export function renderNativeVideo(url, initialSyncState = null) {
       hls.attachMedia(videoElem);
       hls.loadSource(url);
       addTelemetryLog(`Iniciando conexión a: ${url}`, 'info');
-      startQuietOfflinePoller();
     } else if (videoElem.canPlayType('application/vnd.apple.mpegurl')) {
       videoElem.src = url;
       setPlayerOnline();
