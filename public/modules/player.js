@@ -247,11 +247,22 @@ export function renderNativeVideo(url, initialSyncState = null) {
           }
         });
 
-        const response = await fetch(url, {
+        let endpoint = url;
+        let response = await fetch(endpoint, {
           method: 'POST',
           headers: { 'Content-Type': 'application/sdp' },
           body: pc.localDescription.sdp
         });
+
+        if (!response.ok && endpoint.endsWith('/whep')) {
+          // Si /whep da 404, probar la ruta base directa
+          endpoint = endpoint.replace(/\/whep$/, '');
+          response = await fetch(endpoint, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/sdp' },
+            body: pc.localDescription.sdp
+          });
+        }
 
         if (!response.ok) {
           setPlayerOffline();
