@@ -434,14 +434,31 @@ export function renderNativeVideo(url, initialSyncState = null) {
       });
 
       hls.on(Hls.Events.ERROR, (event, data) => {
-        if (data.fatal) {
-          addTelemetryLog(`Error HLS [${data.type}]: ${data.details}`, 'warn');
+        const isOfflineError = (
+          data.details === Hls.ErrorDetails.LEVEL_LOAD_ERROR || 
+          data.details === Hls.ErrorDetails.MANIFEST_LOAD_ERROR ||
+          data.details === Hls.ErrorDetails.MANIFEST_LOAD_TIMEOUT ||
+          data.details === Hls.ErrorDetails.LEVEL_LOAD_TIMEOUT ||
+          data.fatal
+        );
+
+        if (isOfflineError) {
+          addTelemetryLog(`Señal interrumpida: ${data.details}`, 'warn');
           if (isPlayingLive) {
             isPlayingLive = false;
             setPlayerOffline();
             cleanupHls();
             schedulePoller();
           }
+        }
+      });
+
+      videoElem.addEventListener('ended', () => {
+        if (isPlayingLive) {
+          isPlayingLive = false;
+          setPlayerOffline();
+          cleanupHls();
+          schedulePoller();
         }
       });
 

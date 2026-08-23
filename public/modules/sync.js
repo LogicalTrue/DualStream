@@ -228,22 +228,16 @@ export function updateTheaterStandbyScreens() {
     return;
   }
 
+  const defaultOffline = (typeof STREAM_CONFIG !== 'undefined' && STREAM_CONFIG.offlinePoster) ? STREAM_CONFIG.offlinePoster : 'https://i.imgur.com/AhT5Obw.jpeg';
+
   if (DOM.offlineBackdrop) {
-    if (AppState.offlineImg) {
-      DOM.offlineBackdrop.style.backgroundImage = `url('${AppState.offlineImg}')`;
-    } else {
-      DOM.offlineBackdrop.style.backgroundImage = 'none';
-    }
+    const bg = AppState.offlineImg || defaultOffline;
+    DOM.offlineBackdrop.style.backgroundImage = `url('${bg}')`;
   }
 
   if (DOM.onlineBackdrop) {
-    if (AppState.onlineImg) {
-      DOM.onlineBackdrop.style.backgroundImage = `url('${AppState.onlineImg}')`;
-    } else if (AppState.offlineImg) {
-      DOM.onlineBackdrop.style.backgroundImage = `url('${AppState.offlineImg}')`;
-    } else {
-      DOM.onlineBackdrop.style.backgroundImage = 'none';
-    }
+    const bg = AppState.onlineImg || AppState.offlineImg || defaultOffline;
+    DOM.onlineBackdrop.style.backgroundImage = `url('${bg}')`;
   }
 
   const currentName = AppState.streamer || 'Streamer';

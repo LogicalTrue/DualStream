@@ -585,9 +585,9 @@ body.mode-admin .viewer-video-shield {
   z-index: 1;
 }
 
-/* Ocultar la tarjeta de texto si hay una imagen de portada configurada */
-.theater-offline .standby-card {
-  display: none !important;
+.theater-offline .standby-backdrop {
+  opacity: 0.6;
+  filter: brightness(0.7);
 }
 
 .standby-card {
