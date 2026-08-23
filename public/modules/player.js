@@ -418,7 +418,18 @@ export function renderNativeVideo(url, initialSyncState = null) {
 
       activeHlsInstance = hls;
 
+      hls.on(Hls.Events.MANIFEST_PARSED, () => {
+        const playPromise = videoElem.play();
+        if (playPromise !== undefined) {
+          playPromise.catch(() => {
+            videoElem.muted = true;
+            videoElem.play().catch(() => {});
+          });
+        }
+      });
+
       hls.on(Hls.Events.FRAG_LOADED, (ev, data) => {
+        clearInterval(pollerTimer); // Solo detener el sondeo cuando ya hay video confirmado
         const durationSec = data.frag.duration || 2;
         const loadTimeMs = Math.round(data.stats.loading.end - data.stats.loading.start);
         const bytes = data.stats.total || 0;
@@ -438,32 +449,20 @@ export function renderNativeVideo(url, initialSyncState = null) {
       });
 
       hls.on(Hls.Events.ERROR, (event, data) => {
-        const isOfflineError = (
-          data.details === Hls.ErrorDetails.LEVEL_LOAD_ERROR || 
-          data.details === Hls.ErrorDetails.MANIFEST_LOAD_ERROR ||
-          data.details === Hls.ErrorDetails.MANIFEST_LOAD_TIMEOUT ||
-          data.details === Hls.ErrorDetails.LEVEL_LOAD_TIMEOUT ||
-          data.fatal
-        );
-
-        if (isOfflineError) {
-          addTelemetryLog(`Señal interrumpida: ${data.details}`, 'warn');
-          if (isPlayingLive) {
-            isPlayingLive = false;
-            setPlayerOffline();
-            cleanupHls();
-            schedulePoller();
-          }
-        }
-      });
-
-      videoElem.addEventListener('ended', () => {
-        if (isPlayingLive) {
+        if (data.fatal) {
+          addTelemetryLog(`Error HLS [${data.type}]: ${data.details}`, 'warn');
           isPlayingLive = false;
           setPlayerOffline();
           cleanupHls();
           schedulePoller();
         }
+      });
+
+      videoElem.addEventListener('ended', () => {
+        isPlayingLive = false;
+        setPlayerOffline();
+        cleanupHls();
+        schedulePoller();
       });
 
       hls.attachMedia(videoElem);
@@ -483,19 +482,17 @@ export function renderNativeVideo(url, initialSyncState = null) {
           if (res.ok) {
             const text = await res.text();
             if (text && text.includes('#EXTM3U')) {
-              clearInterval(pollerTimer);
               addTelemetryLog('¡Señal de OBS detectada! Iniciando reproductor...', 'info');
               startHlsPlayback();
             }
           }
         } catch (e) {}
-      }, 2000);
+      }, 1500);
     };
 
     schedulePoller();
     fetch(url, { method: 'GET', cache: 'no-store' }).then(res => {
       if (res.ok) {
-        clearInterval(pollerTimer);
         startHlsPlayback();
       }
     }).catch(() => {});
