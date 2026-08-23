@@ -380,71 +380,128 @@ export function renderNativeVideo(url, initialSyncState = null) {
   if (isHlsStream(url)) {
     setPlayerOffline();
 
-    if (!window.Hls || !Hls.isSupported()) {
-      if (videoElem.canPlayType('application/vnd.apple.mpegurl')) {
-        videoElem.src = url;
-        videoElem.addEventListener('loadedmetadata', () => setPlayerOnline());
+    let isPlayingLive = false;
+    let pollerTimer = null;
+    let hls = null;
+
+    const cleanupHls = () => {
+      if (hls) {
+        try {
+          hls.stopLoad();
+          hls.detachMedia();
+          hls.destroy();
+        } catch (e) {}
+        hls = null;
       }
-      return;
-    }
+      activeHlsInstance = null;
+    };
 
-    const hls = new Hls({
-      enableWorker: true,
-      lowLatencyMode: false,
-      backBufferLength: 60,
-      maxBufferLength: 30,
-      maxMaxBufferLength: 60,
-      liveSyncDurationCount: 3,
-      liveMaxLatencyDurationCount: 12,
-      liveDurationInfinity: true,
-      manifestLoadingMaxRetry: 2,
-      manifestLoadingRetryDelay: 2000,
-      levelLoadingMaxRetry: 2,
-      levelLoadingRetryDelay: 2000,
-      fragLoadingMaxRetry: 5,
-      fragLoadingRetryDelay: 1000,
-    });
+    const startHlsPlayback = () => {
+      if (isPlayingLive) return;
+      cleanupHls();
 
-    activeHlsInstance = hls;
+      if (!window.Hls || !Hls.isSupported()) {
+        if (videoElem.canPlayType('application/vnd.apple.mpegurl')) {
+          videoElem.src = url;
+          setPlayerOnline();
+        }
+        return;
+      }
 
-    hls.on(Hls.Events.LEVEL_LOADED, () => {
-      setPlayerOnline();
-    });
+      hls = new Hls({
+        enableWorker: true,
+        lowLatencyMode: false,
+        backBufferLength: 60,
+        maxBufferLength: 30,
+        maxMaxBufferLength: 60,
+        liveSyncDurationCount: 3,
+        liveMaxLatencyDurationCount: 12,
+        liveDurationInfinity: true,
+        manifestLoadingMaxRetry: 5,
+        manifestLoadingRetryDelay: 1500,
+        levelLoadingMaxRetry: 5,
+        levelLoadingRetryDelay: 1500,
+        fragLoadingMaxRetry: 5,
+        fragLoadingRetryDelay: 1000,
+      });
 
-    hls.on(Hls.Events.FRAG_LOADED, (ev, data) => {
-      setPlayerOnline();
-      const durationSec = data.frag.duration || 2;
-      const loadTimeMs = Math.round(data.stats.loading.end - data.stats.loading.start);
-      const bytes = data.stats.total || 0;
-      const mbps = loadTimeMs > 0 ? parseFloat(((bytes * 8) / (loadTimeMs / 1000) / 1000000).toFixed(2)) : 0;
+      activeHlsInstance = hls;
 
-      telemetryState.downloadSpeedMbps = mbps;
-      telemetryState.downloadLatencyMs = loadTimeMs;
-      addTelemetryLog(`Fragmento #${data.frag.sn} (${durationSec}s) cargado en ${loadTimeMs}ms (${mbps} Mbps)`, 'success');
-    });
+      hls.on(Hls.Events.LEVEL_LOADED, () => {
+        isPlayingLive = true;
+        setPlayerOnline();
+      });
 
-    hls.on(Hls.Events.ERROR, (event, data) => {
-      const isStreamCutoff = (
-        data.details === Hls.ErrorDetails.LEVEL_LOAD_ERROR || 
-        data.details === Hls.ErrorDetails.MANIFEST_LOAD_ERROR ||
-        data.details === Hls.ErrorDetails.LEVEL_LOAD_TIMEOUT ||
-        data.details === Hls.ErrorDetails.MANIFEST_LOAD_TIMEOUT ||
-        data.details === Hls.ErrorDetails.BUFFER_STALLED_ERROR ||
-        (data.response && data.response.code === 404) ||
-        data.fatal
-      );
+      hls.on(Hls.Events.FRAG_LOADED, (ev, data) => {
+        isPlayingLive = true;
+        setPlayerOnline();
+        const durationSec = data.frag.duration || 2;
+        const loadTimeMs = Math.round(data.stats.loading.end - data.stats.loading.start);
+        const bytes = data.stats.total || 0;
+        const mbps = loadTimeMs > 0 ? parseFloat(((bytes * 8) / (loadTimeMs / 1000) / 1000000).toFixed(2)) : 0;
 
-      if (isStreamCutoff) {
+        telemetryState.downloadSpeedMbps = mbps;
+        telemetryState.downloadLatencyMs = loadTimeMs;
+        addTelemetryLog(`Fragmento #${data.frag.sn} (${durationSec}s) cargado en ${loadTimeMs}ms (${mbps} Mbps)`, 'success');
+      });
+
+      hls.on(Hls.Events.ERROR, (event, data) => {
+        const isStreamCutoff = (
+          data.details === Hls.ErrorDetails.LEVEL_LOAD_ERROR || 
+          data.details === Hls.ErrorDetails.MANIFEST_LOAD_ERROR ||
+          data.details === Hls.ErrorDetails.LEVEL_LOAD_TIMEOUT ||
+          data.details === Hls.ErrorDetails.MANIFEST_LOAD_TIMEOUT ||
+          data.details === Hls.ErrorDetails.BUFFER_STALLED_ERROR ||
+          (data.response && data.response.code === 404) ||
+          data.fatal
+        );
+
+        if (isStreamCutoff) {
+          isPlayingLive = false;
+          setPlayerOffline();
+          cleanupHls();
+          schedulePoller();
+        }
+      });
+
+      videoElem.addEventListener('ended', () => {
+        isPlayingLive = false;
         setPlayerOffline();
+        cleanupHls();
+        schedulePoller();
+      });
+
+      hls.attachMedia(videoElem);
+      hls.loadSource(url);
+    };
+
+    const schedulePoller = () => {
+      clearInterval(pollerTimer);
+      pollerTimer = setInterval(async () => {
+        if (isPlayingLive) {
+          clearInterval(pollerTimer);
+          return;
+        }
+        try {
+          const res = await fetch(url, { method: 'GET', cache: 'no-store' });
+          if (res.ok) {
+            const text = await res.text();
+            if (text && text.includes('#EXTM3U')) {
+              clearInterval(pollerTimer);
+              startHlsPlayback();
+            }
+          }
+        } catch (e) {}
+      }, 2000);
+    };
+
+    schedulePoller();
+    fetch(url, { method: 'GET', cache: 'no-store' }).then(res => {
+      if (res.ok) {
+        clearInterval(pollerTimer);
+        startHlsPlayback();
       }
-    });
-
-    videoElem.addEventListener('ended', () => {
-      setPlayerOffline();
-    });
-
-    hls.attachMedia(videoElem);
-    hls.loadSource(url);
+    }).catch(() => {});
   } else {
     videoElem.src = url;
   }
