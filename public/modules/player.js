@@ -145,61 +145,31 @@ export function renderNativeVideo(url, initialSyncState = null) {
 
   activeNativeVideo = videoElem;
 
-  // Soporte HLS en vivo (OBS / m3u8) - Transmisión en tiempo real 60 FPS fluida y continua
+  // Soporte HLS en vivo (OBS / m3u8) - Transmisión en tiempo real ultra estable
   if (isHlsStream(url) && window.Hls && Hls.isSupported()) {
-    let isLive = false;
-
     const hls = new Hls({
       enableWorker: true,
       lowLatencyMode: false,
       liveSyncDurationCount: 3,
-      liveMaxLatencyDurationCount: 8,
-      maxBufferLength: 20,
-      maxMaxBufferLength: 40,
+      liveMaxLatencyDurationCount: 6,
+      maxBufferLength: 15,
+      maxMaxBufferLength: 30,
       backBufferLength: 0,
-      liveDurationInfinity: true,
-      manifestLoadingTimeOut: 10000,
       manifestLoadingMaxRetry: Infinity,
       manifestLoadingRetryDelay: 1500,
-      levelLoadingTimeOut: 10000,
       levelLoadingMaxRetry: Infinity,
-      levelLoadingRetryDelay: 1500
+      levelLoadingRetryDelay: 1500,
+      fragLoadingMaxRetry: 10,
+      fragLoadingRetryDelay: 1000
     });
 
-    let reconnectInterval = null;
-
     const setPlayerOffline = () => {
-      isLive = false;
-      try {
-        videoElem.pause();
-        videoElem.removeAttribute('src');
-        videoElem.load();
-      } catch(e) {}
-
       if (DOM.theaterOfflineScreen) DOM.theaterOfflineScreen.style.display = 'flex';
       if (DOM.movieMediaWrapper) DOM.movieMediaWrapper.style.display = 'none';
       if (DOM.currentVideoTitle) DOM.currentVideoTitle.textContent = 'Stream Fuera de Línea';
-
-      if (!reconnectInterval) {
-        reconnectInterval = setInterval(() => {
-          if (isLive) {
-            clearInterval(reconnectInterval);
-            reconnectInterval = null;
-            return;
-          }
-          try {
-            hls.loadSource(url);
-          } catch(e) {}
-        }, 1500);
-      }
     };
 
     const setPlayerOnline = () => {
-      if (reconnectInterval) {
-        clearInterval(reconnectInterval);
-        reconnectInterval = null;
-      }
-      isLive = true;
       if (DOM.theaterOfflineScreen) DOM.theaterOfflineScreen.style.display = 'none';
       if (DOM.movieMediaWrapper) DOM.movieMediaWrapper.style.display = 'block';
       if (DOM.currentVideoTitle) DOM.currentVideoTitle.textContent = 'En Vivo';
@@ -218,16 +188,20 @@ export function renderNativeVideo(url, initialSyncState = null) {
     hls.on(Hls.Events.FRAG_LOADED, setPlayerOnline);
 
     hls.on(Hls.Events.ERROR, (event, data) => {
-      const is404 = (data.response && (data.response.code === 404 || data.response.code === 0)) ||
-                    (data.details && data.details.includes('404')) ||
-                    data.details === Hls.ErrorDetails.MANIFEST_LOAD_ERROR ||
-                    data.details === Hls.ErrorDetails.LEVEL_LOAD_ERROR;
-
-      // Si OBS se apaga, cortar el cuadro congelado y pasar al cartel offline al instante
-      if (is404 || data.fatal) {
+      if (data.fatal) {
         setPlayerOffline();
-        if (data.fatal && data.type === Hls.ErrorTypes.NETWORK_ERROR) {
-          hls.startLoad();
+        switch (data.type) {
+          case Hls.ErrorTypes.NETWORK_ERROR:
+            hls.startLoad();
+            break;
+          case Hls.ErrorTypes.MEDIA_ERROR:
+            hls.recoverMediaError();
+            break;
+          default:
+            setTimeout(() => {
+              try { hls.loadSource(url); } catch(e) {}
+            }, 2000);
+            break;
         }
       }
     });
