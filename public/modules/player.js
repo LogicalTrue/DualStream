@@ -187,56 +187,62 @@ export function renderNativeVideo(url, initialSyncState = null) {
   // PROTOCOLO: HLS (.m3u8) Live Streaming
   // ==========================================
   if (isHlsStream(url) && window.Hls && Hls.isSupported()) {
-    const hls = new Hls({
-      enableWorker: true,
-      lowLatencyMode: false,
-      liveSyncDurationCount: 3,
-      liveMaxLatencyDurationCount: 6,
-      maxBufferLength: 20,
-      maxMaxBufferLength: 40,
-      backBufferLength: 0,
-      manifestLoadingMaxRetry: Infinity,
-      manifestLoadingRetryDelay: 1500,
-      levelLoadingMaxRetry: Infinity,
-      levelLoadingRetryDelay: 1500,
-      fragLoadingMaxRetry: 10,
-      fragLoadingRetryDelay: 1000
-    });
+    let isLive = false;
+    let hls = null;
+    let poller = null;
 
-    let retryTimer = null;
-
-    const onOnlineTrigger = () => {
-      if (retryTimer) {
-        clearTimeout(retryTimer);
-        retryTimer = null;
+    const startHls = () => {
+      if (hls) {
+        try { hls.destroy(); } catch(e) {}
+        hls = null;
       }
-      setPlayerOnline();
+
+      hls = new Hls({
+        enableWorker: true,
+        lowLatencyMode: false,
+        liveSyncDurationCount: 3,
+        liveMaxLatencyDurationCount: 6,
+        maxBufferLength: 20,
+        maxMaxBufferLength: 40,
+        backBufferLength: 0,
+        manifestLoadingMaxRetry: 2,
+        levelLoadingMaxRetry: 2,
+        fragLoadingMaxRetry: 4
+      });
+
+      hls.on(Hls.Events.MANIFEST_PARSED, () => {
+        isLive = true;
+        setPlayerOnline();
+      });
+
+      hls.on(Hls.Events.FRAG_LOADED, () => {
+        isLive = true;
+        setPlayerOnline();
+      });
+
+      hls.on(Hls.Events.ERROR, (event, data) => {
+        if (data.fatal || data.response?.code === 404 || data.details === Hls.ErrorDetails.MANIFEST_LOAD_ERROR || data.details === Hls.ErrorDetails.LEVEL_LOAD_ERROR) {
+          isLive = false;
+          setPlayerOffline();
+        }
+      });
+
+      hls.loadSource(url);
+      hls.attachMedia(videoElem);
+      activeHlsInstance = hls;
     };
 
-    videoElem.addEventListener('playing', onOnlineTrigger);
-    hls.on(Hls.Events.FRAG_LOADED, onOnlineTrigger);
-    hls.on(Hls.Events.MANIFEST_PARSED, onOnlineTrigger);
+    // Iniciar intento de reproducción
+    startHls();
 
-    hls.on(Hls.Events.ERROR, (event, data) => {
-      const is404 = (data.response && (data.response.code === 404 || data.response.code === 0)) ||
-                    (data.details && (data.details.includes('404') || data.details === Hls.ErrorDetails.LEVEL_LOAD_ERROR || data.details === Hls.ErrorDetails.MANIFEST_LOAD_ERROR));
-
-      if (is404 || data.fatal) {
-        setPlayerOffline();
-        if (!retryTimer) {
-          retryTimer = setTimeout(() => {
-            retryTimer = null;
-            try {
-              hls.loadSource(url);
-            } catch(e) {}
-          }, 3000);
-        }
+    // Sondeo activo continuo: si está offline, reintenta conectar cada 2.5s
+    poller = setInterval(() => {
+      if (!isLive || (DOM.theaterOfflineScreen && DOM.theaterOfflineScreen.style.display !== 'none')) {
+        startHls();
       }
-    });
+    }, 2500);
 
-    hls.loadSource(url);
-    hls.attachMedia(videoElem);
-    activeHlsInstance = hls;
+    videoElem._hlsPoller = poller;
   } else if (isHlsStream(url) && videoElem.canPlayType('application/vnd.apple.mpegurl')) {
     videoElem.src = url;
   } else {
