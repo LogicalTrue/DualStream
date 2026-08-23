@@ -203,6 +203,8 @@ export function renderNativeVideo(url, initialSyncState = null) {
         hls = null;
       }
 
+      console.log('[DualStream Player] Intentando conectar al stream:', url);
+
       hls = new Hls({
         enableWorker: true,
         lowLatencyMode: false,
@@ -211,19 +213,20 @@ export function renderNativeVideo(url, initialSyncState = null) {
         maxBufferLength: 30,
         maxMaxBufferLength: 60,
         backBufferLength: 0,
-        manifestLoadingMaxRetry: Infinity,
-        manifestLoadingRetryDelay: 1000,
-        levelLoadingMaxRetry: Infinity,
-        levelLoadingRetryDelay: 1000
+        manifestLoadingMaxRetry: 1,
+        levelLoadingMaxRetry: 1
       });
 
       const onStreamActive = () => {
+        if (isLive) return;
         isLive = true;
+        console.log('[DualStream Player] ¡Stream detectado! Conmutando a EN VIVO.');
         setPlayerOnline();
       };
 
       videoElem.addEventListener('playing', onStreamActive);
       hls.on(Hls.Events.FRAG_LOADED, onStreamActive);
+      hls.on(Hls.Events.MANIFEST_LOADED, onStreamActive);
       hls.on(Hls.Events.MANIFEST_PARSED, () => {
         onStreamActive();
         videoElem.play().catch(() => {
@@ -251,7 +254,7 @@ export function renderNativeVideo(url, initialSyncState = null) {
       if (!isLive || (offlineScreen && offlineScreen.style.display !== 'none')) {
         startHls();
       }
-    }, 3000);
+    }, 2500);
 
     videoElem._hlsPoller = pollTimer;
   } else if (isHlsStream(url) && videoElem.canPlayType('application/vnd.apple.mpegurl')) {
