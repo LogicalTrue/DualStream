@@ -9,6 +9,7 @@ import { DOM } from './modules/dom.js';
 import { AppState, sanitizeStreamerName } from './modules/state.js';
 import { verifyAdminAuth, logoutAdmin, uploadMp4ToCatbox, startAdminSessionChecker, fetchLatestCloudState } from './modules/api.js';
 import { updateKickViews, reloadKickPlayer, reloadKickChat, unmuteKickStream } from './modules/kick.js';
+import { STREAM_CONFIG } from './stream-config.js';
 import {
   loadVideoSource,
   unloadVideo,
@@ -56,25 +57,7 @@ function handleSaveAndPublish() {
 }
 
 function initEventListeners() {
-  // --- Streamer Secret Auth (Doble clic en Logo o Alt+A) ---
-  const brandElement = document.querySelector('.brand');
-  if (brandElement) {
-    brandElement.style.cursor = 'pointer';
-    brandElement.title = 'Kick Dual Viewer';
-    brandElement.addEventListener('dblclick', () => {
-      if (DOM.inputAdminPin) DOM.inputAdminPin.value = '';
-      openModal(DOM.modalAuth);
-    });
-  }
-
-  // Atajo de teclado: Alt + A o Ctrl + Shift + A
-  document.addEventListener('keydown', (e) => {
-    if ((e.altKey && (e.key === 'a' || e.key === 'A')) || (e.ctrlKey && e.shiftKey && (e.key === 'a' || e.key === 'A'))) {
-      e.preventDefault();
-      if (DOM.inputAdminPin) DOM.inputAdminPin.value = '';
-      openModal(DOM.modalAuth);
-    }
-  });
+  // Panel de Admin oculto para entrega de cliente (configurado vía stream-config.js)
 
   if (DOM.btnCloseAuthModal) DOM.btnCloseAuthModal.addEventListener('click', () => closeModal(DOM.modalAuth));
   if (DOM.btnCancelAuthModal) DOM.btnCancelAuthModal.addEventListener('click', () => closeModal(DOM.modalAuth));
@@ -522,56 +505,47 @@ async function init() {
   await parseUrlParams();
   initEventListeners();
 
-  try {
-    const res = await fetchLatestCloudState();
-    if (res.ok) {
-      const cloudState = await res.json();
-      if (cloudState) {
-        if (cloudState.streamer) AppState.streamer = cloudState.streamer;
-        if (cloudState.videoUrl !== undefined) AppState.videoUrl = cloudState.videoUrl;
-        if (cloudState.camX !== undefined) AppState.camX = cloudState.camX;
-        if (cloudState.camY !== undefined) AppState.camY = cloudState.camY;
-        if (cloudState.camW !== undefined) AppState.camW = cloudState.camW;
-        if (cloudState.isOnline !== undefined) AppState.isOnline = Boolean(cloudState.isOnline);
-        if (cloudState.offlineImg !== undefined) AppState.offlineImg = cloudState.offlineImg;
-        if (cloudState.onlineImg !== undefined) AppState.onlineImg = cloudState.onlineImg;
+  // Cargar configuración central de STREAM_CONFIG (archivo editable para cliente)
+  if (STREAM_CONFIG) {
+    if (STREAM_CONFIG.kickChannel) AppState.streamer = STREAM_CONFIG.kickChannel;
+    if (STREAM_CONFIG.videoUrl) AppState.videoUrl = STREAM_CONFIG.videoUrl;
+    if (STREAM_CONFIG.offlinePoster) AppState.offlineImg = STREAM_CONFIG.offlinePoster;
+    if (STREAM_CONFIG.onlinePoster) AppState.onlineImg = STREAM_CONFIG.onlinePoster;
+
+    if (STREAM_CONFIG.socials) {
+      if (STREAM_CONFIG.socials.kickSubscribe) {
+        const btnKick = document.getElementById('btn-topbar-kick');
+        if (btnKick) btnKick.href = STREAM_CONFIG.socials.kickSubscribe;
+      }
+      if (STREAM_CONFIG.socials.youtube) {
+        const btnYt = document.getElementById('btn-topbar-yt');
+        if (btnYt) btnYt.href = STREAM_CONFIG.socials.youtube;
+      }
+      if (STREAM_CONFIG.socials.instagram) {
+        const btnIg = document.getElementById('btn-topbar-ig');
+        if (btnIg) btnIg.href = STREAM_CONFIG.socials.instagram;
       }
     }
-  } catch (e) {
-    console.warn('Error obteniendo estado inicial de la nube', e);
   }
 
-  if (AppState.isAdmin) {
-    AppState.isOnline = true;
-    AppState.isViewerConnected = true;
-    document.body.classList.remove('viewer-standby');
-    updateKickViews();
-    applyWebcamPosition();
-    if (AppState.videoUrl && AppState.videoUrl.trim() !== '') {
-      loadVideoSource(AppState.videoUrl);
-    }
-  } else {
-    applyWebcamPosition();
-    const currentName = AppState.streamer || 'Streamer';
-    if (DOM.offlineStreamerName) DOM.offlineStreamerName.textContent = currentName;
-    if (DOM.onlineStreamerName) DOM.onlineStreamerName.textContent = currentName;
+  // Inicializar views de Kick y chat oficial
+  updateKickViews();
 
-    if (DOM.offlineBackdrop && AppState.offlineImg) {
-      DOM.offlineBackdrop.style.backgroundImage = `url('${AppState.offlineImg}')`;
-    }
-    if (DOM.onlineBackdrop && AppState.onlineImg) {
-      DOM.onlineBackdrop.style.backgroundImage = `url('${AppState.onlineImg}')`;
-    }
+  // Cargar transmisión de video (HLS / m3u8 de OBS)
+  if (AppState.videoUrl && AppState.videoUrl.trim() !== '') {
+    loadVideoSource(AppState.videoUrl);
+  }
 
-    if (!AppState.isOnline) {
-      document.body.classList.add('viewer-standby');
-      if (DOM.theaterOfflineScreen) DOM.theaterOfflineScreen.style.display = 'flex';
-      if (DOM.theaterOnlineScreen) DOM.theaterOnlineScreen.style.display = 'none';
-    } else {
-      document.body.classList.add('viewer-standby');
-      if (DOM.theaterOfflineScreen) DOM.theaterOfflineScreen.style.display = 'none';
-      if (DOM.theaterOnlineScreen) DOM.theaterOnlineScreen.style.display = 'flex';
-    }
+  const currentName = AppState.streamer || 'BlackozuTR';
+  if (DOM.currentStreamerLabel) DOM.currentStreamerLabel.textContent = currentName;
+  if (DOM.offlineStreamerName) DOM.offlineStreamerName.textContent = currentName;
+  if (DOM.onlineStreamerName) DOM.onlineStreamerName.textContent = currentName;
+
+  if (DOM.offlineBackdrop && AppState.offlineImg) {
+    DOM.offlineBackdrop.style.backgroundImage = `url('${AppState.offlineImg}')`;
+  }
+  if (DOM.onlineBackdrop && AppState.onlineImg) {
+    DOM.onlineBackdrop.style.backgroundImage = `url('${AppState.onlineImg}')`;
   }
 }
 

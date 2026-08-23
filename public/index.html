@@ -31,55 +31,42 @@
 </head>
 <body class="mode-viewer theme-streamer">
 
-  <!-- TOP BAR / HEADER -->
+  <!-- TOP BAR / HEADER (CLEAN & CUSTOM BRANDED) -->
   <header class="topbar" id="app-header">
     <div class="topbar-left">
-      <div class="brand">
-        <div class="brand-badge">
-          <span class="kick-k">K</span>
-        </div>
-        <div class="brand-text">
-          <h1 class="app-title">Kick Dual<span>Viewer</span></h1>
-          <span class="badge-tag" id="app-mode-badge">Watch Party</span>
-        </div>
-      </div>
-
-      <div class="streamer-pill" id="streamer-pill" title="Canal de Kick actual">
+      <div class="streamer-pill" id="streamer-pill" title="Canal de Kick">
         <span class="live-dot" aria-label="En Vivo"></span>
-        <span class="streamer-name" id="current-streamer-label">Cargando...</span>
+        <span class="streamer-name" id="current-streamer-label">BlackozuTR</span>
       </div>
     </div>
 
-    <!-- Topbar Right Actions -->
+    <!-- Topbar Right: Redes Oficiales (Kick Subscribe, YouTube, Instagram) -->
     <div class="topbar-right">
-      
-      <!-- Botón Único de Configuración (Admin / Streamer) -->
-      <button class="btn btn-primary btn-sm admin-only" id="btn-open-config-modal" title="Configurar Kick, Video y Guardar">
+      <!-- Botón Kick Suscribirse / Loguearse -->
+      <a class="btn-topbar-social btn-kick-sub" id="btn-topbar-kick" href="https://kick.com/BlackozuTR/subscribe" target="_blank" rel="noopener noreferrer" title="Suscribirse / Ingresar a Kick">
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
+          <path d="M4 3h5v6h2V3h5v6h-2v4h2v8h-5v-6h-2v6H4v-8h2V9H4V3z"/>
+        </svg>
+        <span>Ingresar a Kick</span>
+      </a>
+
+      <!-- Botón YouTube -->
+      <a class="btn-topbar-social btn-yt" id="btn-topbar-yt" href="https://www.youtube.com/@blackozu" target="_blank" rel="noopener noreferrer" title="Canal de YouTube">
+        <svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor">
+          <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
+        </svg>
+        <span>YouTube</span>
+      </a>
+
+      <!-- Botón Instagram -->
+      <a class="btn-topbar-social btn-ig" id="btn-topbar-ig" href="https://www.instagram.com/blackozuterror/" target="_blank" rel="noopener noreferrer" title="Instagram Oficial">
         <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <circle cx="12" cy="12" r="3"></circle>
-          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+          <rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect>
+          <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path>
+          <line x1="17.5" y1="6.5" x2="17.51" y2="6.5"></line>
         </svg>
-        <span>Configuración</span>
-      </button>
-
-      <!-- Botón Salir de Modo Admin -->
-      <button class="btn btn-glass btn-sm admin-only" id="btn-exit-admin" title="Salir del modo Streamer">
-        <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
-          <polyline points="16 17 21 12 16 7"></polyline>
-          <line x1="21" y1="12" x2="9" y2="12"></line>
-        </svg>
-        <span class="hide-mobile">Salir Admin</span>
-      </button>
-
-      <!-- Botón de Guía -->
-      <button class="btn-icon" id="btn-sync-guide" title="Guía y Tips de sincronización">
-        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <circle cx="12" cy="12" r="10"></circle>
-          <line x1="12" y1="16" x2="12" y2="12"></line>
-          <line x1="12" y1="8" x2="12.01" y2="8"></line>
-        </svg>
-      </button>
+        <span>Instagram</span>
+      </a>
     </div>
   </header>
 

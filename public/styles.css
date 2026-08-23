@@ -278,11 +278,86 @@ body.mode-admin .viewer-only {
   white-space: nowrap;
 }
 
-/* Topbar Right */
+/* Topbar Right Social Buttons */
 .topbar-right {
   display: flex;
   align-items: center;
   gap: 8px;
+}
+
+.btn-topbar-social {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 11px;
+  height: 28px;
+  border-radius: var(--radius-full);
+  font-family: var(--font-body);
+  font-size: 11px;
+  font-weight: 700;
+  text-decoration: none;
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  transition: all var(--transition-fast);
+}
+
+.btn-topbar-social svg {
+  flex-shrink: 0;
+}
+
+/* Botón Kick Subscribe / Ingresar */
+.btn-topbar-social.btn-kick-sub {
+  background: rgba(83, 252, 24, 0.12);
+  border-color: rgba(83, 252, 24, 0.4);
+  color: var(--kick-green);
+}
+
+.btn-topbar-social.btn-kick-sub:hover {
+  background: var(--kick-green);
+  color: #000000;
+  border-color: var(--kick-green);
+  box-shadow: 0 0 12px var(--kick-green-glow);
+  transform: translateY(-1px);
+}
+
+/* Botón YouTube */
+.btn-topbar-social.btn-yt {
+  background: rgba(255, 0, 0, 0.1);
+  border-color: rgba(255, 0, 0, 0.35);
+  color: #ff4444;
+}
+
+.btn-topbar-social.btn-yt:hover {
+  background: #ff0000;
+  color: #ffffff;
+  border-color: #ff0000;
+  box-shadow: 0 0 12px rgba(255, 0, 0, 0.4);
+  transform: translateY(-1px);
+}
+
+/* Botón Instagram */
+.btn-topbar-social.btn-ig {
+  background: rgba(225, 48, 108, 0.1);
+  border-color: rgba(225, 48, 108, 0.35);
+  color: #f472b6;
+}
+
+.btn-topbar-social.btn-ig:hover {
+  background: linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%);
+  color: #ffffff;
+  border-color: transparent;
+  box-shadow: 0 0 12px rgba(225, 48, 108, 0.5);
+  transform: translateY(-1px);
+}
+
+@media (max-width: 600px) {
+  .btn-topbar-social span {
+    display: none;
+  }
+  .btn-topbar-social {
+    padding: 4px 8px;
+  }
 }
 
 /* Buttons */
