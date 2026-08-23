@@ -212,16 +212,22 @@ export function renderNativeVideo(url, initialSyncState = null) {
           stream.addTrack(event.track);
           videoElem.srcObject = stream;
         }
+        videoElem.play().catch(() => {
+          videoElem.muted = true;
+          videoElem.play().catch(() => {});
+        });
       };
 
       pc.onconnectionstatechange = () => {
-        if (pc.connectionState === 'failed' || pc.connectionState === 'disconnected' || pc.connectionState === 'closed') {
+        if (pc.connectionState === 'connected') {
+          setPlayerOnline();
+        } else if (pc.connectionState === 'failed' || pc.connectionState === 'disconnected' || pc.connectionState === 'closed') {
           setPlayerOffline();
           if (!whepReconnectTimer) {
             whepReconnectTimer = setTimeout(() => {
               whepReconnectTimer = null;
               startWhepConnection();
-            }, 2000);
+            }, 3000);
           }
         }
       };
@@ -242,7 +248,7 @@ export function renderNativeVideo(url, initialSyncState = null) {
             whepReconnectTimer = setTimeout(() => {
               whepReconnectTimer = null;
               startWhepConnection();
-            }, 2000);
+            }, 3000);
           }
           return;
         }
@@ -255,11 +261,12 @@ export function renderNativeVideo(url, initialSyncState = null) {
           whepReconnectTimer = setTimeout(() => {
             whepReconnectTimer = null;
             startWhepConnection();
-          }, 2000);
+          }, 3000);
         }
       }
     };
 
+    setPlayerOffline();
     startWhepConnection();
   } 
   // ==========================================
