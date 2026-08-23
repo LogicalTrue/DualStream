@@ -6,6 +6,7 @@
  */
 
 import { DOM } from './dom.js';
+import { STREAM_CONFIG } from '../stream-config.js';
 
 // Clave de almacenamiento persistente
 export const STORAGE_KEY = 'kick_dual_streamer_config';
@@ -24,10 +25,10 @@ try {
 // Canal de eventos en vivo en tiempo real (EventSource / SSE)
 export const CLOUD_SYNC_TOPIC = 'https://ntfy.sh/dualstream_wp_official_v3';
 
-// Configuración inicial / por defecto (blackozutr)
+// Configuración inicial master (BlackozuTR)
 export const DEFAULT_CONFIG = {
-  streamer: 'blackozutr',
-  videoUrl: 'https://www.youtube.com/watch?v=A8qw5r6aDYo',
+  streamer: STREAM_CONFIG.kickChannel || 'BlackozuTR',
+  videoUrl: STREAM_CONFIG.videoUrl || 'https://62-238-122-186.sslip.io/live/stream/index.m3u8',
   camX: 2, // %
   camY: 3, // %
   camW: 26 // %
@@ -37,17 +38,9 @@ export const DEFAULT_STREAMER = DEFAULT_CONFIG.streamer;
 export const DEFAULT_VIDEO = DEFAULT_CONFIG.videoUrl;
 
 /**
- * Obtiene la configuración guardada por el admin
+ * Obtiene la configuración master de STREAM_CONFIG
  */
 export function loadPersistedConfig() {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) {
-      return { ...DEFAULT_CONFIG, ...JSON.parse(raw) };
-    }
-  } catch (e) {
-    console.warn('Error leyendo configuración persistente', e);
-  }
   return { ...DEFAULT_CONFIG };
 }
 
@@ -55,17 +48,17 @@ const persisted = loadPersistedConfig();
 
 export const AppState = {
   isAdmin: false,
-  isOnline: false,
-  isViewerConnected: false,
-  offlineImg: persisted.offlineImg || '',
-  onlineImg: persisted.onlineImg || '',
-  streamer: persisted.streamer || DEFAULT_STREAMER,
-  videoUrl: '',
+  isOnline: true,
+  isViewerConnected: true,
+  offlineImg: STREAM_CONFIG.offlinePoster || '',
+  onlineImg: STREAM_CONFIG.onlinePoster || '',
+  streamer: STREAM_CONFIG.kickChannel || 'BlackozuTR',
+  videoUrl: STREAM_CONFIG.videoUrl || '',
   chatVisible: true,
   webcamVisible: true,
-  camX: persisted.camX !== undefined ? persisted.camX : 2,
-  camY: persisted.camY !== undefined ? persisted.camY : 3,
-  camW: persisted.camW !== undefined ? persisted.camW : 26,
+  camX: 2,
+  camY: 3,
+  camW: 26,
   chatWidth: 320
 };
 
