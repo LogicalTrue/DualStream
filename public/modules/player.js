@@ -170,8 +170,7 @@ export function renderNativeVideo(url, initialSyncState = null) {
     hls.loadSource(url);
     hls.attachMedia(videoElem);
     
-    hls.on(Hls.Events.MANIFEST_PARSED, () => {
-      // Ocultar pantalla offline si estaba visible
+    const onStreamLive = () => {
       if (DOM.theaterOfflineScreen) DOM.theaterOfflineScreen.style.display = 'none';
       if (DOM.movieMediaWrapper) DOM.movieMediaWrapper.style.display = 'block';
       if (DOM.currentVideoTitle) DOM.currentVideoTitle.textContent = 'En Vivo';
@@ -183,29 +182,32 @@ export function renderNativeVideo(url, initialSyncState = null) {
           videoElem.play().catch(() => {});
         });
       }
-    });
+    };
 
-    let consecutive404Errors = 0;
+    hls.on(Hls.Events.MANIFEST_PARSED, onStreamLive);
+    hls.on(Hls.Events.LEVEL_LOADED, onStreamLive);
+    hls.on(Hls.Events.FRAG_LOADED, onStreamLive);
+
     hls.on(Hls.Events.ERROR, (event, data) => {
       const is404 = (data.response && (data.response.code === 404 || data.response.code === 0)) ||
-                    (data.details && data.details.includes('404'));
+                    (data.details && data.details.includes('404')) ||
+                    data.details === Hls.ErrorDetails.MANIFEST_LOAD_ERROR ||
+                    data.details === Hls.ErrorDetails.LEVEL_LOAD_ERROR;
 
       if (is404) {
-        consecutive404Errors++;
-        // Al primer 404 cuando OBS se apaga, mostrar inmediatamente la imagen offline
         if (DOM.theaterOfflineScreen) DOM.theaterOfflineScreen.style.display = 'flex';
         if (DOM.movieMediaWrapper) DOM.movieMediaWrapper.style.display = 'none';
         if (DOM.currentVideoTitle) DOM.currentVideoTitle.textContent = 'Stream Fuera de Línea';
-      } else {
-        consecutive404Errors = 0;
       }
 
       if (data.fatal) {
         switch (data.type) {
           case Hls.ErrorTypes.NETWORK_ERROR:
             setTimeout(() => {
-              try { hls.startLoad(); } catch(e) {}
-            }, 3000);
+              try { 
+                hls.loadSource(url); 
+              } catch(e) {}
+            }, 2000);
             break;
           case Hls.ErrorTypes.MEDIA_ERROR:
             hls.recoverMediaError();
@@ -216,11 +218,20 @@ export function renderNativeVideo(url, initialSyncState = null) {
                 hls.loadSource(url);
                 hls.attachMedia(videoElem);
               } catch (e) {}
-            }, 3000);
+            }, 2000);
             break;
         }
       }
     });
+
+    // Polling automático constante cada 2s si estaba offline para entrar en vivo apenas prendas OBS
+    const liveWatcher = setInterval(() => {
+      if (DOM.theaterOfflineScreen && DOM.theaterOfflineScreen.style.display !== 'none') {
+        try {
+          hls.loadSource(url);
+        } catch(e) {}
+      }
+    }, 2000);
     activeHlsInstance = hls;
   } else if (isHlsStream(url) && videoElem.canPlayType('application/vnd.apple.mpegurl')) {
     // Safari nativo para HLS
