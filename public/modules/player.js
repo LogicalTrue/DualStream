@@ -167,6 +167,10 @@ export function renderNativeVideo(url, initialSyncState = null) {
 
     const setPlayerOffline = () => {
       isStreamLive = false;
+      try {
+        videoElem.pause();
+        videoElem.currentTime = 0;
+      } catch(e) {}
       if (DOM.theaterOfflineScreen) DOM.theaterOfflineScreen.style.display = 'flex';
       if (DOM.movieMediaWrapper) DOM.movieMediaWrapper.style.display = 'none';
       if (DOM.currentVideoTitle) DOM.currentVideoTitle.textContent = 'Stream Fuera de Línea';
@@ -193,38 +197,23 @@ export function renderNativeVideo(url, initialSyncState = null) {
       setPlayerOnline();
     });
 
-    hls.on(Hls.Events.MANIFEST_PARSED, () => {
-      setPlayerOnline();
-    });
-
     hls.on(Hls.Events.FRAG_LOADED, () => {
       setPlayerOnline();
     });
 
     hls.on(Hls.Events.ERROR, (event, data) => {
-      if (data.fatal) {
+      const is404 = (data.response && (data.response.code === 404 || data.response.code === 0)) ||
+                    (data.details && (data.details.includes('404') || data.details === Hls.ErrorDetails.LEVEL_LOAD_ERROR || data.details === Hls.ErrorDetails.MANIFEST_LOAD_ERROR));
+
+      // Si el servidor responde 404 en index.m3u8 o main_stream.m3u8 (OBS apagado):
+      if (is404 || data.fatal) {
         setPlayerOffline();
-        switch (data.type) {
-          case Hls.ErrorTypes.NETWORK_ERROR:
-            setTimeout(() => {
-              try {
-                hls.loadSource(url);
-                hls.startLoad();
-              } catch(e) {}
-            }, 1500);
-            break;
-          case Hls.ErrorTypes.MEDIA_ERROR:
-            hls.recoverMediaError();
-            break;
-          default:
-            setTimeout(() => {
-              try {
-                hls.loadSource(url);
-                hls.attachMedia(videoElem);
-              } catch(e) {}
-            }, 2000);
-            break;
-        }
+        setTimeout(() => {
+          try {
+            hls.loadSource(url);
+            hls.startLoad();
+          } catch(e) {}
+        }, 1500);
       }
     });
 
