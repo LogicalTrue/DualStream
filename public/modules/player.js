@@ -421,12 +421,12 @@ export function renderNativeVideo(url, initialSyncState = null) {
 
       hls = new Hls({
         enableWorker: true,
-        lowLatencyMode: false,
-        backBufferLength: 60,
-        maxBufferLength: 30,
-        maxMaxBufferLength: 60,
-        liveSyncDurationCount: 3,
-        liveMaxLatencyDurationCount: 12,
+        lowLatencyMode: true,
+        backBufferLength: 0, // 0 buffer pasado: descarta audio viejo inmediatamente para evitar loops y ecos
+        maxBufferLength: 4,
+        maxMaxBufferLength: 8,
+        liveSyncDurationCount: 2,
+        liveMaxLatencyDurationCount: 4,
         liveDurationInfinity: true,
         manifestLoadingMaxRetry: 5,
         manifestLoadingRetryDelay: 1500,
@@ -557,12 +557,32 @@ export function loadVideoSource(rawInput, initialSyncState = null) {
     url = iframeSrcMatch[1];
   }
 
+  if (activeNativeVideo && activeNativeVideo.dataset.url === url && isHlsStream(url)) {
+    return;
+  }
+
   AppState.videoUrl = url;
   syncUrlParams();
 
+  if (activeHlsInstance) {
+    try {
+      activeHlsInstance.stopLoad();
+      activeHlsInstance.detachMedia();
+      activeHlsInstance.destroy();
+    } catch (e) {}
+    activeHlsInstance = null;
+  }
+  if (activeNativeVideo) {
+    try {
+      activeNativeVideo.pause();
+      activeNativeVideo.removeAttribute('src');
+      activeNativeVideo.load();
+    } catch (e) {}
+    activeNativeVideo = null;
+  }
+
   const wrapper = document.getElementById('movie-media-wrapper') || DOM.movieMediaWrapper;
   if (wrapper) wrapper.innerHTML = '';
-  activeNativeVideo = null;
   if (ytPlayerInstance && typeof ytPlayerInstance.destroy === 'function') {
     try { ytPlayerInstance.destroy(); } catch (e) {}
     ytPlayerInstance = null;
