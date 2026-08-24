@@ -1442,11 +1442,10 @@ body.chat-is-hidden .btn-floating-chat-toggle {
     display: none !important;
   }
 
-  /* Mostrar botón flotante en horizontal si el chat no está abierto */
-  body:not(.landscape-chat-open) .btn-floating-chat-toggle {
-    display: inline-flex !important;
-    bottom: 24px !important;
-    right: 28px !important;
+  /* Ocultar botón flotante de chat en horizontal para vista limpia de cine a pantalla completa */
+  .btn-floating-chat-toggle,
+  #btn-floating-chat-toggle {
+    display: none !important;
   }
 
   .chat-header {
@@ -1459,6 +1458,17 @@ body.chat-is-hidden .btn-floating-chat-toggle {
   .chat-frame-wrapper {
     height: calc(100dvh - 38px) !important;
   }
+}
+
+/* Ocultar botón flotante de chat en modo Pantalla Completa nativo */
+:fullscreen .btn-floating-chat-toggle,
+:-webkit-full-screen .btn-floating-chat-toggle,
+:-moz-full-screen .btn-floating-chat-toggle,
+:fullscreen #btn-floating-chat-toggle,
+:-webkit-full-screen #btn-floating-chat-toggle,
+body.is-fullscreen .btn-floating-chat-toggle,
+body.is-fullscreen #btn-floating-chat-toggle {
+  display: none !important;
 }
 
 /* ==========================================================================

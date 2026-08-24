@@ -735,7 +735,7 @@ export function updateVideoVolume(val) {
 
 export function toggleFullscreen(element) {
   if (!element) return;
-  if (!document.fullscreenElement) {
+  if (!document.fullscreenElement && !document.webkitFullscreenElement && !document.msFullscreenElement) {
     if (element.requestFullscreen) {
       element.requestFullscreen();
     } else if (element.webkitRequestFullscreen) {
@@ -746,8 +746,26 @@ export function toggleFullscreen(element) {
   } else {
     if (document.exitFullscreen) {
       document.exitFullscreen();
+    } else if (document.webkitExitFullscreen) {
+      document.webkitExitFullscreen();
+    } else if (document.msExitFullscreen) {
+      document.msExitFullscreen();
     }
   }
+}
+
+if (typeof document !== 'undefined') {
+  const syncFullscreenClass = () => {
+    const isFs = Boolean(document.fullscreenElement || document.webkitFullscreenElement || document.msFullscreenElement);
+    if (isFs) {
+      document.body.classList.add('is-fullscreen');
+    } else {
+      document.body.classList.remove('is-fullscreen');
+    }
+  };
+  document.addEventListener('fullscreenchange', syncFullscreenClass);
+  document.addEventListener('webkitfullscreenchange', syncFullscreenClass);
+  document.addEventListener('msfullscreenchange', syncFullscreenClass);
 }
 
 export async function reloadMoviePlayer(getLatestSync) {
