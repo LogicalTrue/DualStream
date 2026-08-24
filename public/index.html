@@ -234,32 +234,7 @@
             </div>
           </div>
 
-          <!-- WEBCAM / STREAMER CAMERA OVERLAY (Directamente sobre el video 16:9) -->
-          <div class="webcam-card" id="webcam-card">
-            <!-- Transparent Drag & Resize Overlay for Admin -->
-            <div class="webcam-drag-overlay" id="webcam-drag-overlay"></div>
-            <div class="webcam-resize-handle" id="webcam-resize-handle"></div>
-
-            <!-- Escudo transparente inerte (evita 100% cualquier overlay de pausa, play o hover de Kick) -->
-            <div class="webcam-inert-shield"></div>
-
-            <!-- Webcam Iframe Frame -->
-            <div class="webcam-frame-wrapper">
-              <iframe 
-                id="kick-player-frame"
-                class="webcam-frame"
-                src="about:blank"
-                scrolling="no"
-                allow="autoplay; fullscreen; encrypted-media; picture-in-picture; clipboard-write; microphone"
-                referrerpolicy="no-referrer-when-downgrade"
-                title="Streamer Webcam">
-              </iframe>
-            </div>
-
-          </div>
-        </div>
-
-        <!-- Botón flotante para abrir el chat cuando está cerrado -->
+          <!-- Botón flotante para abrir el chat cuando está cerrado -->
         <button class="btn-floating-chat-toggle" id="btn-floating-chat-toggle" title="Abrir Chat de Kick">
           <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
@@ -291,13 +266,13 @@
         </div>
       </header>
 
-      <!-- Chat Frame Container -->
+      <!-- Chat Frame Container (Solo texto y emotes, sin permisos de audio) -->
       <div class="chat-viewport">
         <iframe
           id="kick-chat-frame"
           class="chat-frame"
           src="about:blank"
-          allow="autoplay; encrypted-media; clipboard-write; clipboard-read; picture-in-picture"
+          allow="clipboard-write; clipboard-read"
           referrerpolicy="no-referrer-when-downgrade"
           title="Kick Live Chat">
         </iframe>
@@ -645,6 +620,6 @@
   <div class="toast-container" id="toast-container" aria-live="polite"></div>
 
   <!-- Module Script Entrypoint -->
-  <script type="module" src="./main.js?v=20260824_0042"></script>
+  <script type="module" src="./main.js?v=20260824_0105"></script>
 </body>
 </html>

@@ -283,18 +283,20 @@ export function applyIncomingConfig(config) {
   applyWebcamPosition();
 
   if (config.isOnline !== undefined) {
+    const wasOnline = AppState.isOnline;
     AppState.isOnline = Boolean(config.isOnline);
+    
     if (isHlsStream(AppState.videoUrl)) {
-      if (AppState.isOnline) {
+      // Transición Offline -> Online: Iniciar solo UNA vez
+      if (AppState.isOnline && !wasOnline) {
         if (typeof hlsRetryFn === 'function') {
-          // Ya hay un <video>+hls.js montado esperando: solo reintentamos la
-          // reproducción, sin recrear el elemento ni tocar el .m3u8 desde el
-          // cliente antes de tiempo.
           hlsRetryFn();
         } else if (!activeNativeVideo) {
           loadVideoSource(AppState.videoUrl);
         }
-      } else {
+      } 
+      // Transición Online -> Offline: Apagar solo UNA vez
+      else if (!AppState.isOnline && wasOnline) {
         const offlineScreen = document.getElementById('theater-offline-screen');
         const mediaWrapper = document.getElementById('movie-media-wrapper');
         if (offlineScreen) offlineScreen.style.setProperty('display', 'flex', 'important');
