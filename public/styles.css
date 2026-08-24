@@ -2195,6 +2195,14 @@ body.chat-is-hidden .chat-collapsed-trigger {
     --topbar-height: 44px;
   }
 
+  html, body {
+    height: 100dvh !important;
+    min-height: 100dvh !important;
+    overflow: hidden !important;
+    display: flex !important;
+    flex-direction: column !important;
+  }
+
   .app-header {
     display: flex !important;
     height: 44px;
@@ -2206,9 +2214,9 @@ body.chat-is-hidden .chat-collapsed-trigger {
     border-bottom: 1px solid var(--border-subtle);
     justify-content: center;
     align-items: center;
-    position: sticky;
-    top: 0;
+    position: relative;
     z-index: 100;
+    flex-shrink: 0;
   }
 
   .topbar-left,
@@ -2244,91 +2252,86 @@ body.chat-is-hidden .chat-collapsed-trigger {
     width: 16px !important;
     height: 16px !important;
   }
-}
-
-@media (max-width: 768px) {
-  html, body {
-    height: auto;
-    overflow-y: auto;
-    overflow-x: hidden;
-  }
-
-  .hide-mobile {
-    display: none !important;
-  }
-
-  .hide-desktop {
-    display: inline-flex !important;
-  }
-
-  .chat-resizer {
-    display: none;
-  }
 
   .watch-container {
-    height: auto;
-    flex-direction: column;
-    overflow: visible;
+    height: calc(100dvh - 44px) !important;
+    flex: 1 1 auto !important;
+    display: flex !important;
+    flex-direction: column !important;
+    overflow: hidden !important;
   }
 
+  /* Video Stage CENTRADO VERTICALMENTE EN EL MEDIO DEL CELULAR */
   .stage-section {
-    flex: none;
-    width: 100%;
-    height: auto;
-    position: relative;
+    flex: 1 1 auto !important;
+    width: 100% !important;
+    height: 100% !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    position: relative !important;
+    background: #000000 !important;
   }
 
   .video-theater {
-    width: 100%;
-    min-width: 100%;
-    aspect-ratio: 16 / 9;
-    position: relative;
-    display: block;
-    overflow: hidden;
+    width: 100% !important;
+    max-width: 100% !important;
+    aspect-ratio: 16 / 9 !important;
+    position: relative !important;
+    display: block !important;
+    overflow: hidden !important;
+    margin: auto 0 !important;
   }
 
   .movie-player-box {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    aspect-ratio: 16 / 9;
+    position: relative !important;
+    width: 100% !important;
+    height: 100% !important;
+    aspect-ratio: 16 / 9 !important;
   }
 
   .media-container,
   .native-video-player {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    object-fit: contain;
-    background: #000000;
+    position: absolute !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+    object-fit: contain !important;
+    background: #000000 !important;
   }
 
-  .webcam-card {
-    border-radius: var(--radius-sm);
+  /* Cuando el chat está cerrado, el video queda en el centro vertical de todo el celular */
+  body.chat-is-closed .stage-section,
+  body.chat-is-hidden .stage-section {
+    height: calc(100dvh - 44px) !important;
+    flex: 1 1 100% !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
   }
 
-  .webcam-header {
-    height: 22px;
-    min-height: 22px;
-    padding: 0 4px;
-  }
-
-  .webcam-streamer-name {
-    font-size: 9px;
-  }
-
+  /* Chat cuando está abierto en la parte inferior */
   .chat-section {
     width: 100% !important;
     max-width: 100% !important;
-    min-height: 260px !important;
-    height: 280px !important;
-    max-height: 36vh !important;
-    border-left: none;
-    border-top: 1px solid var(--border-subtle);
+    height: 260px !important;
+    min-height: 240px !important;
+    max-height: 38vh !important;
+    flex-shrink: 0 !important;
+    border-left: none !important;
+    border-top: 1px solid var(--border-subtle) !important;
+  }
+
+  body.chat-is-closed .chat-section,
+  body.chat-is-hidden .chat-section {
+    display: none !important;
+  }
+}
+
+@media (max-width: 768px) and (orientation: landscape) {
+  .app-header {
+    display: none !important;
   }
 }
 
