@@ -28,7 +28,7 @@ export const CLOUD_SYNC_TOPIC = 'https://ntfy.sh/dualstream_wp_official_v3';
 // Configuración inicial master (BlackozuTR)
 export const DEFAULT_CONFIG = {
   streamer: STREAM_CONFIG.kickChannel || 'BlackozuTR',
-  videoUrl: STREAM_CONFIG.videoUrl || 'https://62-238-122-186.sslip.io/live/stream/index.m3u8',
+  videoUrl: STREAM_CONFIG.videoUrl || 'https://stream.blackozulive.com/live/stream/index.m3u8',
   camX: 2, // %
   camY: 3, // %
   camW: 26 // %
