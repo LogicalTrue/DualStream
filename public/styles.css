@@ -2248,20 +2248,27 @@ body.chat-is-hidden .chat-collapsed-trigger {
   }
 
   .watch-container {
+    position: fixed !important;
+    top: 44px !important;
+    left: 0 !important;
+    width: 100vw !important;
     height: calc(100dvh - 44px) !important;
-    flex: 1 1 auto !important;
-    display: flex !important;
-    flex-direction: column !important;
     overflow: hidden !important;
+    background: #000000 !important;
   }
 
-  /* Video Stage con posición FIJA E INVARIABLE (Nunca se mueve al abrir/cerrar chat) */
+  /* Video Stage FIJO EXACTAMENTE EN EL MEDIO GEOMÉTRICO VERTICAL (50% altura) */
   .stage-section {
-    flex: 0 0 auto !important;
+    position: absolute !important;
+    top: 50% !important;
+    left: 0 !important;
+    transform: translateY(-50%) !important;
     width: 100% !important;
     aspect-ratio: 16 / 9 !important;
-    position: relative !important;
+    z-index: 10 !important;
     background: #000000 !important;
+    margin: 0 !important;
+    padding: 0 !important;
   }
 
   .video-theater {
@@ -2291,18 +2298,23 @@ body.chat-is-hidden .chat-collapsed-trigger {
     background: #000000 !important;
   }
 
-  /* Chat: Ocupa únicamente la franja inferior debajo del reproductor */
+  /* Chat: Ocupa exclusivamente la franja inferior debajo del video centrado */
   .chat-section {
-    flex: 1 1 auto !important;
+    position: absolute !important;
+    top: calc(50% + (100vw * 9 / 32)) !important;
+    bottom: 0 !important;
+    left: 0 !important;
     width: 100% !important;
     max-width: 100% !important;
-    height: 100% !important;
+    height: auto !important;
     min-height: 0 !important;
     max-height: none !important;
+    z-index: 20 !important;
     display: flex !important;
     flex-direction: column !important;
     border-left: none !important;
     border-top: 1px solid var(--border-subtle) !important;
+    background: var(--bg-surface) !important;
   }
 
   body.chat-is-closed .chat-section,
