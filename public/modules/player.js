@@ -436,44 +436,21 @@ export function renderNativeVideo(url, initialSyncState = null) {
 
       hls = new Hls({
         enableWorker: true,
-        startPosition: -1,     // CRÍTICO: Reproducir estrictamente desde la punta en vivo (último fragmento)
-        lowLatencyMode: false,
-        backBufferLength: 0,   // Descarta inmediatamente cualquier fragmento de audio pasado
-        maxBufferLength: 3,
-        maxMaxBufferLength: 6,
-        liveSyncDurationCount: 2, // Búfer compacto de 2 fragmentos (4s) para mantenerse en la punta del directo
-        liveMaxLatencyDurationCount: 4,
+        backBufferLength: 0,
+        maxBufferLength: 10,
+        maxMaxBufferLength: 20,
+        liveSyncDurationCount: 3,
+        liveMaxLatencyDurationCount: 10,
         liveDurationInfinity: true,
-        highBufferWatchdogPeriod: 1,
-        nudgeMaxRetry: 5,
-        nudgeOffset: 0.1,      // Siempre empujar hacia adelante al vivo, NUNCA retroceder
-        maxStarvationDelay: 1,
         manifestLoadingMaxRetry: 5,
         manifestLoadingRetryDelay: 1500,
         levelLoadingMaxRetry: 5,
         levelLoadingRetryDelay: 1500,
         fragLoadingMaxRetry: 5,
         fragLoadingRetryDelay: 1000,
-        xhrSetup: function(xhr, url) {
-          if (url && url.includes('.m3u8')) {
-            // Anti-caching estricto para evitar que listas de reproducción cacheadas causen loops de fragmentos viejos
-            try {
-              xhr.setRequestHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
-              xhr.setRequestHeader('Pragma', 'no-cache');
-            } catch(e) {}
-          }
-        }
       });
 
       activeHlsInstance = hls;
-
-      // Guardia anti-regresión: si el navegador intenta retroceder en el tiempo a un búfer viejo
-      videoElem.addEventListener('seeking', () => {
-        if (hls && hls.liveSyncPosition && videoElem.currentTime < hls.liveSyncPosition - 3) {
-          console.warn('[DualStream Audio Sync] ⏭️ Evitando salto a audio viejo -> Reubicando en vivo...');
-          videoElem.currentTime = hls.liveSyncPosition;
-        }
-      });
 
       hls.on(Hls.Events.LEVEL_LOADED, () => {
         if (!isPlayingLive) {
