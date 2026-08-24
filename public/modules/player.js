@@ -432,13 +432,17 @@ export function renderNativeVideo(url, initialSyncState = null) {
       activeHlsInstance = hls;
 
       hls.on(Hls.Events.LEVEL_LOADED, () => {
-        isPlayingLive = true;
-        setPlayerOnline();
+        if (!isPlayingLive) {
+          isPlayingLive = true;
+          setPlayerOnline();
+        }
       });
 
       hls.on(Hls.Events.FRAG_LOADED, (ev, data) => {
-        isPlayingLive = true;
-        setPlayerOnline();
+        if (!isPlayingLive) {
+          isPlayingLive = true;
+          setPlayerOnline();
+        }
         const durationSec = data.frag.duration || 2;
         const loadTimeMs = Math.round(data.stats.loading.end - data.stats.loading.start);
         const bytes = data.stats.total || 0;
