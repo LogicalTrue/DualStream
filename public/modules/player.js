@@ -454,13 +454,22 @@ export function renderNativeVideo(url, initialSyncState = null) {
         levelLoadingRetryDelay: 1500,
         fragLoadingMaxRetry: 5,
         fragLoadingRetryDelay: 1000,
+        xhrSetup: function(xhr, url) {
+          if (url && url.includes('.m3u8')) {
+            // Anti-caching estricto para evitar que listas de reproducción cacheadas causen loops de fragmentos viejos
+            try {
+              xhr.setRequestHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+              xhr.setRequestHeader('Pragma', 'no-cache');
+            } catch(e) {}
+          }
+        }
       });
 
       activeHlsInstance = hls;
 
       // Guardia anti-regresión: si el navegador intenta retroceder en el tiempo a un búfer viejo
       videoElem.addEventListener('seeking', () => {
-        if (hls && hls.liveSyncPosition && videoElem.currentTime < hls.liveSyncPosition - 4) {
+        if (hls && hls.liveSyncPosition && videoElem.currentTime < hls.liveSyncPosition - 3) {
           console.warn('[DualStream Audio Sync] ⏭️ Evitando salto a audio viejo -> Reubicando en vivo...');
           videoElem.currentTime = hls.liveSyncPosition;
         }
