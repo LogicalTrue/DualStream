@@ -167,11 +167,33 @@ export function renderNativeVideo(url, initialSyncState = null) {
     videoElem.volume = 1.0;
     updateVideoVolume(100);
     videoElem.play().catch(() => {});
+    console.log('%c[DualStream Audio Monitor] 🔊 Audio desmuteado por interacción del usuario', 'color: #38bdf8; font-weight: bold;');
   };
   videoElem.addEventListener('click', enableSoundOnInteraction);
   document.addEventListener('click', enableSoundOnInteraction, { once: true });
   videoElem.dataset.url = url;
   activeNativeVideo = videoElem;
+
+  // Monitor continuo de diagnóstico de audio: audita todos los elementos de sonido de la página
+  if (!window._audioMonitorInterval) {
+    window._audioMonitorInterval = setInterval(() => {
+      const allVideos = document.querySelectorAll('video');
+      const allAudios = document.querySelectorAll('audio');
+      const allIframes = document.querySelectorAll('iframe');
+      
+      let playingCount = 0;
+      allVideos.forEach(v => {
+        if (!v.paused && !v.muted && v.volume > 0) playingCount++;
+      });
+      allAudios.forEach(a => {
+        if (!a.paused && !a.muted && a.volume > 0) playingCount++;
+      });
+
+      if (playingCount > 0) {
+        console.log(`%c[DualStream Audio Diagnostics] 🎧 Canales emitiendo sonido en la web: ${playingCount} (Total <video>: ${allVideos.length}, <audio>: ${allAudios.length}, <iframe>: ${allIframes.length})`, 'color: #53fc18;');
+      }
+    }, 4000);
+  }
 
   const wrapper = document.getElementById('movie-media-wrapper') || DOM.movieMediaWrapper;
   if (wrapper) {
