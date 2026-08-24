@@ -327,6 +327,30 @@ export function renderNativeVideo(url, initialSyncState = null) {
       telemetryState.liveDelaySec = Math.max(0, parseFloat((activeHlsInstance.liveSyncPosition - videoElem.currentTime).toFixed(1)));
     }
 
+    // 5. Medición de Memoria RAM en Vivo (Google Chrome / Android)
+    let ramMbText = '-- MB';
+    let ramLimitText = 'Límite: -- MB';
+    let rawRamNum = 0;
+    if (window.performance && performance.memory) {
+      rawRamNum = Math.round(performance.memory.usedJSHeapSize / (1024 * 1024));
+      const totalMb = Math.round(performance.memory.totalJSHeapSize / (1024 * 1024));
+      const limitMb = Math.round(performance.memory.jsHeapSizeLimit / (1024 * 1024));
+      ramMbText = `${rawRamNum} MB`;
+      ramLimitText = `Total: ${totalMb} MB / Máx: ${limitMb} MB`;
+    } else if (navigator.deviceMemory) {
+      ramMbText = `${navigator.deviceMemory} GB RAM`;
+      ramLimitText = 'Navegador Safari / WebKit';
+    }
+
+    // 6. Conexión de Red (4G / 5G / WiFi)
+    let connText = 'Red: 4G / 5G / WiFi';
+    if (navigator.connection) {
+      const conn = navigator.connection;
+      const type = conn.effectiveType ? conn.effectiveType.toUpperCase() : 'WIFI';
+      const rtt = conn.rtt ? `${conn.rtt}ms RTT` : '';
+      connText = `Red: ${type} ${rtt}`.trim();
+    }
+
     // Actualizar DOM del HUD si está visible
     const hudFps = document.getElementById('hud-fps');
     const hudDropped = document.getElementById('hud-dropped-frames');
@@ -336,6 +360,9 @@ export function renderNativeVideo(url, initialSyncState = null) {
     const hudLatency = document.getElementById('hud-latency');
     const hudLiveDelay = document.getElementById('hud-live-delay');
     const hudRes = document.getElementById('hud-resolution');
+    const hudRam = document.getElementById('hud-ram');
+    const hudRamLimit = document.getElementById('hud-ram-limit');
+    const hudConnType = document.getElementById('hud-connection-type');
 
     if (hudFps) {
       hudFps.textContent = `${telemetryState.currentFps} FPS`;
@@ -351,10 +378,16 @@ export function renderNativeVideo(url, initialSyncState = null) {
       hudBufferFill.style.width = `${pct}%`;
       hudBufferFill.style.backgroundColor = telemetryState.bufferSeconds >= 3.0 ? '#53fc18' : telemetryState.bufferSeconds >= 1.0 ? '#f59e0b' : '#ef4444';
     }
+    if (hudRam) {
+      hudRam.textContent = ramMbText;
+      hudRam.className = 'telemetry-val ' + (rawRamNum > 0 && rawRamNum < 45 ? 'good' : rawRamNum < 100 ? 'warn' : 'bad');
+    }
+    if (hudRamLimit) hudRamLimit.textContent = ramLimitText;
     if (hudSpeed) hudSpeed.textContent = telemetryState.downloadSpeedMbps ? `${telemetryState.downloadSpeedMbps} Mbps` : '-- Mbps';
     if (hudLatency) hudLatency.textContent = `Descarga: ${telemetryState.downloadLatencyMs} ms`;
     if (hudLiveDelay) hudLiveDelay.textContent = `${telemetryState.liveDelaySec} s`;
     if (hudRes) hudRes.textContent = `Resolución: ${telemetryState.resolution}`;
+    if (hudConnType) hudConnType.textContent = connText;
   };
 
   const telemetryInterval = setInterval(updateTelemetryHud, 1000);
@@ -376,12 +409,17 @@ export function renderNativeVideo(url, initialSyncState = null) {
 
   if (btnHudCopy) {
     btnHudCopy.onclick = () => {
+      let ramInfo = 'No disponible';
+      if (window.performance && performance.memory) {
+        ramInfo = `${Math.round(performance.memory.usedJSHeapSize / (1024 * 1024))} MB / Límite: ${Math.round(performance.memory.jsHeapSizeLimit / (1024 * 1024))} MB`;
+      }
       const report = [
         `=== INFORME DE RENDIMIENTO & DIAGNÓSTICO DUALSTREAM ===`,
         `Fecha: ${new Date().toISOString()}`,
         `Streamer: ${AppState.streamer || 'BlackozuTR'}`,
         `URL Video: ${url}`,
         `Estado: ${!videoElem.paused ? 'REPRODUCIENDO' : 'PAUSADO/OFFLINE'}`,
+        `Memoria RAM: ${ramInfo}`,
         `FPS: ${telemetryState.currentFps} FPS | Perdidos: ${telemetryState.droppedFrames}`,
         `Búfer Acumulado: ${telemetryState.bufferSeconds} s`,
         `Velocidad Fragmento: ${telemetryState.downloadSpeedMbps} Mbps (${telemetryState.downloadLatencyMs} ms)`,

@@ -25,7 +25,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 
-  <link rel="stylesheet" href="styles.css?v=20260824_20">
+  <link rel="stylesheet" href="styles.css?v=20260824_21">
   <!-- WebRTC Realtime PeerJS for 0ms Instant Signaling -->
   <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
   <!-- YouTube IFrame API -->
@@ -219,6 +219,11 @@
                 <div class="telemetry-buffer-bar"><div class="telemetry-buffer-fill" id="hud-buffer-bar-fill"></div></div>
               </div>
               <div class="telemetry-card">
+                <span class="telemetry-label">Memoria RAM en Uso</span>
+                <span class="telemetry-val" id="hud-ram">-- MB</span>
+                <small class="telemetry-sub" id="hud-ram-limit">Límite: -- MB</small>
+              </div>
+              <div class="telemetry-card">
                 <span class="telemetry-label">Velocidad de Descarga</span>
                 <span class="telemetry-val" id="hud-speed">-- Mbps</span>
                 <small class="telemetry-sub" id="hud-latency">Ping descarga: -- ms</small>
@@ -227,6 +232,11 @@
                 <span class="telemetry-label">Retraso al Vivo</span>
                 <span class="telemetry-val" id="hud-live-delay">-- s</span>
                 <small class="telemetry-sub" id="hud-resolution">Resolución: --</small>
+              </div>
+              <div class="telemetry-card">
+                <span class="telemetry-label">Estado Red & CDN</span>
+                <span class="telemetry-val" id="hud-cdn-status" style="color: var(--kick-green);">Cloudflare Edge</span>
+                <small class="telemetry-sub" id="hud-connection-type">Red: 4G / 5G / WiFi</small>
               </div>
             </div>
             <div class="telemetry-logs-wrapper">
@@ -622,6 +632,6 @@
   <div class="toast-container" id="toast-container" aria-live="polite"></div>
 
   <!-- Module Script Entrypoint -->
-  <script type="module" src="./main.js?v=20260824_20"></script>
+  <script type="module" src="./main.js?v=20260824_21"></script>
 </body>
 </html>
