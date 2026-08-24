@@ -186,6 +186,18 @@ export function renderNativeVideo(url, initialSyncState = null) {
   videoElem.preload = 'auto';
   videoElem.volume = 1.0;
   videoElem.dataset.url = url;
+  
+  videoElem.addEventListener('webkitbeginfullscreen', () => {
+    document.body.classList.add('is-fullscreen');
+    const floatChatBtn = document.getElementById('btn-floating-chat-toggle');
+    if (floatChatBtn) floatChatBtn.style.setProperty('display', 'none', 'important');
+  });
+  videoElem.addEventListener('webkitendfullscreen', () => {
+    document.body.classList.remove('is-fullscreen');
+    const floatChatBtn = document.getElementById('btn-floating-chat-toggle');
+    if (floatChatBtn) floatChatBtn.style.removeProperty('display');
+  });
+
   activeNativeVideo = videoElem;
 
   const wrapper = document.getElementById('movie-media-wrapper') || DOM.movieMediaWrapper;
@@ -734,18 +746,31 @@ export function updateVideoVolume(val) {
 }
 
 export function toggleFullscreen(element) {
-  if (!element) return;
-  if (!document.fullscreenElement && !document.webkitFullscreenElement && !document.msFullscreenElement) {
+  if (!element) element = document.getElementById('stage-section') || document.body;
+  const isFs = Boolean(document.fullscreenElement || document.webkitFullscreenElement || document.msFullscreenElement);
+  const floatChatBtn = document.getElementById('btn-floating-chat-toggle');
+
+  if (!isFs) {
+    // ENTRANDO A PANTALLA COMPLETA
+    document.body.classList.add('is-fullscreen');
+    element.classList.add('is-fullscreen');
+    if (floatChatBtn) floatChatBtn.style.setProperty('display', 'none', 'important');
+
     if (element.requestFullscreen) {
-      element.requestFullscreen();
+      element.requestFullscreen().catch(() => {});
     } else if (element.webkitRequestFullscreen) {
       element.webkitRequestFullscreen();
     } else if (element.msRequestFullscreen) {
       element.msRequestFullscreen();
     }
   } else {
+    // SALIENDO DE PANTALLA COMPLETA
+    document.body.classList.remove('is-fullscreen');
+    element.classList.remove('is-fullscreen');
+    if (floatChatBtn) floatChatBtn.style.removeProperty('display');
+
     if (document.exitFullscreen) {
-      document.exitFullscreen();
+      document.exitFullscreen().catch(() => {});
     } else if (document.webkitExitFullscreen) {
       document.webkitExitFullscreen();
     } else if (document.msExitFullscreen) {
@@ -757,12 +782,20 @@ export function toggleFullscreen(element) {
 if (typeof document !== 'undefined') {
   const syncFullscreenClass = () => {
     const isFs = Boolean(document.fullscreenElement || document.webkitFullscreenElement || document.msFullscreenElement);
+    const floatChatBtn = document.getElementById('btn-floating-chat-toggle');
+    const stageSec = document.getElementById('stage-section');
+
     if (isFs) {
       document.body.classList.add('is-fullscreen');
+      if (stageSec) stageSec.classList.add('is-fullscreen');
+      if (floatChatBtn) floatChatBtn.style.setProperty('display', 'none', 'important');
     } else {
       document.body.classList.remove('is-fullscreen');
+      if (stageSec) stageSec.classList.remove('is-fullscreen');
+      if (floatChatBtn) floatChatBtn.style.removeProperty('display');
     }
   };
+
   document.addEventListener('fullscreenchange', syncFullscreenClass);
   document.addEventListener('webkitfullscreenchange', syncFullscreenClass);
   document.addEventListener('msfullscreenchange', syncFullscreenClass);

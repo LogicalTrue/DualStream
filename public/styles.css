@@ -1310,10 +1310,22 @@ body.mode-viewer .webcam-resize-handle {
   color: var(--kick-green);
 }
 
-/* Mostrar botón flotante siempre que el chat esté cerrado (PC, Laptop, Tablet y Móvil) */
-body.chat-is-closed .btn-floating-chat-toggle,
-body.chat-is-hidden .btn-floating-chat-toggle {
+/* Mostrar botón flotante siempre que el chat esté cerrado (PC, Laptop, Tablet y Móvil), EXCEPTO en Fullscreen */
+body.chat-is-closed:not(.is-fullscreen) .btn-floating-chat-toggle,
+body.chat-is-hidden:not(.is-fullscreen) .btn-floating-chat-toggle {
   display: inline-flex !important;
+}
+
+body.is-fullscreen .btn-floating-chat-toggle,
+body.is-fullscreen #btn-floating-chat-toggle,
+:fullscreen .btn-floating-chat-toggle,
+:-webkit-full-screen .btn-floating-chat-toggle,
+#stage-section:fullscreen .btn-floating-chat-toggle,
+#stage-section:-webkit-full-screen .btn-floating-chat-toggle {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
 }
 
 @media (max-width: 768px) and (orientation: portrait) {
