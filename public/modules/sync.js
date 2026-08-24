@@ -21,6 +21,12 @@ let peerInstance = null;
 let viewerConnections = [];
 let adminConnToMaster = null;
 
+// Tope de conexiones WebRTC directas que acepta el navegador del admin (host).
+// Es una topología estrella: cada viewer conectado vive como una RTCPeerConnection
+// más en SU máquina. Con audiencias grandes, esto puede colgar su PC/conexión
+// mucho antes que cualquier límite de servidor. Por eso hay un cupo defensivo.
+const MAX_WEBRTC_VIEWER_CONNECTIONS = 40;
+
 // Configuración STUN global para atravesar NAT y firewalls de celulares (4G/5G/WiFi)
 const PEER_CONFIG = {
   debug: 0,
@@ -337,6 +343,16 @@ export function initPeerSignaling() {
       });
 
       peerInstance.on('connection', (conn) => {
+        // Tope de seguridad: cada conexión WebRTC vive en el navegador del admin
+        // (topología estrella, todo termina en su propia PC). Sin límite, un evento
+        // con miles de viewers puede saturar su CPU/subida y colgarle el navegador.
+        // Los que quedan afuera del cupo siguen sincronizados igual vía el poll de
+        // 800ms a /api/sync (ver fetchCloud más abajo) — no pierden funcionalidad.
+        if (viewerConnections.length >= MAX_WEBRTC_VIEWER_CONNECTIONS) {
+          try { conn.close(); } catch (e) {}
+          return;
+        }
+
         viewerConnections.push(conn);
 
         conn.on('open', () => {

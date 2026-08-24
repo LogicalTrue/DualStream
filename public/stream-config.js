@@ -9,8 +9,8 @@ export const STREAM_CONFIG = {
   // Canal / Usuario de Kick (para el chat en vivo con 7TV y views automáticos)
   kickChannel: 'blackozutr',
 
-  // URL del Video o Transmisión en Vivo (HLS .m3u8 de OBS)
-  videoUrl: 'https://62-238-122-186.sslip.io/live/stream/index.m3u8',
+  // URL del Video o Transmisión en Vivo (HLS con CDN Cloudflare oficial)
+  videoUrl: 'https://stream.blackozulive.com/live/stream/index.m3u8',
 
   // Pantallas de espera:
   // Imagen de Portada cuando el stream está APAGADO / OFFLINE (opcional)
