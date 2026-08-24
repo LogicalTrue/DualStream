@@ -398,6 +398,13 @@ export function renderNativeVideo(url, initialSyncState = null) {
         hls = null;
       }
       activeHlsInstance = null;
+      // Forzar al navegador a descartar cualquier buffer de audio/video que haya
+      // quedado del stream anterior. Sin esto, al reconectar puede "revivir" segmentos
+      // viejos superpuestos con el audio en vivo (efecto eco/loop de la sesión previa).
+      try {
+        videoElem.removeAttribute('src');
+        videoElem.load();
+      } catch (e) {}
     };
 
     const startHlsPlayback = () => {
