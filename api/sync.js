@@ -5,7 +5,7 @@
 
 let memoryStateStore = {
   streamer: 'BlackozuTR',
-  videoUrl: 'https://62-238-122-186.sslip.io/live/stream/index.m3u8',
+  videoUrl: 'https://stream.blackozulive.com/live/stream/index.m3u8',
   camX: 2,
   camY: 3,
   camW: 26,
@@ -258,7 +258,15 @@ module.exports = async (req, res) => {
   // --- GET: Obtener el estado actual más reciente con verificación server-side ---
   let currentState = (await getFromRedis()) || memoryStateStore;
 
-  const targetVideoUrl = currentState.videoUrl || 'https://62-238-122-186.sslip.io/live/stream/index.m3u8';
+  // Migración automática de URL legacy a la CDN oficial en Redis
+  if (!currentState.videoUrl || currentState.videoUrl.includes('sslip.io')) {
+    currentState.videoUrl = 'https://stream.blackozulive.com/live/stream/index.m3u8';
+    currentState.updatedAt = Date.now();
+    memoryStateStore = currentState;
+    await saveToRedis(currentState);
+  }
+
+  const targetVideoUrl = currentState.videoUrl || 'https://stream.blackozulive.com/live/stream/index.m3u8';
   let isStreamOnline = false;
 
   if (targetVideoUrl.includes('.m3u8')) {
