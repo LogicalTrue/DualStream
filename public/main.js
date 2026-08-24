@@ -531,6 +531,21 @@ async function init() {
   // Inicializar views de Kick y chat oficial
   updateKickViews();
 
+  // Antes de tocar el player, confirmar server-side si el stream está online.
+  // Evita que el navegador dispare un primer intento "a ciegas" contra el .m3u8
+  // (con el AppState.isOnline optimista por defecto) que generaría un 404 visible
+  // en consola incluso cuando el stream ya está en vivo.
+  try {
+    const res = await fetchLatestCloudState();
+    if (res.ok) {
+      const cloudState = await res.json();
+      if (cloudState) {
+        if (cloudState.videoUrl) AppState.videoUrl = cloudState.videoUrl;
+        if (cloudState.isOnline !== undefined) AppState.isOnline = Boolean(cloudState.isOnline);
+      }
+    }
+  } catch (e) {}
+
   // Cargar transmisión de video (HLS / m3u8 de OBS)
   if (AppState.videoUrl && AppState.videoUrl.trim() !== '') {
     loadVideoSource(AppState.videoUrl);
