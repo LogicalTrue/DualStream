@@ -745,16 +745,16 @@ body.mode-viewer.viewer-standby #floating-video-controls {
   background-color: #000000;
 }
 
-/* Floating Controls on top-right of main video */
+/* Floating Controls on top-right of main video (Sleek Glassmorphism Pills) */
 .floating-video-controls {
   position: absolute;
   top: 12px;
   right: 12px;
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   z-index: 50 !important;
-  opacity: 0.85;
+  opacity: 0.9;
   transition: opacity var(--transition-fast);
 }
 
@@ -762,32 +762,74 @@ body.mode-viewer.viewer-standby #floating-video-controls {
   opacity: 1;
 }
 
+.control-badge-btn {
+  background: rgba(0, 0, 0, 0.65);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  color: var(--text-secondary);
+  width: 32px;
+  height: 32px;
+  border-radius: 9999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+  transition: all var(--transition-fast);
+}
+
+.control-badge-btn:hover {
+  background: rgba(255, 255, 255, 0.16);
+  border-color: rgba(255, 255, 255, 0.35);
+  color: var(--text-primary);
+  transform: scale(1.05);
+}
+
 .viewer-volume-control {
   display: flex;
   align-items: center;
-  background: rgba(14, 17, 19, 0.85);
-  backdrop-filter: blur(6px);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-sm);
-  padding: 0 4px;
-  gap: 4px;
-  height: 28px;
+  background: rgba(0, 0, 0, 0.65);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 9999px;
+  padding: 0 10px 0 6px;
+  gap: 6px;
+  height: 32px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
 }
 
-.viewer-volume-control .control-badge-btn {
-  background: none;
-  border: none;
-  width: 20px;
-  height: 20px;
+.viewer-volume-control button.control-badge-btn,
+.viewer-volume-control #btn-toggle-video-mute {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  width: 22px !important;
+  height: 22px !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  color: var(--text-primary) !important;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50% !important;
+  transform: none !important;
+}
+
+.viewer-volume-control button.control-badge-btn:hover,
+.viewer-volume-control #btn-toggle-video-mute:hover {
+  background: transparent !important;
+  color: var(--kick-green) !important;
 }
 
 .viewer-volume-slider {
-  width: 60px;
+  width: 68px;
   height: 4px;
   -webkit-appearance: none;
   appearance: none;
-  background: rgba(255, 255, 255, 0.2);
-  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.25);
+  border-radius: 9999px;
   outline: none;
   cursor: pointer;
   accent-color: var(--kick-green);
@@ -796,36 +838,16 @@ body.mode-viewer.viewer-standby #floating-video-controls {
 .viewer-volume-slider::-webkit-slider-thumb {
   -webkit-appearance: none;
   appearance: none;
-  width: 10px;
-  height: 10px;
+  width: 12px;
+  height: 12px;
   border-radius: 50%;
   background: var(--kick-green);
   cursor: pointer;
+  box-shadow: 0 0 8px rgba(83, 252, 24, 0.6);
 }
 
 .hidden {
   display: none !important;
-}
-
-.control-badge-btn {
-  background: rgba(14, 17, 19, 0.85);
-  backdrop-filter: blur(6px);
-  border: 1px solid var(--border-subtle);
-  color: var(--text-secondary);
-  width: 28px;
-  height: 28px;
-  border-radius: var(--radius-sm);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: all var(--transition-fast);
-}
-
-.control-badge-btn:hover {
-  background: var(--bg-surface-elevated);
-  border-color: var(--border-focus);
-  color: var(--text-primary);
 }
 
 /* ==========================================================================
