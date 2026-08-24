@@ -443,13 +443,17 @@ export function renderNativeVideo(url, initialSyncState = null) {
 
       hls = new Hls({
         enableWorker: true,
-        lowLatencyMode: true,
-        backBufferLength: 0, // 0 buffer pasado: descarta audio viejo inmediatamente para evitar loops y ecos
-        maxBufferLength: 4,
-        maxMaxBufferLength: 8,
-        liveSyncDurationCount: 2,
-        liveMaxLatencyDurationCount: 4,
+        lowLatencyMode: false, // Desactivado para evitar que el reproductor intente saltos de LL-HLS hacia atrás
+        backBufferLength: 0,   // Descarta cualquier fragmento de audio pasado
+        maxBufferLength: 6,
+        maxMaxBufferLength: 12,
+        liveSyncDurationCount: 3, // Búfer seguro de 3 fragmentos (6s) para evitar micro-cortes y saltos
+        liveMaxLatencyDurationCount: 10,
         liveDurationInfinity: true,
+        highBufferWatchdogPeriod: 2,
+        nudgeMaxRetry: 10,
+        nudgeOffset: 0.1,      // Siempre empujar hacia adelante al vivo, NUNCA retroceder
+        maxStarvationDelay: 2,
         manifestLoadingMaxRetry: 5,
         manifestLoadingRetryDelay: 1500,
         levelLoadingMaxRetry: 5,
@@ -459,6 +463,14 @@ export function renderNativeVideo(url, initialSyncState = null) {
       });
 
       activeHlsInstance = hls;
+
+      // Guardia anti-regresión: si el navegador intenta retroceder en el tiempo a un búfer viejo
+      videoElem.addEventListener('seeking', () => {
+        if (hls && hls.liveSyncPosition && videoElem.currentTime < hls.liveSyncPosition - 4) {
+          console.warn('[DualStream Audio Sync] ⏭️ Evitando salto a audio viejo -> Reubicando en vivo...');
+          videoElem.currentTime = hls.liveSyncPosition;
+        }
+      });
 
       hls.on(Hls.Events.LEVEL_LOADED, () => {
         if (!isPlayingLive) {
