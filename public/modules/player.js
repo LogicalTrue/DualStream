@@ -749,25 +749,37 @@ export function toggleFullscreen(element) {
   if (!element) element = document.getElementById('stage-section') || document.body;
   const isFs = Boolean(document.fullscreenElement || document.webkitFullscreenElement || document.msFullscreenElement);
   const floatChatBtn = document.getElementById('btn-floating-chat-toggle');
+  const nativeVid = document.getElementById('main-theater-video');
 
   if (!isFs) {
     // ENTRANDO A PANTALLA COMPLETA
     document.body.classList.add('is-fullscreen');
     element.classList.add('is-fullscreen');
-    if (floatChatBtn) floatChatBtn.style.setProperty('display', 'none', 'important');
+    if (floatChatBtn) {
+      floatChatBtn.classList.add('hidden');
+      floatChatBtn.style.setProperty('display', 'none', 'important');
+    }
 
-    if (element.requestFullscreen) {
-      element.requestFullscreen().catch(() => {});
-    } else if (element.webkitRequestFullscreen) {
-      element.webkitRequestFullscreen();
-    } else if (element.msRequestFullscreen) {
-      element.msRequestFullscreen();
+    const reqTarget = element.requestFullscreen ? element : (nativeVid || element);
+    if (reqTarget.requestFullscreen) {
+      reqTarget.requestFullscreen().catch(() => {
+        if (nativeVid && nativeVid.webkitEnterFullscreen) nativeVid.webkitEnterFullscreen();
+      });
+    } else if (reqTarget.webkitRequestFullscreen) {
+      reqTarget.webkitRequestFullscreen();
+    } else if (nativeVid && nativeVid.webkitEnterFullscreen) {
+      nativeVid.webkitEnterFullscreen();
+    } else if (reqTarget.msRequestFullscreen) {
+      reqTarget.msRequestFullscreen();
     }
   } else {
     // SALIENDO DE PANTALLA COMPLETA
     document.body.classList.remove('is-fullscreen');
     element.classList.remove('is-fullscreen');
-    if (floatChatBtn) floatChatBtn.style.removeProperty('display');
+    if (floatChatBtn) {
+      floatChatBtn.classList.remove('hidden');
+      floatChatBtn.style.removeProperty('display');
+    }
 
     if (document.exitFullscreen) {
       document.exitFullscreen().catch(() => {});
@@ -788,11 +800,17 @@ if (typeof document !== 'undefined') {
     if (isFs) {
       document.body.classList.add('is-fullscreen');
       if (stageSec) stageSec.classList.add('is-fullscreen');
-      if (floatChatBtn) floatChatBtn.style.setProperty('display', 'none', 'important');
+      if (floatChatBtn) {
+        floatChatBtn.classList.add('hidden');
+        floatChatBtn.style.setProperty('display', 'none', 'important');
+      }
     } else {
       document.body.classList.remove('is-fullscreen');
       if (stageSec) stageSec.classList.remove('is-fullscreen');
-      if (floatChatBtn) floatChatBtn.style.removeProperty('display');
+      if (floatChatBtn) {
+        floatChatBtn.classList.remove('hidden');
+        floatChatBtn.style.removeProperty('display');
+      }
     }
   };
 

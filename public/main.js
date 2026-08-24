@@ -352,8 +352,13 @@ function initEventListeners() {
     });
   }
 
-  if (DOM.btnReloadMovie) DOM.btnReloadMovie.addEventListener('click', () => reloadMoviePlayer(getLatestSyncState));
-  if (DOM.btnFullscreenMovie) DOM.btnFullscreenMovie.addEventListener('click', () => toggleFullscreen(DOM.stageSection));
+  if (DOM.btnFullscreenMovie) {
+    const onFsClick = (e) => {
+      e.stopPropagation();
+      toggleFullscreen(DOM.stageSection || document.getElementById('stage-section'));
+    };
+    DOM.btnFullscreenMovie.addEventListener('click', onFsClick);
+  }
 
   // --- Chat Actions ---
   if (DOM.btnReloadChat) DOM.btnReloadChat.addEventListener('click', reloadKickChat);
