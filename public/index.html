@@ -25,7 +25,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 
-  <link rel="stylesheet" href="styles.css?v=20260824_12">
+  <link rel="stylesheet" href="styles.css?v=20260824_13">
   <!-- WebRTC Realtime PeerJS for 0ms Instant Signaling -->
   <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
   <!-- YouTube IFrame API -->
@@ -237,12 +237,11 @@
             </div>
           </div>
 
-          <!-- Botón flotante para abrir el chat cuando está cerrado -->
-        <button class="btn-floating-chat-toggle" id="btn-floating-chat-toggle" title="Abrir Chat de Kick">
-          <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2">
+          <!-- Botón flotante para abrir el chat cuando está cerrado (Solo Icono) -->
+        <button class="btn-floating-chat-toggle" id="btn-floating-chat-toggle" title="Abrir Chat de Kick" aria-label="Abrir Chat">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
           </svg>
-          <span>Abrir Chat</span>
         </button>
 
       </div>
@@ -623,6 +622,6 @@
   <div class="toast-container" id="toast-container" aria-live="polite"></div>
 
   <!-- Module Script Entrypoint -->
-  <script type="module" src="./main.js?v=20260824_12"></script>
+  <script type="module" src="./main.js?v=20260824_13"></script>
 </body>
 </html>
