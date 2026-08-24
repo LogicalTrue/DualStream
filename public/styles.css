@@ -1442,10 +1442,12 @@ body.chat-is-hidden .btn-floating-chat-toggle {
     display: none !important;
   }
 
-  /* Ocultar botón flotante de chat en horizontal para vista limpia de cine a pantalla completa */
-  .btn-floating-chat-toggle,
-  #btn-floating-chat-toggle {
-    display: none !important;
+  /* Mostrar botón flotante en horizontal normal si el chat no está abierto (para poder abrirlo) */
+  body:not(.landscape-chat-open):not(.is-fullscreen) .btn-floating-chat-toggle,
+  body.chat-is-closed:not(.is-fullscreen) .btn-floating-chat-toggle {
+    display: inline-flex !important;
+    bottom: 16px !important;
+    right: 18px !important;
   }
 
   .chat-header {
@@ -1460,12 +1462,16 @@ body.chat-is-hidden .btn-floating-chat-toggle {
   }
 }
 
-/* Ocultar botón flotante de chat en modo Pantalla Completa nativo */
+/* Ocultar botón flotante de chat ÚNICAMENTE en modo Pantalla Completa (Fullscreen / Agrandar pantalla) */
 :fullscreen .btn-floating-chat-toggle,
 :-webkit-full-screen .btn-floating-chat-toggle,
 :-moz-full-screen .btn-floating-chat-toggle,
 :fullscreen #btn-floating-chat-toggle,
 :-webkit-full-screen #btn-floating-chat-toggle,
+#stage-section:fullscreen .btn-floating-chat-toggle,
+#stage-section:-webkit-full-screen .btn-floating-chat-toggle,
+#stage-section:fullscreen #btn-floating-chat-toggle,
+#stage-section:-webkit-full-screen #btn-floating-chat-toggle,
 body.is-fullscreen .btn-floating-chat-toggle,
 body.is-fullscreen #btn-floating-chat-toggle {
   display: none !important;
