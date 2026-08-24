@@ -461,24 +461,20 @@ export function renderNativeVideo(url, initialSyncState = null) {
       });
 
       hls.on(Hls.Events.ERROR, (event, data) => {
-        const isStreamCutoff = (
-          data.details === Hls.ErrorDetails.LEVEL_LOAD_ERROR || 
-          data.details === Hls.ErrorDetails.MANIFEST_LOAD_ERROR ||
-          data.details === Hls.ErrorDetails.LEVEL_LOAD_TIMEOUT ||
-          data.details === Hls.ErrorDetails.MANIFEST_LOAD_TIMEOUT ||
-          data.details === Hls.ErrorDetails.BUFFER_STALLED_ERROR ||
-          (data.response && data.response.code === 404) ||
-          data.fatal
-        );
+        // Solo tratamos como "stream cortado" los errores FATALES. hls.js ya
+        // resuelve solo los no-fatales (buffer stall, un frag/manifest que tarda
+        // y se reintenta, etc.) usando los *MaxRetry configurados arriba. Si
+        // reiniciábamos el player ante cualquier hipo no-fatal, se generaban
+        // instancias de hls.js superpuestas y el audio viejo se solapaba con el
+        // nuevo (eco/acumulación) aunque el stream nunca se hubiera cortado.
+        if (!data.fatal) return;
 
-        if (isStreamCutoff) {
-          isPlayingLive = false;
-          setPlayerOffline();
-          cleanupHls();
-          // No se reintenta sondeando el .m3u8 desde el cliente: se espera a que
-          // /api/sync confirme `isOnline: true` (chequeo server-side) y dispare
-          // hlsRetryFn() vía sync.js. Así ningún fetch fallido llega a esta consola.
-        }
+        isPlayingLive = false;
+        setPlayerOffline();
+        cleanupHls();
+        // No se reintenta sondeando el .m3u8 desde el cliente: se espera a que
+        // /api/sync confirme `isOnline: true` (chequeo server-side) y dispare
+        // hlsRetryFn() vía sync.js. Así ningún fetch fallido llega a esta consola.
       });
 
       videoElem.addEventListener('ended', () => {
