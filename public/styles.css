@@ -1331,13 +1331,7 @@ body.is-fullscreen #btn-floating-chat-toggle,
   pointer-events: none !important;
 }
 
-@media (max-width: 768px) and (orientation: portrait) {
-  body.chat-is-closed .stage-section {
-    max-height: 100vh !important;
-    height: 100% !important;
-    flex: 1 1 auto !important;
-  }
-}
+
 
 /* Mobile Landscape / Rotado (max-height: 520px) */
 @media (orientation: landscape) and (max-height: 520px) {
@@ -2261,26 +2255,22 @@ body.chat-is-hidden .chat-collapsed-trigger {
     overflow: hidden !important;
   }
 
-  /* Video Stage CENTRADO VERTICALMENTE EN EL MEDIO DEL CELULAR */
+  /* Video Stage con posición FIJA E INVARIABLE (Nunca se mueve al abrir/cerrar chat) */
   .stage-section {
-    flex: 1 1 auto !important;
+    flex: 0 0 auto !important;
     width: 100% !important;
-    height: 100% !important;
-    display: flex !important;
-    align-items: center !important;
-    justify-content: center !important;
+    aspect-ratio: 16 / 9 !important;
     position: relative !important;
     background: #000000 !important;
   }
 
   .video-theater {
     width: 100% !important;
-    max-width: 100% !important;
+    height: 100% !important;
     aspect-ratio: 16 / 9 !important;
     position: relative !important;
     display: block !important;
     overflow: hidden !important;
-    margin: auto 0 !important;
   }
 
   .movie-player-box {
@@ -2301,24 +2291,16 @@ body.chat-is-hidden .chat-collapsed-trigger {
     background: #000000 !important;
   }
 
-  /* Cuando el chat está cerrado, el video queda en el centro vertical de todo el celular */
-  body.chat-is-closed .stage-section,
-  body.chat-is-hidden .stage-section {
-    height: calc(100dvh - 44px) !important;
-    flex: 1 1 100% !important;
-    display: flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-  }
-
-  /* Chat cuando está abierto en la parte inferior */
+  /* Chat: Ocupa únicamente la franja inferior debajo del reproductor */
   .chat-section {
+    flex: 1 1 auto !important;
     width: 100% !important;
     max-width: 100% !important;
-    height: 260px !important;
-    min-height: 240px !important;
-    max-height: 38vh !important;
-    flex-shrink: 0 !important;
+    height: 100% !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    display: flex !important;
+    flex-direction: column !important;
     border-left: none !important;
     border-top: 1px solid var(--border-subtle) !important;
   }
