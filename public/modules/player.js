@@ -449,16 +449,18 @@ export function renderNativeVideo(url, initialSyncState = null) {
       hls = new Hls({
         enableWorker: true,
         backBufferLength: 0,
-        maxBufferLength: 10,
-        maxMaxBufferLength: 20,
+        maxBufferSize: 12 * 1024 * 1024,
+        maxBufferLength: 6,
+        maxMaxBufferLength: 10,
         liveSyncDurationCount: 3,
-        liveMaxLatencyDurationCount: 10,
+        liveMaxLatencyDurationCount: 8,
         liveDurationInfinity: true,
-        manifestLoadingMaxRetry: 5,
+        highBufferWatchdogPeriod: 2,
+        manifestLoadingMaxRetry: 4,
         manifestLoadingRetryDelay: 1500,
-        levelLoadingMaxRetry: 5,
+        levelLoadingMaxRetry: 4,
         levelLoadingRetryDelay: 1500,
-        fragLoadingMaxRetry: 5,
+        fragLoadingMaxRetry: 4,
         fragLoadingRetryDelay: 1000,
       });
 
@@ -487,17 +489,29 @@ export function renderNativeVideo(url, initialSyncState = null) {
       });
 
       hls.on(Hls.Events.ERROR, (event, data) => {
-        const isStreamCutoff = (
-          data.details === Hls.ErrorDetails.LEVEL_LOAD_ERROR || 
-          data.details === Hls.ErrorDetails.MANIFEST_LOAD_ERROR ||
-          (data.response && data.response.code === 404) ||
-          data.fatal
-        );
-
-        if (isStreamCutoff) {
-          isPlayingLive = false;
-          setPlayerOffline();
-          cleanupHls();
+        if (data.fatal) {
+          switch (data.type) {
+            case Hls.ErrorTypes.NETWORK_ERROR:
+              if (data.response && data.response.code === 404) {
+                isPlayingLive = false;
+                setPlayerOffline();
+                cleanupHls();
+              } else {
+                try { hls.startLoad(); } catch (e) {}
+              }
+              break;
+            case Hls.ErrorTypes.MEDIA_ERROR:
+              console.warn('[DualStream] 🔄 Recuperando buffer multimedia en móvil...');
+              try { hls.recoverMediaError(); } catch (e) {
+                cleanupHls();
+              }
+              break;
+            default:
+              isPlayingLive = false;
+              setPlayerOffline();
+              cleanupHls();
+              break;
+          }
         }
       });
 
