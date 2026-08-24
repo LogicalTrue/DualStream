@@ -129,28 +129,55 @@ export let whepReconnectTimer = null;
 // el .m3u8 crudo por su cuenta (eso es lo que generaba 404 visibles en consola).
 export let hlsRetryFn = null;
 
+// Gestor global único de activación de audio por interacción (evita múltiples listeners)
+if (typeof window !== 'undefined' && !window._soundInteractionRegistered) {
+  window._soundInteractionRegistered = true;
+  const onFirstInteraction = () => {
+    const v = document.getElementById('main-theater-video');
+    if (v) {
+      v.muted = false;
+      v.volume = 1.0;
+      updateVideoVolume(100);
+      v.play().catch(() => {});
+      console.log('%c[DualStream Audio Monitor] 🔊 Audio único desmuteado por interacción', 'color: #38bdf8; font-weight: bold;');
+    }
+  };
+  document.addEventListener('click', onFirstInteraction, { once: true });
+  document.addEventListener('touchstart', onFirstInteraction, { once: true });
+}
+
 export function renderNativeVideo(url, initialSyncState = null) {
-  // Destruir instancias previas
+  // Destruir cualquier instancia HLS previa
   if (activeHlsInstance) {
-    try { activeHlsInstance.destroy(); } catch (e) {}
+    try {
+      activeHlsInstance.stopLoad();
+      activeHlsInstance.detachMedia();
+      activeHlsInstance.destroy();
+    } catch (e) {}
     activeHlsInstance = null;
   }
   if (activeHlsPoller) {
     clearInterval(activeHlsPoller);
     activeHlsPoller = null;
   }
-  if (activeWhepPc) {
-    try { activeWhepPc.close(); } catch (e) {}
-    activeWhepPc = null;
-  }
-  if (whepReconnectTimer) {
-    clearTimeout(whepReconnectTimer);
-    whepReconnectTimer = null;
-  }
   hlsRetryFn = null;
 
-  const videoElem = document.createElement('video');
-  videoElem.className = 'native-video-player';
+  // Reutilizar el elemento de video singleton existente o crearlo si no existe
+  let videoElem = document.getElementById('main-theater-video');
+  if (!videoElem) {
+    videoElem = document.createElement('video');
+    videoElem.id = 'main-theater-video';
+    videoElem.className = 'native-video-player';
+  }
+
+  // Purgar y detener físicamente cualquier otro elemento de audio/video duplicado
+  document.querySelectorAll('video, audio').forEach(el => {
+    if (el !== videoElem) {
+      try { el.pause(); el.removeAttribute('src'); el.load(); } catch(e) {}
+      el.remove();
+    }
+  });
+
   videoElem.controls = AppState.isAdmin;
   videoElem.autoplay = true;
   videoElem.playsInline = true;
@@ -158,45 +185,11 @@ export function renderNativeVideo(url, initialSyncState = null) {
   videoElem.setAttribute('webkit-playsinline', 'true');
   videoElem.preload = 'auto';
   videoElem.volume = 1.0;
-  videoElem.muted = true; // Muted inicial obligatorio para que Chrome no bloquee el autoplay a 60 FPS
-
-  let userInteracted = false;
-  const enableSoundOnInteraction = () => {
-    userInteracted = true;
-    videoElem.muted = false;
-    videoElem.volume = 1.0;
-    updateVideoVolume(100);
-    videoElem.play().catch(() => {});
-    console.log('%c[DualStream Audio Monitor] 🔊 Audio desmuteado por interacción del usuario', 'color: #38bdf8; font-weight: bold;');
-  };
-  videoElem.addEventListener('click', enableSoundOnInteraction);
-  document.addEventListener('click', enableSoundOnInteraction, { once: true });
   videoElem.dataset.url = url;
   activeNativeVideo = videoElem;
 
-  // Monitor continuo de diagnóstico de audio: audita todos los elementos de sonido de la página
-  if (!window._audioMonitorInterval) {
-    window._audioMonitorInterval = setInterval(() => {
-      const allVideos = document.querySelectorAll('video');
-      const allAudios = document.querySelectorAll('audio');
-      const allIframes = document.querySelectorAll('iframe');
-      
-      let playingCount = 0;
-      allVideos.forEach(v => {
-        if (!v.paused && !v.muted && v.volume > 0) playingCount++;
-      });
-      allAudios.forEach(a => {
-        if (!a.paused && !a.muted && a.volume > 0) playingCount++;
-      });
-
-      if (playingCount > 0) {
-        console.log(`%c[DualStream Audio Diagnostics] 🎧 Canales emitiendo sonido en la web: ${playingCount} (Total <video>: ${allVideos.length}, <audio>: ${allAudios.length}, <iframe>: ${allIframes.length})`, 'color: #53fc18;');
-      }
-    }, 4000);
-  }
-
   const wrapper = document.getElementById('movie-media-wrapper') || DOM.movieMediaWrapper;
-  if (wrapper) {
+  if (wrapper && !wrapper.contains(videoElem)) {
     wrapper.innerHTML = '';
     wrapper.appendChild(videoElem);
   }
