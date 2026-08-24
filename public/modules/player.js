@@ -124,6 +124,10 @@ export let activeHlsInstance = null;
 export let activeHlsPoller = null;
 export let activeWhepPc = null;
 export let whepReconnectTimer = null;
+// Hook que sync.js invoca cuando el servidor confirma (vía /api/sync) que el stream
+// volvió a estar online, para reanudar HLS sin que el cliente tenga que sondear
+// el .m3u8 crudo por su cuenta (eso es lo que generaba 404 visibles en consola).
+export let hlsRetryFn = null;
 
 export function renderNativeVideo(url, initialSyncState = null) {
   // Destruir instancias previas
@@ -143,6 +147,7 @@ export function renderNativeVideo(url, initialSyncState = null) {
     clearTimeout(whepReconnectTimer);
     whepReconnectTimer = null;
   }
+  hlsRetryFn = null;
 
   const videoElem = document.createElement('video');
   videoElem.className = 'native-video-player';
@@ -381,7 +386,6 @@ export function renderNativeVideo(url, initialSyncState = null) {
     setPlayerOffline();
 
     let isPlayingLive = false;
-    let pollerTimer = null;
     let hls = null;
 
     const cleanupHls = () => {
@@ -460,7 +464,9 @@ export function renderNativeVideo(url, initialSyncState = null) {
           isPlayingLive = false;
           setPlayerOffline();
           cleanupHls();
-          schedulePoller();
+          // No se reintenta sondeando el .m3u8 desde el cliente: se espera a que
+          // /api/sync confirme `isOnline: true` (chequeo server-side) y dispare
+          // hlsRetryFn() vía sync.js. Así ningún fetch fallido llega a esta consola.
         }
       });
 
@@ -468,40 +474,17 @@ export function renderNativeVideo(url, initialSyncState = null) {
         isPlayingLive = false;
         setPlayerOffline();
         cleanupHls();
-        schedulePoller();
       });
 
       hls.attachMedia(videoElem);
       hls.loadSource(url);
     };
 
-    const schedulePoller = () => {
-      clearInterval(pollerTimer);
-      pollerTimer = setInterval(async () => {
-        if (isPlayingLive) {
-          clearInterval(pollerTimer);
-          return;
-        }
-        try {
-          const res = await fetch(url, { method: 'GET', cache: 'no-store' });
-          if (res.ok) {
-            const text = await res.text();
-            if (text && text.includes('#EXTM3U')) {
-              clearInterval(pollerTimer);
-              startHlsPlayback();
-            }
-          }
-        } catch (e) {}
-      }, 2000);
-    };
+    hlsRetryFn = startHlsPlayback;
 
-    schedulePoller();
-    fetch(url, { method: 'GET', cache: 'no-store' }).then(res => {
-      if (res.ok) {
-        clearInterval(pollerTimer);
-        startHlsPlayback();
-      }
-    }).catch(() => {});
+    if (AppState.isOnline) {
+      startHlsPlayback();
+    }
   } else {
     videoElem.src = url;
   }
@@ -612,6 +595,7 @@ export function unloadVideo() {
     clearInterval(activeHlsPoller);
     activeHlsPoller = null;
   }
+  hlsRetryFn = null;
   AppState.videoUrl = '';
   syncUrlParams();
   if (DOM.movieMediaWrapper) {

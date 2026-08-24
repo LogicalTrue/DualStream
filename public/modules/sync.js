@@ -9,7 +9,7 @@ import { DOM } from './dom.js';
 import { AppState, STORAGE_KEY, syncChannel, DEFAULT_STREAMER } from './state.js';
 import { STREAM_CONFIG } from '../stream-config.js';
 import { sendCloudConfig, fetchLatestCloudState } from './api.js';
-import { ytPlayerInstance, activeNativeVideo, loadVideoSource, unloadVideo, setPlaybackSyncEmitter, isHlsStream } from './player.js';
+import { ytPlayerInstance, activeNativeVideo, loadVideoSource, unloadVideo, setPlaybackSyncEmitter, isHlsStream, hlsRetryFn } from './player.js';
 import { showToast, applyWebcamPosition, openModal } from './ui.js';
 import { updateKickViews } from './kick.js';
 
@@ -286,7 +286,12 @@ export function applyIncomingConfig(config) {
     AppState.isOnline = Boolean(config.isOnline);
     if (isHlsStream(AppState.videoUrl)) {
       if (AppState.isOnline) {
-        if (!activeNativeVideo) {
+        if (typeof hlsRetryFn === 'function') {
+          // Ya hay un <video>+hls.js montado esperando: solo reintentamos la
+          // reproducción, sin recrear el elemento ni tocar el .m3u8 desde el
+          // cliente antes de tiempo.
+          hlsRetryFn();
+        } else if (!activeNativeVideo) {
           loadVideoSource(AppState.videoUrl);
         }
       } else {

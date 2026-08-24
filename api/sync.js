@@ -120,6 +120,32 @@ async function setActiveSessionInRedis(token) {
   }
 }
 
+// Cache del probe de origen: evita que cada viewer (poll cada 800ms desde el
+// cliente) dispare su propio fetch al servidor de media. Se comparte entre
+// requests mientras la instancia serverless siga "caliente".
+let originProbeCache = { url: null, isOnline: false, ts: 0 };
+const ORIGIN_PROBE_TTL_MS = 1500;
+
+async function probeStreamOnline(targetVideoUrl) {
+  const now = Date.now();
+  if (originProbeCache.url === targetVideoUrl && (now - originProbeCache.ts) < ORIGIN_PROBE_TTL_MS) {
+    return originProbeCache.isOnline;
+  }
+  let isOnline = false;
+  try {
+    const probeRes = await fetch(targetVideoUrl, {
+      method: 'GET',
+      cache: 'no-store',
+      signal: AbortSignal.timeout(800)
+    });
+    isOnline = probeRes.ok;
+  } catch (e) {
+    isOnline = false;
+  }
+  originProbeCache = { url: targetVideoUrl, isOnline, ts: now };
+  return isOnline;
+}
+
 const EXPECTED_ADMIN_SECRET = process.env.ADMIN_SECRET;
 
 module.exports = async (req, res) => {
@@ -236,16 +262,7 @@ module.exports = async (req, res) => {
   let isStreamOnline = false;
 
   if (targetVideoUrl.includes('.m3u8')) {
-    try {
-      const probeRes = await fetch(targetVideoUrl, { 
-        method: 'GET',
-        cache: 'no-store',
-        signal: AbortSignal.timeout(800)
-      });
-      isStreamOnline = probeRes.ok;
-    } catch (e) {
-      isStreamOnline = false;
-    }
+    isStreamOnline = await probeStreamOnline(targetVideoUrl);
   }
 
   const responseState = {
