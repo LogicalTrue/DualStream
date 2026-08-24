@@ -527,6 +527,28 @@ export function renderNativeVideo(url, initialSyncState = null) {
       });
 
       hls.on(Hls.Events.ERROR, (event, data) => {
+        // 1. Manejo de micro-pausas por caída de señal móvil (4G/5G)
+        if (data.details === Hls.ErrorDetails.BUFFER_STALLED_ERROR) {
+          console.warn('[DualStream] ⚠️ Buffer móvil momentáneamente pausado, forzando sincronización...');
+          try {
+            if (hls.liveSyncPosition && Math.abs(hls.liveSyncPosition - videoElem.currentTime) > 4) {
+              videoElem.currentTime = hls.liveSyncPosition;
+            }
+            hls.startLoad();
+          } catch (e) {}
+          return;
+        }
+
+        // 2. Manejo de buffer lleno para celulares con RAM reducida
+        if (data.details === Hls.ErrorDetails.BUFFER_FULL_ERROR) {
+          console.warn('[DualStream] ⚠️ Purgando buffer acumulado en memoria móvil...');
+          try {
+            hls.cleanBuffer(0, Math.max(0, videoElem.currentTime - 1));
+          } catch (e) {}
+          return;
+        }
+
+        // 3. Manejo de errores fatales
         if (data.fatal) {
           switch (data.type) {
             case Hls.ErrorTypes.NETWORK_ERROR:
@@ -539,7 +561,7 @@ export function renderNativeVideo(url, initialSyncState = null) {
               }
               break;
             case Hls.ErrorTypes.MEDIA_ERROR:
-              console.warn('[DualStream] 🔄 Recuperando buffer multimedia en móvil...');
+              console.warn('[DualStream] 🔄 Recuperando decodificador multimedia en móvil...');
               try { hls.recoverMediaError(); } catch (e) {
                 cleanupHls();
               }
@@ -550,6 +572,32 @@ export function renderNativeVideo(url, initialSyncState = null) {
               cleanupHls();
               break;
           }
+        }
+      });
+
+      // 4. Reconexión automática cuando el usuario vuelve de WhatsApp o desbloquea el celular
+      document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible' && isPlayingLive && activeHlsInstance) {
+          if (videoElem.paused) {
+            videoElem.play().catch(() => {});
+          }
+          if (activeHlsInstance.liveSyncPosition) {
+            const lag = activeHlsInstance.liveSyncPosition - videoElem.currentTime;
+            if (lag > 6) {
+              videoElem.currentTime = activeHlsInstance.liveSyncPosition;
+            }
+          }
+        }
+      });
+
+      // 5. Reconexión automática al recuperar señal de red (cambio de WiFi a 4G o salida de túnel)
+      window.addEventListener('online', () => {
+        console.log('[DualStream] 📶 Red móvil restablecida. Sincronizando transmisión...');
+        if (activeHlsInstance) {
+          try { activeHlsInstance.startLoad(); } catch(e) {}
+        }
+        if (hlsRetryFn && !isPlayingLive) {
+          hlsRetryFn();
         }
       });
 
