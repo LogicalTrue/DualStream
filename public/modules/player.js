@@ -436,17 +436,18 @@ export function renderNativeVideo(url, initialSyncState = null) {
 
       hls = new Hls({
         enableWorker: true,
-        lowLatencyMode: false, // Desactivado para evitar que el reproductor intente saltos de LL-HLS hacia atrás
-        backBufferLength: 0,   // Descarta cualquier fragmento de audio pasado
-        maxBufferLength: 6,
-        maxMaxBufferLength: 12,
-        liveSyncDurationCount: 3, // Búfer seguro de 3 fragmentos (6s) para evitar micro-cortes y saltos
-        liveMaxLatencyDurationCount: 10,
+        startPosition: -1,     // CRÍTICO: Reproducir estrictamente desde la punta en vivo (último fragmento)
+        lowLatencyMode: false,
+        backBufferLength: 0,   // Descarta inmediatamente cualquier fragmento de audio pasado
+        maxBufferLength: 3,
+        maxMaxBufferLength: 6,
+        liveSyncDurationCount: 2, // Búfer compacto de 2 fragmentos (4s) para mantenerse en la punta del directo
+        liveMaxLatencyDurationCount: 4,
         liveDurationInfinity: true,
-        highBufferWatchdogPeriod: 2,
-        nudgeMaxRetry: 10,
+        highBufferWatchdogPeriod: 1,
+        nudgeMaxRetry: 5,
         nudgeOffset: 0.1,      // Siempre empujar hacia adelante al vivo, NUNCA retroceder
-        maxStarvationDelay: 2,
+        maxStarvationDelay: 1,
         manifestLoadingMaxRetry: 5,
         manifestLoadingRetryDelay: 1500,
         levelLoadingMaxRetry: 5,
