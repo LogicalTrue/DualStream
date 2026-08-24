@@ -760,9 +760,18 @@ export function toggleFullscreen(element) {
       floatChatBtn.style.setProperty('display', 'none', 'important');
     }
 
+    // Bloquear en horizontal como YouTube / Twitch al agrandar pantalla
+    if (screen.orientation && screen.orientation.lock) {
+      screen.orientation.lock('landscape').catch(() => {});
+    }
+
     const reqTarget = element.requestFullscreen ? element : (nativeVid || element);
     if (reqTarget.requestFullscreen) {
-      reqTarget.requestFullscreen().catch(() => {
+      reqTarget.requestFullscreen().then(() => {
+        if (screen.orientation && screen.orientation.lock) {
+          screen.orientation.lock('landscape').catch(() => {});
+        }
+      }).catch(() => {
         if (nativeVid && nativeVid.webkitEnterFullscreen) nativeVid.webkitEnterFullscreen();
       });
     } else if (reqTarget.webkitRequestFullscreen) {
@@ -779,6 +788,10 @@ export function toggleFullscreen(element) {
     if (floatChatBtn) {
       floatChatBtn.classList.remove('hidden');
       floatChatBtn.style.removeProperty('display');
+    }
+
+    if (screen.orientation && screen.orientation.unlock) {
+      try { screen.orientation.unlock(); } catch(e) {}
     }
 
     if (document.exitFullscreen) {
@@ -804,12 +817,18 @@ if (typeof document !== 'undefined') {
         floatChatBtn.classList.add('hidden');
         floatChatBtn.style.setProperty('display', 'none', 'important');
       }
+      if (screen.orientation && screen.orientation.lock) {
+        screen.orientation.lock('landscape').catch(() => {});
+      }
     } else {
       document.body.classList.remove('is-fullscreen');
       if (stageSec) stageSec.classList.remove('is-fullscreen');
       if (floatChatBtn) {
         floatChatBtn.classList.remove('hidden');
         floatChatBtn.style.removeProperty('display');
+      }
+      if (screen.orientation && screen.orientation.unlock) {
+        try { screen.orientation.unlock(); } catch(e) {}
       }
     }
   };

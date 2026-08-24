@@ -1489,6 +1489,40 @@ body.is-fullscreen #btn-floating-chat-toggle {
   display: none !important;
 }
 
+/* Pantalla Completa nativa (Fullscreen / Agrandar pantalla en móvil y PC) */
+:fullscreen #stage-section,
+:-webkit-full-screen #stage-section,
+#stage-section:fullscreen,
+#stage-section:-webkit-full-screen {
+  width: 100vw !important;
+  height: 100vh !important;
+  max-width: 100vw !important;
+  max-height: 100vh !important;
+  background: #000000 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+#stage-section:fullscreen .video-theater,
+#stage-section:-webkit-full-screen .video-theater,
+#stage-section:fullscreen .movie-player-box,
+#stage-section:-webkit-full-screen .movie-player-box {
+  width: 100vw !important;
+  height: 100vh !important;
+  max-width: 100vw !important;
+  max-height: 100vh !important;
+  aspect-ratio: auto !important;
+}
+
+#stage-section:fullscreen .native-video-player,
+#stage-section:-webkit-full-screen .native-video-player {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: contain !important;
+  background: #000000 !important;
+}
+
 /* ==========================================================================
    CHAT SIDEBAR SECTION
    ========================================================================== */
