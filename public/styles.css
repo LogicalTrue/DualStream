@@ -2324,8 +2324,9 @@ body.chat-is-hidden .chat-collapsed-trigger {
   .chat-section {
     width: 100% !important;
     max-width: 100% !important;
-    min-height: 420px;
-    height: 420px;
+    min-height: 260px !important;
+    height: 280px !important;
+    max-height: 36vh !important;
     border-left: none;
     border-top: 1px solid var(--border-subtle);
   }
