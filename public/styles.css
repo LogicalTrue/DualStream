@@ -2257,10 +2257,10 @@ body.chat-is-hidden .chat-collapsed-trigger {
     background: #000000 !important;
   }
 
-  /* Video Stage FIJO EXACTAMENTE EN EL MEDIO GEOMÉTRICO VERTICAL (50% altura) */
+  /* Video Stage FIJO ELEVADO PARA DEJAR ESPACIO AL CHAT Y NUNCA TAPAR EL POSTER */
   .stage-section {
     position: absolute !important;
-    top: 50% !important;
+    top: calc(50% - 24px) !important;
     left: 0 !important;
     transform: translateY(-50%) !important;
     width: 100% !important;
@@ -2298,10 +2298,16 @@ body.chat-is-hidden .chat-collapsed-trigger {
     background: #000000 !important;
   }
 
-  /* Chat: Ocupa exclusivamente la franja inferior debajo del video centrado */
+  .standby-backdrop {
+    background-size: contain !important;
+    background-position: center !important;
+    background-repeat: no-repeat !important;
+  }
+
+  /* Chat: Ocupa la franja inferior con separación limpia para no tapar el reproductor */
   .chat-section {
     position: absolute !important;
-    top: calc(50% + (100vw * 9 / 32)) !important;
+    top: calc(50% - 24px + (100vw * 9 / 32) + 6px) !important;
     bottom: 0 !important;
     left: 0 !important;
     width: 100% !important;
