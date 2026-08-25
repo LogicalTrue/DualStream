@@ -532,7 +532,7 @@ export function renderNativeVideo(url, initialSyncState = null) {
         if (data.details === Hls.ErrorDetails.BUFFER_STALLED_ERROR) {
           console.warn('[DualStream] ⚠️ Buffer móvil momentáneamente pausado, forzando sincronización...');
           try {
-            if (hls.liveSyncPosition && Math.abs(hls.liveSyncPosition - videoElem.currentTime) > 4) {
+            if (hls.liveSyncPosition && Math.abs(hls.liveSyncPosition - videoElem.currentTime) > 3) {
               videoElem.currentTime = hls.liveSyncPosition;
             }
             hls.startLoad();
@@ -549,28 +549,28 @@ export function renderNativeVideo(url, initialSyncState = null) {
           return;
         }
 
-        // 3. Manejo de errores fatales
+        // 3. Manejo de errores fatales con auto-recuperación continua (Sin congelar al espectador)
         if (data.fatal) {
           switch (data.type) {
             case Hls.ErrorTypes.NETWORK_ERROR:
-              if (data.response && data.response.code === 404) {
-                isPlayingLive = false;
-                setPlayerOffline();
-                cleanupHls();
-              } else {
-                try { hls.startLoad(); } catch (e) {}
+              console.warn('[DualStream] 🔄 Network error en stream, reintentando carga de fragmentos...');
+              try {
+                hls.startLoad();
+              } catch (e) {
+                scheduleAutoReconnect();
               }
               break;
             case Hls.ErrorTypes.MEDIA_ERROR:
               console.warn('[DualStream] 🔄 Recuperando decodificador multimedia en móvil...');
-              try { hls.recoverMediaError(); } catch (e) {
-                cleanupHls();
+              try {
+                hls.recoverMediaError();
+              } catch (e) {
+                scheduleAutoReconnect();
               }
               break;
             default:
-              isPlayingLive = false;
-              setPlayerOffline();
-              cleanupHls();
+              console.warn('[DualStream] ⚠️ Error fatal HLS, programando auto-reconexión...');
+              scheduleAutoReconnect();
               break;
           }
         }
@@ -578,15 +578,18 @@ export function renderNativeVideo(url, initialSyncState = null) {
 
       // 4. Reconexión automática cuando el usuario vuelve de WhatsApp o desbloquea el celular
       document.addEventListener('visibilitychange', () => {
-        if (document.visibilityState === 'visible' && isPlayingLive && activeHlsInstance) {
-          if (videoElem.paused) {
+        if (document.visibilityState === 'visible') {
+          if (videoElem.paused && isPlayingLive) {
             videoElem.play().catch(() => {});
           }
-          if (activeHlsInstance.liveSyncPosition) {
+          if (activeHlsInstance && activeHlsInstance.liveSyncPosition) {
             const lag = activeHlsInstance.liveSyncPosition - videoElem.currentTime;
-            if (lag > 6) {
+            if (lag > 4) {
               videoElem.currentTime = activeHlsInstance.liveSyncPosition;
             }
+          }
+          if (!isPlayingLive) {
+            startHlsPlayback();
           }
         }
       });
@@ -597,19 +600,31 @@ export function renderNativeVideo(url, initialSyncState = null) {
         if (activeHlsInstance) {
           try { activeHlsInstance.startLoad(); } catch(e) {}
         }
-        if (hlsRetryFn && !isPlayingLive) {
-          hlsRetryFn();
-        }
-      });
-
-      videoElem.addEventListener('ended', () => {
-        isPlayingLive = false;
-        setPlayerOffline();
-        cleanupHls();
+        startHlsPlayback();
       });
 
       hls.attachMedia(videoElem);
       hls.loadSource(url);
+    };
+
+    let autoReconnectTimer = null;
+    const scheduleAutoReconnect = () => {
+      if (autoReconnectTimer) return;
+      isPlayingLive = false;
+      setPlayerOffline();
+      cleanupHls();
+
+      autoReconnectTimer = setInterval(async () => {
+        try {
+          const res = await fetch(url, { method: 'HEAD', cache: 'no-store' });
+          if (res.ok) {
+            console.log('[DualStream] 🟢 Transmisión detectada en vivo. Conectando automáticamente...');
+            clearInterval(autoReconnectTimer);
+            autoReconnectTimer = null;
+            startHlsPlayback();
+          }
+        } catch (e) {}
+      }, 2500);
     };
 
     hlsRetryFn = startHlsPlayback;
