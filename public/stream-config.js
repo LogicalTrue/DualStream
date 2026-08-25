@@ -14,7 +14,7 @@ export const STREAM_CONFIG = {
 
   // Pantallas de espera:
   // Imagen de Portada cuando el stream está APAGADO / OFFLINE (opcional)
-  offlinePoster: 'https://i.imgur.com/AhT5Obw.jpeg',
+  offlinePoster: 'https://i.imgur.com/WZFLjFB.jpeg',
 
   // Imagen de Portada cuando el stream está PRENDIDO / ONLINE (opcional)
   onlinePoster: '',
