@@ -1236,16 +1236,47 @@ body.mode-viewer .webcam-resize-handle {
 }
 
 .chat-header {
-  height: 32px !important;
-  min-height: 32px !important;
+  height: 34px !important;
+  min-height: 34px !important;
   background: var(--bg-surface);
   border-bottom: 1px solid var(--border-subtle);
   display: flex !important;
   align-items: center;
-  justify-content: flex-end;
-  padding: 0 8px;
+  justify-content: space-between;
+  padding: 0 10px;
   z-index: 10;
   box-sizing: border-box;
+}
+
+.chat-drag-handle {
+  display: none;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  cursor: ns-resize;
+  touch-action: none;
+}
+
+.drag-handle-pill {
+  width: 42px;
+  height: 4.5px;
+  background: rgba(255, 255, 255, 0.3);
+  border-radius: 3px;
+  transition: all 0.15s ease;
+}
+
+.chat-header.is-dragging-vertical .drag-handle-pill,
+.chat-drag-handle:active .drag-handle-pill {
+  background: var(--kick-green);
+  box-shadow: 0 0 10px var(--kick-green);
+  transform: scaleY(1.3);
+}
+
+@media (max-width: 768px) {
+  .chat-drag-handle {
+    display: flex !important;
+  }
 }
 
 /* Botón Cerrar Chat Estilo Kick Verde con Cruz Elegante */
@@ -2304,10 +2335,10 @@ body.chat-is-hidden .chat-collapsed-trigger {
     background-repeat: no-repeat !important;
   }
 
-  /* Chat: Ocupa la franja inferior con separación limpia para no tapar el reproductor */
+  /* Chat: Ocupa la franja inferior con separación limpia y altura regulable */
   .chat-section {
     position: absolute !important;
-    top: calc(50% - 24px + (100vw * 9 / 32) + 6px) !important;
+    top: var(--mobile-chat-top, calc(50% - 24px + (100vw * 9 / 32) + 6px)) !important;
     bottom: 0 !important;
     left: 0 !important;
     width: 100% !important;

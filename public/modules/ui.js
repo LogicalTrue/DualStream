@@ -326,43 +326,85 @@ export function closeChat() {
 }
 
 export function initChatResizer() {
-  let isDragging = false;
+  let isHorizontalDragging = false;
+  let isVerticalDragging = false;
 
-  const onDragStart = (e) => {
-    isDragging = true;
+  // 1. Redimensionador Horizontal en Escritorio
+  const onHorizontalStart = (e) => {
+    isHorizontalDragging = true;
     if (DOM.chatResizer) DOM.chatResizer.classList.add('dragging');
     document.body.style.cursor = 'col-resize';
     document.body.style.userSelect = 'none';
   };
 
+  // 2. Regulador de Altura Vertical en Celulares
+  const onVerticalStart = (e) => {
+    if (e.target.closest('#btn-close-chat-mobile')) return;
+    isVerticalDragging = true;
+
+    if (DOM.kickChatFrame) DOM.kickChatFrame.style.pointerEvents = 'none';
+    document.body.style.userSelect = 'none';
+    if (DOM.chatHeaderBar) DOM.chatHeaderBar.classList.add('is-dragging-vertical');
+  };
+
   const onDragMove = (e) => {
-    if (!isDragging || !DOM.watchContainer) return;
-    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-    const containerRect = DOM.watchContainer.getBoundingClientRect();
-    let newChatWidth = containerRect.right - clientX;
+    if (isHorizontalDragging && DOM.watchContainer) {
+      const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+      const containerRect = DOM.watchContainer.getBoundingClientRect();
+      let newChatWidth = containerRect.right - clientX;
 
-    const minW = window.innerWidth < 768 ? 160 : 240;
-    const maxW = window.innerWidth < 768 ? Math.min(420, window.innerWidth * 0.65) : 580;
+      const minW = window.innerWidth < 768 ? 160 : 240;
+      const maxW = window.innerWidth < 768 ? Math.min(420, window.innerWidth * 0.65) : 580;
 
-    if (newChatWidth < minW) newChatWidth = minW;
-    if (newChatWidth > maxW) newChatWidth = maxW;
+      if (newChatWidth < minW) newChatWidth = minW;
+      if (newChatWidth > maxW) newChatWidth = maxW;
 
-    AppState.chatWidth = newChatWidth;
-    document.documentElement.style.setProperty('--chat-width', `${newChatWidth}px`);
+      AppState.chatWidth = newChatWidth;
+      document.documentElement.style.setProperty('--chat-width', `${newChatWidth}px`);
+    } else if (isVerticalDragging && DOM.chatColumn) {
+      const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+      const windowH = window.innerHeight;
+      
+      // Límites de altura móvil: mínimo 140px de chat abajo, máximo hasta 50px debajo del video
+      const minTop = Math.max(140, Math.floor(window.innerWidth * 9 / 16 + 50)); 
+      const maxTop = windowH - 100; // Al menos 100px de chat
+
+      let newTop = clientY;
+      if (newTop < minTop) newTop = minTop;
+      if (newTop > maxTop) newTop = maxTop;
+
+      document.documentElement.style.setProperty('--mobile-chat-top', `${newTop}px`);
+      if (e.cancelable) e.preventDefault();
+    }
   };
 
   const onDragEnd = () => {
-    if (isDragging) {
-      isDragging = false;
+    if (isHorizontalDragging) {
+      isHorizontalDragging = false;
       if (DOM.chatResizer) DOM.chatResizer.classList.remove('dragging');
       document.body.style.cursor = '';
       document.body.style.userSelect = '';
     }
+    if (isVerticalDragging) {
+      isVerticalDragging = false;
+      if (DOM.kickChatFrame) DOM.kickChatFrame.style.pointerEvents = 'auto';
+      document.body.style.userSelect = '';
+      if (DOM.chatHeaderBar) DOM.chatHeaderBar.classList.remove('is-dragging-vertical');
+    }
   };
 
   if (DOM.chatResizer) {
-    DOM.chatResizer.addEventListener('mousedown', onDragStart);
-    DOM.chatResizer.addEventListener('touchstart', onDragStart, { passive: false });
+    DOM.chatResizer.addEventListener('mousedown', onHorizontalStart);
+    DOM.chatResizer.addEventListener('touchstart', onHorizontalStart, { passive: false });
+  }
+
+  if (DOM.chatVerticalDragHandle) {
+    DOM.chatVerticalDragHandle.addEventListener('mousedown', onVerticalStart);
+    DOM.chatVerticalDragHandle.addEventListener('touchstart', onVerticalStart, { passive: false });
+  }
+  if (DOM.chatHeaderBar) {
+    DOM.chatHeaderBar.addEventListener('mousedown', onVerticalStart);
+    DOM.chatHeaderBar.addEventListener('touchstart', onVerticalStart, { passive: false });
   }
 
   document.addEventListener('mousemove', onDragMove);
