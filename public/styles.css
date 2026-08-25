@@ -2288,10 +2288,10 @@ body.chat-is-hidden .chat-collapsed-trigger {
     background: #000000 !important;
   }
 
-  /* Video Stage FIJO ELEVADO PARA DEJAR ESPACIO AL CHAT Y NUNCA TAPAR EL POSTER */
+  /* Video Stage: Se posiciona y centra dinámicamente arriba del chat */
   .stage-section {
     position: absolute !important;
-    top: calc(50% - 24px) !important;
+    top: calc((var(--mobile-chat-top, calc(50% - 24px + (100vw * 9 / 32) + 6px)) - 44px) / 2) !important;
     left: 0 !important;
     transform: translateY(-50%) !important;
     width: 100% !important;
@@ -2300,6 +2300,7 @@ body.chat-is-hidden .chat-collapsed-trigger {
     background: #000000 !important;
     margin: 0 !important;
     padding: 0 !important;
+    transition: top 0.05s ease-out;
   }
 
   .video-theater {
@@ -2352,6 +2353,13 @@ body.chat-is-hidden .chat-collapsed-trigger {
     border-left: none !important;
     border-top: 1px solid var(--border-subtle) !important;
     background: var(--bg-surface) !important;
+  }
+
+  /* Cuando el chat está cerrado, el video se centra perfectamente en toda la pantalla */
+  body.chat-is-closed .stage-section,
+  body.chat-is-hidden .stage-section {
+    top: 50% !important;
+    transform: translateY(-50%) !important;
   }
 
   body.chat-is-closed .chat-section,
