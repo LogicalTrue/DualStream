@@ -54,8 +54,6 @@ export const DOM = {
 
   // Chat Sidebar & Resizer
   chatColumn: document.getElementById('chat-column'),
-  chatHeaderBar: document.getElementById('chat-header-bar'),
-  chatVerticalDragHandle: document.getElementById('chat-vertical-drag-handle'),
   chatResizer: document.getElementById('chat-resizer'),
   kickChatFrame: document.getElementById('kick-chat-frame'),
   btnToggleChat: document.getElementById('btn-toggle-chat'),
