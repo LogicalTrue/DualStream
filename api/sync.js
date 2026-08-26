@@ -62,7 +62,6 @@ async function saveToRedis(state) {
   }
   try {
     const cleanUrl = KV_URL.replace(/\/$/, '');
-    // Upstash REST API acepta POST con array de comandos: ["SET", key, value]
     const res = await fetch(`${cleanUrl}`, {
       method: 'POST',
       headers: {
@@ -78,51 +77,7 @@ async function saveToRedis(state) {
   }
 }
 
-const REDIS_SESSION_KEY = 'dualstream_active_admin_session';
-let memoryActiveSessionToken = null;
-
-async function getActiveSessionFromRedis() {
-  if (!KV_URL || !KV_TOKEN) return memoryActiveSessionToken;
-  try {
-    const cleanUrl = KV_URL.replace(/\/$/, '');
-    const res = await fetch(`${cleanUrl}/get/${REDIS_SESSION_KEY}`, {
-      headers: { Authorization: `Bearer ${KV_TOKEN}` }
-    });
-    if (res.ok) {
-      const data = await res.json();
-      if (data && data.result !== null && data.result !== undefined) {
-        return typeof data.result === 'string' ? data.result : String(data.result);
-      }
-    }
-  } catch (err) {
-    console.error('Error leyendo sesión de Upstash Redis:', err);
-  }
-  return memoryActiveSessionToken;
-}
-
-async function setActiveSessionInRedis(token) {
-  memoryActiveSessionToken = token;
-  if (!KV_URL || !KV_TOKEN) return true;
-  try {
-    const cleanUrl = KV_URL.replace(/\/$/, '');
-    const res = await fetch(`${cleanUrl}`, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${KV_TOKEN}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(["SET", REDIS_SESSION_KEY, token])
-    });
-    return res.ok;
-  } catch (err) {
-    console.error('Error guardando sesión en Upstash Redis:', err);
-    return false;
-  }
-}
-
-// Cache del probe de origen: evita que cada viewer (poll cada 800ms desde el
-// cliente) dispare su propio fetch al servidor de media. Se comparte entre
-// requests mientras la instancia serverless siga "caliente".
+// Cache del probe de origen: evita que cada viewer dispare su propio fetch al servidor de streaming.
 let originProbeCache = { url: null, isOnline: false, ts: 0 };
 const ORIGIN_PROBE_TTL_MS = 1500;
 
@@ -151,114 +106,49 @@ const EXPECTED_ADMIN_SECRET = process.env.ADMIN_SECRET;
 module.exports = async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, x-admin-secret, x-admin-session');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, x-admin-secret');
 
   if (req.method === 'OPTIONS') {
     return res.status(200).end();
   }
 
-  // --- POST: Login, Verificación o Guardado ---
+  // --- POST: Mutaciones protegidas estrictamente ---
   if (req.method === 'POST') {
+    // Seguridad estricta: Si ADMIN_SECRET no está definido en el servidor o el token no coincide, rechazar por defecto
+    const authHeader = req.headers['authorization'] || '';
+    const customHeader = req.headers['x-admin-secret'] || '';
+    const token = authHeader.replace(/^Bearer\s+/i, '').trim() || customHeader;
+
+    if (!EXPECTED_ADMIN_SECRET || !token || token !== EXPECTED_ADMIN_SECRET) {
+      return res.status(401).json({ error: 'No autorizado: Operación denegada por seguridad' });
+    }
+
     try {
       const incomingData = typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
-      const authHeader = req.headers['authorization'] || '';
-      const customHeader = req.headers['x-admin-secret'] || '';
-      const sessionHeader = req.headers['x-admin-session'] || (incomingData && incomingData.sessionToken);
-      const token = authHeader.replace(/^Bearer\s+/i, '').trim() || customHeader || (incomingData && incomingData.adminSecret);
-
-      // Validación de autenticación si ADMIN_SECRET está configurado en Vercel
-      if (EXPECTED_ADMIN_SECRET) {
-        if (!token || token !== EXPECTED_ADMIN_SECRET) {
-          return res.status(401).json({ error: 'No autorizado: ADMIN_SECRET inválido o ausente' });
-        }
+      if (!incomingData) {
+        return res.status(400).json({ error: 'Payload vacío' });
       }
 
-      // 1. Caso: Login / Inicio de Sesión nuevo -> Genera y registra nueva sesión única y marca online
-      if (incomingData && incomingData.type === 'VERIFY_AUTH') {
-        const newSessionToken = 'sess_' + Math.random().toString(36).substring(2) + Date.now().toString(36);
-        await setActiveSessionInRedis(newSessionToken);
+      const { adminSecret, ...cleanDataToSave } = incomingData;
+      const currentState = (await getFromRedis()) || memoryStateStore;
+      const updatedState = {
+        ...currentState,
+        ...cleanDataToSave,
+        updatedAt: Date.now()
+      };
 
-        const currentState = (await getFromRedis()) || memoryStateStore;
-        const updatedState = {
-          ...currentState,
-          isOnline: true,
-          updatedAt: Date.now()
-        };
-        memoryStateStore = updatedState;
-        await saveToRedis(updatedState);
+      memoryStateStore = updatedState;
+      await saveToRedis(updatedState);
 
-        return res.status(200).json({ 
-          ok: true, 
-          message: 'Autenticación exitosa',
-          sessionToken: newSessionToken,
-          state: updatedState
-        });
-      }
-
-      // 1.5. Caso: Logout explícito del Admin -> Pone el stream en OFFLINE
-      if (incomingData && incomingData.type === 'LOGOUT') {
-        await setActiveSessionInRedis('');
-        const currentState = (await getFromRedis()) || memoryStateStore;
-        const updatedState = {
-          ...currentState,
-          isOnline: false,
-          isPlaying: false,
-          updatedAt: Date.now()
-        };
-        memoryStateStore = updatedState;
-        await saveToRedis(updatedState);
-        return res.status(200).json({ ok: true, isOnline: false });
-      }
-
-      // 2. Caso: Verificación de sesión activa (Heartbeat / polling)
-      if (incomingData && incomingData.type === 'CHECK_SESSION') {
-        const currentActive = await getActiveSessionFromRedis();
-        if (currentActive && sessionHeader && currentActive !== sessionHeader) {
-          return res.status(403).json({ 
-            error: 'SESSION_TERMINATED', 
-            message: 'Se ha iniciado sesión desde otro dispositivo' 
-          });
-        }
-        return res.status(200).json({ ok: true, active: true });
-      }
-
-      // 3. Caso: Guardar nuevo estado del streamer
-      if (incomingData) {
-        // Verificar que la sesión que intenta guardar siga siendo la sesión activa
-        const currentActive = await getActiveSessionFromRedis();
-        if (currentActive && sessionHeader && currentActive !== sessionHeader) {
-          return res.status(403).json({ 
-            error: 'SESSION_TERMINATED', 
-            message: 'Tu sesión ha expirado porque se inició sesión desde otro dispositivo' 
-          });
-        }
-
-        // Limpiar campos internos antes de persistir
-        const { adminSecret, sessionToken, ...cleanDataToSave } = incomingData;
-
-        // Leer estado actual existente
-        const currentState = (await getFromRedis()) || memoryStateStore;
-        const updatedState = {
-          ...currentState,
-          ...cleanDataToSave,
-          updatedAt: Date.now()
-        };
-
-        memoryStateStore = updatedState;
-        await saveToRedis(updatedState);
-
-        return res.status(200).json(updatedState);
-      }
-      return res.status(400).json({ error: 'No data provided' });
+      return res.status(200).json(updatedState);
     } catch (e) {
-      return res.status(400).json({ error: 'Invalid JSON payload' });
+      return res.status(400).json({ error: 'JSON inválido' });
     }
   }
 
-  // --- GET: Obtener el estado actual más reciente con verificación server-side ---
+  // --- GET: Consulta pública del estado del stream ---
   let currentState = (await getFromRedis()) || memoryStateStore;
 
-  // Migración automática de URL legacy a la CDN oficial en Redis
   if (!currentState.videoUrl || currentState.videoUrl.includes('sslip.io')) {
     currentState.videoUrl = 'https://stream.blackozulive.com/live/stream/index.m3u8';
     currentState.updatedAt = Date.now();
@@ -274,9 +164,13 @@ module.exports = async (req, res) => {
   }
 
   const responseState = {
-    ...currentState,
+    streamer: currentState.streamer || 'BlackozuTR',
+    videoUrl: targetVideoUrl,
+    offlineImg: currentState.offlineImg || '',
+    onlineImg: currentState.onlineImg || '',
     isOnline: isStreamOnline,
-    isLive: isStreamOnline
+    isLive: isStreamOnline,
+    updatedAt: currentState.updatedAt || Date.now()
   };
 
   return res.status(200).json(responseState);

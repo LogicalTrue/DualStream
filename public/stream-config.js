@@ -1,25 +1,8 @@
-/**
- * ==========================================================================
- * CONFIGURACIÓN CENTRAL DEL STREAMER Y TRANSMISIÓN (CLIENT CONFIG)
- * Edita este único archivo para cambiar el canal, el stream de OBS y los banners.
- * ==========================================================================
- */
-
 export const STREAM_CONFIG = {
-  // Canal / Usuario de Kick (para el chat en vivo con 7TV y views automáticos)
   kickChannel: 'blackozutr',
-
-  // URL del Video o Transmisión en Vivo (HLS con CDN Cloudflare oficial)
   videoUrl: 'https://stream.blackozulive.com/live/stream/index.m3u8',
-
-  // Pantallas de espera:
-  // Imagen de Portada cuando el stream está APAGADO / OFFLINE (opcional)
   offlinePoster: 'https://i.imgur.com/WZFLjFB.jpeg',
-
-  // Imagen de Portada cuando el stream está PRENDIDO / ONLINE (opcional)
   onlinePoster: '',
-
-  // Redes Sociales oficiales:
   socials: {
     kickSubscribe: 'https://kick.com/BlackozuTR/subscribe',
     youtube: 'https://www.youtube.com/@blackozu',

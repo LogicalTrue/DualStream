@@ -1,13 +1,6 @@
-/**
- * ==========================================================================
- * PLAYER MODULE
- * YouTube Player API, HTML5 video element, iframe embed and audio management.
- * ==========================================================================
- */
-
 import { DOM } from './dom.js';
 import { AppState } from './state.js';
-import { showToast, syncUrlParams } from './ui.js';
+import { showToast } from './ui.js';
 import { fetchLatestCloudState } from './api.js';
 
 export let activeNativeVideo = null;
@@ -15,13 +8,6 @@ export let ytPlayerInstance = null;
 export let isYtApiReady = (typeof window !== 'undefined' && typeof YT !== 'undefined' && YT.loaded);
 export let pendingYtVideoId = null;
 
-// Callback emisor que se conecta con sync.js
-let playbackSyncEmitter = null;
-export function setPlaybackSyncEmitter(emitter) {
-  playbackSyncEmitter = emitter;
-}
-
-// Hook de YouTube API Ready
 if (typeof window !== 'undefined') {
   const previousYtReady = window.onYouTubeIframeAPIReady;
   window.onYouTubeIframeAPIReady = function () {
@@ -50,41 +36,24 @@ export function initYouTubePlayer(videoId, initialSyncState = null) {
       videoId: videoId,
       playerVars: {
         autoplay: 1,
-        controls: AppState.isAdmin ? 1 : 0,
+        controls: 1,
         playsinline: 1,
         rel: 0,
         enablejsapi: 1
       },
       events: {
         onReady: (e) => {
-          if (AppState.isAdmin) {
+          try { e.target.mute(); } catch (err) {}
+
+          if (initialSyncState && initialSyncState.isPlaying) {
+            const latency = Math.max(0, (Date.now() - initialSyncState.updatedAt) / 1000);
+            const target = (initialSyncState.currentTime || 0) + latency;
+            e.target.seekTo(target, true);
             e.target.playVideo();
           } else {
-            try { e.target.mute(); } catch (err) {}
-
-            if (initialSyncState && initialSyncState.isPlaying) {
-              const latency = Math.max(0, (Date.now() - initialSyncState.updatedAt) / 1000);
-              const target = (initialSyncState.currentTime || 0) + latency;
-              e.target.seekTo(target, true);
-              e.target.playVideo();
-            } else {
-              const target = initialSyncState ? (initialSyncState.currentTime || 0) : 0;
-              e.target.seekTo(target, true);
-              e.target.pauseVideo();
-            }
-          }
-        },
-        onStateChange: (e) => {
-          if (AppState.isAdmin && typeof playbackSyncEmitter === 'function') {
-            const state = e.data;
-            const currentTime = e.target.getCurrentTime() || 0;
-            if (state === 1) { // Playing
-              playbackSyncEmitter(currentTime, true);
-            } else if (state === 2) { // Paused
-              playbackSyncEmitter(currentTime, false);
-            } else if (state === 3) { // Buffering (Seek)
-              playbackSyncEmitter(currentTime, true);
-            }
+            const target = initialSyncState ? (initialSyncState.currentTime || 0) : 0;
+            e.target.seekTo(target, true);
+            e.target.pauseVideo();
           }
         }
       }
@@ -116,20 +85,15 @@ export function isDirectVideoFile(url) {
     cleanUrl.endsWith('.ogg') || 
     cleanUrl.endsWith('.mkv') ||
     cleanUrl.includes('.mp4?') ||
-    cleanUrl.includes('blob.vercel-storage') ||
-    cleanUrl.includes('catbox.moe');
+    cleanUrl.includes('blob.vercel-storage');
 }
 
 export let activeHlsInstance = null;
 export let activeHlsPoller = null;
 export let activeWhepPc = null;
 export let whepReconnectTimer = null;
-// Hook que sync.js invoca cuando el servidor confirma (vía /api/sync) que el stream
-// volvió a estar online, para reanudar HLS sin que el cliente tenga que sondear
-// el .m3u8 crudo por su cuenta (eso es lo que generaba 404 visibles en consola).
 export let hlsRetryFn = null;
 
-// Gestor global único de activación de audio por interacción (evita múltiples listeners)
 if (typeof window !== 'undefined' && !window._soundInteractionRegistered) {
   window._soundInteractionRegistered = true;
   const onFirstInteraction = () => {
@@ -139,7 +103,6 @@ if (typeof window !== 'undefined' && !window._soundInteractionRegistered) {
       v.volume = 1.0;
       updateVideoVolume(100);
       v.play().catch(() => {});
-      console.log('%c[DualStream Audio Monitor] 🔊 Audio único desmuteado por interacción', 'color: #38bdf8; font-weight: bold;');
     }
   };
   document.addEventListener('click', onFirstInteraction, { once: true });
@@ -147,7 +110,6 @@ if (typeof window !== 'undefined' && !window._soundInteractionRegistered) {
 }
 
 export function renderNativeVideo(url, initialSyncState = null) {
-  // Destruir cualquier instancia HLS previa
   if (activeHlsInstance) {
     try {
       activeHlsInstance.stopLoad();
@@ -162,7 +124,6 @@ export function renderNativeVideo(url, initialSyncState = null) {
   }
   hlsRetryFn = null;
 
-  // Reutilizar el elemento de video singleton existente o crearlo si no existe
   let videoElem = document.getElementById('main-theater-video');
   if (!videoElem) {
     videoElem = document.createElement('video');
@@ -170,7 +131,6 @@ export function renderNativeVideo(url, initialSyncState = null) {
     videoElem.className = 'native-video-player';
   }
 
-  // Purgar y detener físicamente cualquier otro elemento de audio/video duplicado
   document.querySelectorAll('video, audio').forEach(el => {
     if (el !== videoElem) {
       try { el.pause(); el.removeAttribute('src'); el.load(); } catch(e) {}
@@ -178,7 +138,7 @@ export function renderNativeVideo(url, initialSyncState = null) {
     }
   });
 
-  videoElem.controls = AppState.isAdmin;
+  videoElem.controls = false;
   videoElem.autoplay = true;
   videoElem.playsInline = true;
   videoElem.setAttribute('playsinline', 'true');
@@ -226,7 +186,6 @@ export function renderNativeVideo(url, initialSyncState = null) {
   };
 
   const setPlayerOnline = () => {
-    console.log('%c[DualStream] 🟢 SET PLAYER ONLINE: Destapando video en vivo y ocultando pantalla offline', 'color: #53fc18; font-weight: bold;');
     videoElem.dataset.offline = 'false';
     document.body.classList.remove('viewer-standby');
     const offlineScreen = document.getElementById('theater-offline-screen');
@@ -243,19 +202,13 @@ export function renderNativeVideo(url, initialSyncState = null) {
 
     const playPromise = videoElem.play();
     if (playPromise !== undefined) {
-      playPromise.then(() => {
-        console.log('[DualStream] ▶️ Video reproduciéndose a 60 FPS');
-      }).catch((e) => {
-        console.warn('[DualStream] Autoplay bloqueado por navegador, muting inicial:', e);
+      playPromise.then(() => {}).catch(() => {
         videoElem.muted = true;
         videoElem.play().catch(() => {});
       });
     }
   };
 
-  // ==========================================
-  // TELEMETRÍA & DIAGNÓSTICO EN VIVO (HUD)
-  // ==========================================
   const telemetryState = {
     isOpen: false,
     lastFrameCount: 0,
@@ -288,7 +241,6 @@ export function renderNativeVideo(url, initialSyncState = null) {
   const updateTelemetryHud = () => {
     if (!videoElem) return;
 
-    // 1. FPS y Cuadros Perdidos
     if (typeof videoElem.getVideoPlaybackQuality === 'function') {
       const q = videoElem.getVideoPlaybackQuality();
       const now = performance.now();
@@ -302,7 +254,6 @@ export function renderNativeVideo(url, initialSyncState = null) {
       telemetryState.droppedFrames = q.droppedVideoFrames;
     }
 
-    // 2. Búfer Acumulado
     if (videoElem.buffered && videoElem.buffered.length > 0) {
       const curr = videoElem.currentTime;
       let bufEnd = 0;
@@ -317,17 +268,14 @@ export function renderNativeVideo(url, initialSyncState = null) {
       telemetryState.bufferSeconds = 0;
     }
 
-    // 3. Resolución
     if (videoElem.videoWidth && videoElem.videoHeight) {
       telemetryState.resolution = `${videoElem.videoWidth}x${videoElem.videoHeight}`;
     }
 
-    // 4. Retraso al Vivo (HLS)
     if (activeHlsInstance && activeHlsInstance.liveSyncPosition) {
       telemetryState.liveDelaySec = Math.max(0, parseFloat((activeHlsInstance.liveSyncPosition - videoElem.currentTime).toFixed(1)));
     }
 
-    // 5. Medición de Memoria RAM en Vivo (Google Chrome / Android)
     let ramMbText = '-- MB';
     let ramLimitText = 'Límite: -- MB';
     let rawRamNum = 0;
@@ -342,7 +290,6 @@ export function renderNativeVideo(url, initialSyncState = null) {
       ramLimitText = 'Navegador Safari / WebKit';
     }
 
-    // 6. Conexión de Red (4G / 5G / WiFi)
     let connText = 'Red: 4G / 5G / WiFi';
     if (navigator.connection) {
       const conn = navigator.connection;
@@ -351,7 +298,6 @@ export function renderNativeVideo(url, initialSyncState = null) {
       connText = `Red: ${type} ${rtt}`.trim();
     }
 
-    // Actualizar DOM del HUD si está visible
     const hudFps = document.getElementById('hud-fps');
     const hudDropped = document.getElementById('hud-dropped-frames');
     const hudBuffer = document.getElementById('hud-buffer');
@@ -390,9 +336,8 @@ export function renderNativeVideo(url, initialSyncState = null) {
     if (hudConnType) hudConnType.textContent = connText;
   };
 
-  const telemetryInterval = setInterval(updateTelemetryHud, 1000);
+  setInterval(updateTelemetryHud, 1000);
 
-  // Botón y Atajo para abrir/cerrar HUD
   const btnStats = document.getElementById('btn-stats-movie');
   const btnHudClose = document.getElementById('btn-telemetry-close');
   const btnHudCopy = document.getElementById('btn-telemetry-copy');
@@ -437,16 +382,12 @@ export function renderNativeVideo(url, initialSyncState = null) {
     };
   }
 
-  // Atajo de teclado: Shift + D
   window.addEventListener('keydown', (e) => {
     if (e.shiftKey && (e.key === 'D' || e.key === 'd')) {
       toggleHud();
     }
   });
 
-  // ==========================================
-  // PROTOCOLO: HLS (.m3u8) Live Streaming
-  // ==========================================
   if (isHlsStream(url)) {
     setPlayerOffline();
 
@@ -463,9 +404,6 @@ export function renderNativeVideo(url, initialSyncState = null) {
         hls = null;
       }
       activeHlsInstance = null;
-      // Forzar al navegador a descartar cualquier buffer de audio/video que haya
-      // quedado del stream anterior. Sin esto, al reconectar puede "revivir" segmentos
-      // viejos superpuestos con el audio en vivo (efecto eco/loop de la sesión previa).
       try {
         videoElem.removeAttribute('src');
         videoElem.load();
@@ -490,10 +428,10 @@ export function renderNativeVideo(url, initialSyncState = null) {
         maxBufferSize: 10 * 1024 * 1024,
         maxBufferLength: 2,
         maxMaxBufferLength: 4,
-        liveSyncDurationCount: 1, // Pegado al borde exacto del vivo (mínimo delay)
-        liveMaxLatencyDurationCount: 2, // Máximo 2 fragmentos de retraso antes de recuperar
+        liveSyncDurationCount: 1,
+        liveMaxLatencyDurationCount: 2,
         liveDurationInfinity: true,
-        lowLatencyMode: true, // Modo Ultra Baja Latencia de Hls.js
+        lowLatencyMode: true,
         highBufferWatchdogPeriod: 1,
         manifestLoadingMaxRetry: 6,
         manifestLoadingRetryDelay: 500,
@@ -528,9 +466,7 @@ export function renderNativeVideo(url, initialSyncState = null) {
       });
 
       hls.on(Hls.Events.ERROR, (event, data) => {
-        // 1. Manejo de micro-pausas por caída de señal móvil (4G/5G)
         if (data.details === Hls.ErrorDetails.BUFFER_STALLED_ERROR) {
-          console.warn('[DualStream] ⚠️ Buffer móvil momentáneamente pausado, forzando sincronización...');
           try {
             if (hls.liveSyncPosition && Math.abs(hls.liveSyncPosition - videoElem.currentTime) > 3) {
               videoElem.currentTime = hls.liveSyncPosition;
@@ -540,20 +476,16 @@ export function renderNativeVideo(url, initialSyncState = null) {
           return;
         }
 
-        // 2. Manejo de buffer lleno para celulares con RAM reducida
         if (data.details === Hls.ErrorDetails.BUFFER_FULL_ERROR) {
-          console.warn('[DualStream] ⚠️ Purgando buffer acumulado en memoria móvil...');
           try {
             hls.cleanBuffer(0, Math.max(0, videoElem.currentTime - 1));
           } catch (e) {}
           return;
         }
 
-        // 3. Manejo de errores fatales con auto-recuperación continua (Sin congelar al espectador)
         if (data.fatal) {
           switch (data.type) {
             case Hls.ErrorTypes.NETWORK_ERROR:
-              console.warn('[DualStream] 🔄 Network error en stream, reintentando carga de fragmentos...');
               try {
                 hls.startLoad();
               } catch (e) {
@@ -561,7 +493,6 @@ export function renderNativeVideo(url, initialSyncState = null) {
               }
               break;
             case Hls.ErrorTypes.MEDIA_ERROR:
-              console.warn('[DualStream] 🔄 Recuperando decodificador multimedia en móvil...');
               try {
                 hls.recoverMediaError();
               } catch (e) {
@@ -569,14 +500,12 @@ export function renderNativeVideo(url, initialSyncState = null) {
               }
               break;
             default:
-              console.warn('[DualStream] ⚠️ Error fatal HLS, programando auto-reconexión...');
               scheduleAutoReconnect();
               break;
           }
         }
       });
 
-      // 4. Reconexión automática cuando el usuario vuelve de WhatsApp o desbloquea el celular
       document.addEventListener('visibilitychange', () => {
         if (document.visibilityState === 'visible') {
           if (videoElem.paused && isPlayingLive) {
@@ -594,9 +523,7 @@ export function renderNativeVideo(url, initialSyncState = null) {
         }
       });
 
-      // 5. Reconexión automática al recuperar señal de red (cambio de WiFi a 4G o salida de túnel)
       window.addEventListener('online', () => {
-        console.log('[DualStream] 📶 Red móvil restablecida. Sincronizando transmisión...');
         if (activeHlsInstance) {
           try { activeHlsInstance.startLoad(); } catch(e) {}
         }
@@ -618,7 +545,6 @@ export function renderNativeVideo(url, initialSyncState = null) {
         try {
           const res = await fetch(url, { method: 'HEAD', cache: 'no-store' });
           if (res.ok) {
-            console.log('[DualStream] 🟢 Transmisión detectada en vivo. Conectando automáticamente...');
             clearInterval(autoReconnectTimer);
             autoReconnectTimer = null;
             startHlsPlayback();
@@ -639,7 +565,7 @@ export function renderNativeVideo(url, initialSyncState = null) {
   let initialSynced = false;
   const syncInitialTime = () => {
     if (initialSynced) return;
-    if (!AppState.isAdmin && initialSyncState && !isHlsStream(url)) {
+    if (initialSyncState && !isHlsStream(url)) {
       initialSynced = true;
       const latency = Math.max(0, (Date.now() - (initialSyncState.updatedAt || Date.now())) / 1000);
       const target = (initialSyncState.currentTime || 0) + (initialSyncState.isPlaying ? latency : 0);
@@ -656,18 +582,6 @@ export function renderNativeVideo(url, initialSyncState = null) {
 
   videoElem.addEventListener('loadedmetadata', syncInitialTime, { once: true });
   videoElem.addEventListener('canplay', syncInitialTime, { once: true });
-
-  if (AppState.isAdmin) {
-    videoElem.addEventListener('play', () => {
-      if (!isHlsStream(url) && typeof playbackSyncEmitter === 'function') playbackSyncEmitter(videoElem.currentTime, true);
-    });
-    videoElem.addEventListener('pause', () => {
-      if (!isHlsStream(url) && typeof playbackSyncEmitter === 'function') playbackSyncEmitter(videoElem.currentTime, false);
-    });
-    videoElem.addEventListener('seeked', () => {
-      if (!isHlsStream(url) && typeof playbackSyncEmitter === 'function') playbackSyncEmitter(videoElem.currentTime, !videoElem.paused);
-    });
-  }
 }
 
 export function renderIframeVideo(embedUrl) {
@@ -702,7 +616,6 @@ export function loadVideoSource(rawInput, initialSyncState = null) {
   }
 
   AppState.videoUrl = url;
-  syncUrlParams();
 
   if (activeHlsInstance) {
     try {
@@ -764,7 +677,6 @@ export function unloadVideo() {
   }
   hlsRetryFn = null;
   AppState.videoUrl = '';
-  syncUrlParams();
   if (DOM.movieMediaWrapper) {
     DOM.movieMediaWrapper.innerHTML = '';
     DOM.movieMediaWrapper.style.display = 'none';
@@ -868,7 +780,6 @@ export function toggleFullscreen(element) {
   const nativeVid = document.getElementById('main-theater-video');
 
   if (!isFs) {
-    // ENTRANDO A PANTALLA COMPLETA
     document.body.classList.add('is-fullscreen');
     element.classList.add('is-fullscreen');
     if (floatChatBtn) {
@@ -876,7 +787,6 @@ export function toggleFullscreen(element) {
       floatChatBtn.style.setProperty('display', 'none', 'important');
     }
 
-    // Bloquear en horizontal como YouTube / Twitch al agrandar pantalla
     if (screen.orientation && screen.orientation.lock) {
       screen.orientation.lock('landscape').catch(() => {});
     }
@@ -898,7 +808,6 @@ export function toggleFullscreen(element) {
       reqTarget.msRequestFullscreen();
     }
   } else {
-    // SALIENDO DE PANTALLA COMPLETA
     document.body.classList.remove('is-fullscreen');
     element.classList.remove('is-fullscreen');
     if (floatChatBtn) {

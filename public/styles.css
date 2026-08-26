@@ -1,7 +1,3 @@
-/* ==========================================================================
-   KICK DUAL VIEWER — STYLES (MILULIVE WATCH PARTY AESTHETIC + ADMIN/VIEWER MODES)
-   ========================================================================== */
-
 :root {
   /* Color Palette */
   --bg-main: #000000;
@@ -850,12 +846,8 @@ body.mode-viewer.viewer-standby #floating-video-controls {
   display: none !important;
 }
 
-/* ==========================================================================
-   WEBCAM / STREAMER OVERLAY CARD (HIDDEN 1PX BACKGROUND FOR VIEWS ONLY LIKE MILULIVE)
-   ========================================================================== */
-
 .webcam-card {
-  display: none !important; /* Oculto visualmente: el stream de OBS principal ocupa la pantalla */
+  display: none !important;
 }
 
 .webcam-frame-wrapper {
@@ -865,7 +857,6 @@ body.mode-viewer.viewer-standby #floating-video-controls {
   overflow: hidden !important;
 }
 
-/* El iframe de Kick está permanentemente en vivo y NUNCA se pausa ni genera scrollbars */
 .webcam-frame {
   position: absolute;
   top: 0;
