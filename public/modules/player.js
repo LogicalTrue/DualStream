@@ -529,22 +529,23 @@ export function renderNativeVideo(url, initialSyncState = null) {
 
       hls = new Hls({
         enableWorker: true,
+        lowLatencyMode: true, // Modo LL-HLS Puro Activo
+        progressive: true,
         backBufferLength: 5,
-        maxBufferSize: 30 * 1024 * 1024,
-        maxBufferLength: 4,
-        maxMaxBufferLength: 8,
-        liveSyncDurationCount: 3,
-        liveMaxLatencyDurationCount: 6,
+        maxBufferSize: 20 * 1024 * 1024,
+        maxBufferLength: 2,
+        maxMaxBufferLength: 4,
+        liveSyncDurationCount: 2,
+        liveMaxLatencyDurationCount: 3,
         maxLiveSyncPlaybackRate: 1.15,
         liveDurationInfinity: true,
-        lowLatencyMode: false,
         highBufferWatchdogPeriod: 1,
         manifestLoadingMaxRetry: 10,
-        manifestLoadingRetryDelay: 400,
+        manifestLoadingRetryDelay: 300,
         levelLoadingMaxRetry: 10,
-        levelLoadingRetryDelay: 400,
+        levelLoadingRetryDelay: 300,
         fragLoadingMaxRetry: 10,
-        fragLoadingRetryDelay: 400,
+        fragLoadingRetryDelay: 300,
       });
 
       activeHlsInstance = hls;
