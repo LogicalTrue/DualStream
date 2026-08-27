@@ -162,8 +162,17 @@ export const updateTelemetryHud = () => {
       }
     }
     telemetryState.bufferSeconds = Math.max(0, parseFloat((bufEnd - curr).toFixed(2)));
+    
+    // El retraso real al vivo es la distancia entre el final del buffer recibido y lo que estás reproduciendo
+    if (activeHlsInstance && activeHlsInstance.liveSyncPosition) {
+      telemetryState.liveDelaySec = Math.max(0, parseFloat((activeHlsInstance.liveSyncPosition - curr).toFixed(1)));
+    } else {
+      const maxBuffered = activeVideo.buffered.end(activeVideo.buffered.length - 1);
+      telemetryState.liveDelaySec = Math.max(0, parseFloat((maxBuffered - curr).toFixed(1)));
+    }
   } else {
     telemetryState.bufferSeconds = 0;
+    telemetryState.liveDelaySec = 0;
   }
 
   if (activeVideo && activeVideo.videoWidth && activeVideo.videoHeight) {
@@ -172,8 +181,6 @@ export const updateTelemetryHud = () => {
 
   if (activeOvenPlayer) {
     telemetryState.liveDelaySec = 0.3;
-  } else if (activeHlsInstance && activeHlsInstance.liveSyncPosition && activeVideo) {
-    telemetryState.liveDelaySec = Math.max(0, parseFloat((activeHlsInstance.liveSyncPosition - activeVideo.currentTime).toFixed(1)));
   }
 
   let ramMbText = '-- MB';
@@ -236,7 +243,7 @@ export const updateTelemetryHud = () => {
   if (hudRes) hudRes.textContent = `Resolución: ${telemetryState.resolution}`;
   if (hudConnType) hudConnType.textContent = connText;
   if (hudCdnStatus) {
-    hudCdnStatus.textContent = 'BunnyCDN Global Edge (LL-HLS)';
+    hudCdnStatus.textContent = 'Hetzner Origin USA (LL-HLS)';
     hudCdnStatus.style.color = '#53fc18';
   }
 };
