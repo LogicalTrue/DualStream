@@ -69,6 +69,15 @@ export function isWhepStream(url) {
   return cleanUrl.endsWith('/whep') || cleanUrl.includes('/whep?');
 }
 
+export function isOvenStream(url) {
+  if (!url) return false;
+  const cleanUrl = url.toLowerCase().split('?')[0];
+  return cleanUrl.startsWith('ws://') || 
+         cleanUrl.startsWith('wss://') || 
+         cleanUrl.includes('/app/') ||
+         cleanUrl.endsWith('/webrtc');
+}
+
 export function isHlsStream(url) {
   if (!url) return false;
   const cleanUrl = url.toLowerCase().split('?')[0];
@@ -79,6 +88,7 @@ export function isDirectVideoFile(url) {
   if (!url) return false;
   const cleanUrl = url.toLowerCase().split('?')[0];
   return isWhepStream(url) ||
+    isOvenStream(url) ||
     isHlsStream(url) ||
     cleanUrl.endsWith('.mp4') || 
     cleanUrl.endsWith('.webm') || 
@@ -88,11 +98,84 @@ export function isDirectVideoFile(url) {
     cleanUrl.includes('blob.vercel-storage');
 }
 
+export let activeOvenPlayer = null;
 export let activeHlsInstance = null;
 export let activeHlsPoller = null;
 export let activeWhepPc = null;
 export let whepReconnectTimer = null;
 export let hlsRetryFn = null;
+
+export function renderOvenPlayer(url) {
+  if (activeOvenPlayer) {
+    try { activeOvenPlayer.remove(); } catch(e) {}
+    activeOvenPlayer = null;
+  }
+  const wrapper = document.getElementById('movie-media-wrapper') || DOM.movieMediaWrapper;
+  if (wrapper) wrapper.innerHTML = '';
+
+  const ovenContainer = document.createElement('div');
+  ovenContainer.id = 'ovenplayer-target';
+  ovenContainer.style.width = '100%';
+  ovenContainer.style.height = '100%';
+  if (wrapper) wrapper.appendChild(ovenContainer);
+
+  const setPlayerOffline = () => {
+    document.body.classList.add('viewer-standby');
+    const offlineScreen = document.getElementById('theater-offline-screen');
+    const mediaWrapper = document.getElementById('movie-media-wrapper');
+    if (offlineScreen) offlineScreen.style.setProperty('display', 'flex', 'important');
+    if (mediaWrapper) mediaWrapper.style.setProperty('display', 'none', 'important');
+  };
+
+  const setPlayerOnline = () => {
+    document.body.classList.remove('viewer-standby');
+    const offlineScreen = document.getElementById('theater-offline-screen');
+    const mediaWrapper = document.getElementById('movie-media-wrapper');
+    if (offlineScreen) offlineScreen.style.setProperty('display', 'none', 'important');
+    if (mediaWrapper) mediaWrapper.style.setProperty('display', 'block', 'important');
+  };
+
+  setPlayerOffline();
+
+  if (typeof window.OvenPlayer === 'undefined') {
+    return;
+  }
+
+  const wsUrl = url.startsWith('http') ? url.replace(/^http/, 'ws') : url;
+
+  activeOvenPlayer = OvenPlayer.create('ovenplayer-target', {
+    sources: [
+      {
+        label: 'WebRTC Ultra-Low Latency',
+        type: 'webrtc',
+        file: wsUrl
+      }
+    ],
+    autoStart: true,
+    autoFallback: true,
+    controls: false,
+    webrtcConfig: {
+      timeout: 10000,
+      connectionTimeout: 10000
+    }
+  });
+
+  activeOvenPlayer.on('ready', () => {
+    try { activeOvenPlayer.play(); } catch(e) {}
+  });
+
+  activeOvenPlayer.on('stateChanged', (state) => {
+    if (state.newstate === 'playing') {
+      setPlayerOnline();
+    } else if (state.newstate === 'error' || state.newstate === 'idle') {
+      setPlayerOffline();
+    }
+  });
+
+  activeOvenPlayer.on('error', () => {
+    setPlayerOffline();
+  });
+}
 
 if (typeof window !== 'undefined' && !window._soundInteractionRegistered) {
   window._soundInteractionRegistered = true;
@@ -652,6 +735,8 @@ export function loadVideoSource(rawInput, initialSyncState = null) {
     } else {
       pendingYtVideoId = ytId;
     }
+  } else if (isOvenStream(url)) {
+    renderOvenPlayer(url);
   } else if (isDirectVideoFile(url)) {
     renderNativeVideo(url, initialSyncState);
   } else {
@@ -665,6 +750,10 @@ export function loadVideoSource(rawInput, initialSyncState = null) {
 }
 
 export function unloadVideo() {
+  if (activeOvenPlayer) {
+    try { activeOvenPlayer.remove(); } catch (e) {}
+    activeOvenPlayer = null;
+  }
   if (activeHlsInstance) {
     try { activeHlsInstance.destroy(); } catch (e) {}
     activeHlsInstance = null;
@@ -750,6 +839,17 @@ export function updateVideoVolume(val) {
         ytPlayerInstance.mute();
       } else {
         ytPlayerInstance.unMute();
+      }
+    } catch (e) {}
+  }
+
+  if (activeOvenPlayer && typeof activeOvenPlayer.setVolume === 'function') {
+    try {
+      activeOvenPlayer.setVolume(vol);
+      if (vol === 0) {
+        activeOvenPlayer.setMute(true);
+      } else {
+        activeOvenPlayer.setMute(false);
       }
     } catch (e) {}
   }
