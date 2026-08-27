@@ -575,9 +575,10 @@ body.mode-admin .viewer-video-shield {
   left: 0;
   width: 100%;
   height: 100%;
-  background-size: cover;
+  background-size: contain;
   background-position: center;
   background-repeat: no-repeat;
+  background-color: #000000;
   z-index: 1;
 }
 
