@@ -560,9 +560,9 @@ export function renderNativeVideo(url, initialSyncState = null) {
         if (!isPlayingLive) {
           isPlayingLive = true;
           setPlayerOnline();
-          if (hls.liveSyncPosition) {
-            try { videoElem.currentTime = hls.liveSyncPosition; } catch(e) {}
-          }
+        }
+        if (hls.liveSyncPosition && (hls.liveSyncPosition - videoElem.currentTime) > 2.0) {
+          try { videoElem.currentTime = hls.liveSyncPosition; } catch(e) {}
         }
       });
 
@@ -570,6 +570,9 @@ export function renderNativeVideo(url, initialSyncState = null) {
         if (!isPlayingLive) {
           isPlayingLive = true;
           setPlayerOnline();
+        }
+        if (hls.liveSyncPosition && (hls.liveSyncPosition - videoElem.currentTime) > 2.5) {
+          try { videoElem.currentTime = hls.liveSyncPosition; } catch(e) {}
         }
         const durationSec = data.frag.duration || 1;
         const loadTimeMs = Math.round(data.stats.loading.end - data.stats.loading.start);
