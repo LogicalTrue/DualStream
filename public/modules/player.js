@@ -247,12 +247,12 @@ if (typeof window !== 'undefined') {
 
     // Motor de aceleración inteligente LiveSync (estilo MiluLive)
     const activeVideo = document.querySelector('#ovenplayer-target video') || document.getElementById('main-theater-video') || activeNativeVideo;
-    if (activeVideo && !activeVideo.paused && !activeOvenPlayer) {
+    if (activeVideo && !activeVideo.paused) {
       if (activeHlsInstance && activeHlsInstance.liveSyncPosition) {
         const liveGap = activeHlsInstance.liveSyncPosition - activeVideo.currentTime;
-        if (liveGap > 3.0) {
-          activeVideo.playbackRate = 1.15; // Acelera un 15% para alcanzar el vivo
-        } else if (liveGap <= 1.5) {
+        if (liveGap > 2.2) {
+          activeVideo.playbackRate = 1.20; // Acelera un 20% suavemente para alcanzar el borde en vivo
+        } else if (liveGap <= 1.4) {
           activeVideo.playbackRate = 1.0; // Vuelve a velocidad normal al llegar al vivo
         }
       }
@@ -523,29 +523,39 @@ export function renderNativeVideo(url, initialSyncState = null) {
         enableWorker: true,
         lowLatencyMode: true,
         progressive: true,
-        backBufferLength: 10,
+        backBufferLength: 5,
         maxBufferSize: 30 * 1024 * 1024,
-        maxBufferLength: 4,
-        maxMaxBufferLength: 8,
-        liveSyncDurationCount: 3,
-        liveMaxLatencyDurationCount: 5,
-        maxLiveSyncPlaybackRate: 1.15,
+        maxBufferLength: 3,
+        maxMaxBufferLength: 6,
+        liveSyncDurationCount: 2,
+        liveMaxLatencyDurationCount: 3.5,
+        maxLiveSyncPlaybackRate: 1.25,
         liveDurationInfinity: true,
-        highBufferWatchdogPeriod: 2,
+        highBufferWatchdogPeriod: 1,
         manifestLoadingMaxRetry: 10,
-        manifestLoadingRetryDelay: 500,
+        manifestLoadingRetryDelay: 300,
         levelLoadingMaxRetry: 10,
-        levelLoadingRetryDelay: 500,
+        levelLoadingRetryDelay: 300,
         fragLoadingMaxRetry: 10,
-        fragLoadingRetryDelay: 500,
+        fragLoadingRetryDelay: 300,
       });
 
       activeHlsInstance = hls;
+
+      hls.on(Hls.Events.MANIFEST_PARSED, () => {
+        if (hls.liveSyncPosition) {
+          try { videoElem.currentTime = hls.liveSyncPosition; } catch(e) {}
+        }
+        videoElem.play().catch(() => {});
+      });
 
       hls.on(Hls.Events.LEVEL_LOADED, () => {
         if (!isPlayingLive) {
           isPlayingLive = true;
           setPlayerOnline();
+          if (hls.liveSyncPosition) {
+            try { videoElem.currentTime = hls.liveSyncPosition; } catch(e) {}
+          }
         }
       });
 
