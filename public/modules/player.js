@@ -292,134 +292,143 @@ export function renderNativeVideo(url, initialSyncState = null) {
     }
   };
 
-  const telemetryState = {
-    isOpen: false,
-    lastFrameCount: 0,
-    lastFrameTime: performance.now(),
-    currentFps: 0,
-    droppedFrames: 0,
-    bufferSeconds: 0,
-    downloadSpeedMbps: 0,
-    downloadLatencyMs: 0,
-    liveDelaySec: 0,
-    resolution: '--',
-    events: [],
-    pollTimer: null
-  };
+export const telemetryState = {
+  isOpen: false,
+  lastFrameCount: 0,
+  lastFrameTime: performance.now(),
+  currentFps: 0,
+  droppedFrames: 0,
+  bufferSeconds: 0,
+  downloadSpeedMbps: 0,
+  downloadLatencyMs: 0,
+  liveDelaySec: 0,
+  resolution: '--',
+  events: [],
+  pollTimer: null
+};
 
-  const addTelemetryLog = (msg, type = 'info') => {
-    const timeStr = new Date().toLocaleTimeString();
-    const logItem = `[${timeStr}] ${msg}`;
-    telemetryState.events.unshift({ text: logItem, type });
-    if (telemetryState.events.length > 30) telemetryState.events.pop();
+export const addTelemetryLog = (msg, type = 'info') => {
+  const timeStr = new Date().toLocaleTimeString();
+  const logItem = `[${timeStr}] ${msg}`;
+  telemetryState.events.unshift({ text: logItem, type });
+  if (telemetryState.events.length > 30) telemetryState.events.pop();
 
-    const logContainer = document.getElementById('hud-events-log');
-    if (logContainer) {
-      logContainer.innerHTML = telemetryState.events.map(ev => 
-        `<div class="telemetry-log-item ${ev.type}">${ev.text}</div>`
-      ).join('');
+  const logContainer = document.getElementById('hud-events-log');
+  if (logContainer) {
+    logContainer.innerHTML = telemetryState.events.map(ev => 
+      `<div class="telemetry-log-item ${ev.type}">${ev.text}</div>`
+    ).join('');
+  }
+};
+
+export const updateTelemetryHud = () => {
+  const activeVideo = document.querySelector('#ovenplayer-target video') || document.getElementById('main-theater-video') || activeNativeVideo;
+
+  if (activeVideo && typeof activeVideo.getVideoPlaybackQuality === 'function') {
+    const q = activeVideo.getVideoPlaybackQuality();
+    const now = performance.now();
+    const timeDiff = (now - telemetryState.lastFrameTime) / 1000;
+    if (timeDiff >= 0.8) {
+      const frameDiff = q.totalVideoFrames - telemetryState.lastFrameCount;
+      telemetryState.currentFps = Math.max(0, Math.round(frameDiff / timeDiff));
+      telemetryState.lastFrameCount = q.totalVideoFrames;
+      telemetryState.lastFrameTime = now;
     }
-  };
+    telemetryState.droppedFrames = q.droppedVideoFrames;
+  }
 
-  const updateTelemetryHud = () => {
-    if (!videoElem) return;
-
-    if (typeof videoElem.getVideoPlaybackQuality === 'function') {
-      const q = videoElem.getVideoPlaybackQuality();
-      const now = performance.now();
-      const timeDiff = (now - telemetryState.lastFrameTime) / 1000;
-      if (timeDiff >= 0.8) {
-        const frameDiff = q.totalVideoFrames - telemetryState.lastFrameCount;
-        telemetryState.currentFps = Math.max(0, Math.round(frameDiff / timeDiff));
-        telemetryState.lastFrameCount = q.totalVideoFrames;
-        telemetryState.lastFrameTime = now;
+  if (activeVideo && activeVideo.buffered && activeVideo.buffered.length > 0) {
+    const curr = activeVideo.currentTime;
+    let bufEnd = 0;
+    for (let i = 0; i < activeVideo.buffered.length; i++) {
+      if (activeVideo.buffered.start(i) <= curr && curr <= activeVideo.buffered.end(i)) {
+        bufEnd = activeVideo.buffered.end(i);
+        break;
       }
-      telemetryState.droppedFrames = q.droppedVideoFrames;
     }
+    telemetryState.bufferSeconds = Math.max(0, parseFloat((bufEnd - curr).toFixed(2)));
+  } else {
+    telemetryState.bufferSeconds = 0;
+  }
 
-    if (videoElem.buffered && videoElem.buffered.length > 0) {
-      const curr = videoElem.currentTime;
-      let bufEnd = 0;
-      for (let i = 0; i < videoElem.buffered.length; i++) {
-        if (videoElem.buffered.start(i) <= curr && curr <= videoElem.buffered.end(i)) {
-          bufEnd = videoElem.buffered.end(i);
-          break;
-        }
-      }
-      telemetryState.bufferSeconds = Math.max(0, parseFloat((bufEnd - curr).toFixed(2)));
-    } else {
-      telemetryState.bufferSeconds = 0;
-    }
+  if (activeVideo && activeVideo.videoWidth && activeVideo.videoHeight) {
+    telemetryState.resolution = `${activeVideo.videoWidth}x${activeVideo.videoHeight}`;
+  }
 
-    if (videoElem.videoWidth && videoElem.videoHeight) {
-      telemetryState.resolution = `${videoElem.videoWidth}x${videoElem.videoHeight}`;
-    }
+  if (activeOvenPlayer) {
+    telemetryState.liveDelaySec = 0.3;
+  } else if (activeHlsInstance && activeHlsInstance.liveSyncPosition && activeVideo) {
+    telemetryState.liveDelaySec = Math.max(0, parseFloat((activeHlsInstance.liveSyncPosition - activeVideo.currentTime).toFixed(1)));
+  }
 
-    if (activeHlsInstance && activeHlsInstance.liveSyncPosition) {
-      telemetryState.liveDelaySec = Math.max(0, parseFloat((activeHlsInstance.liveSyncPosition - videoElem.currentTime).toFixed(1)));
-    }
+  let ramMbText = '-- MB';
+  let ramLimitText = 'Límite: -- MB';
+  let rawRamNum = 0;
+  if (window.performance && performance.memory) {
+    rawRamNum = Math.round(performance.memory.usedJSHeapSize / (1024 * 1024));
+    const totalMb = Math.round(performance.memory.totalJSHeapSize / (1024 * 1024));
+    const limitMb = Math.round(performance.memory.jsHeapSizeLimit / (1024 * 1024));
+    ramMbText = `${rawRamNum} MB`;
+    ramLimitText = `Total: ${totalMb} MB / Máx: ${limitMb} MB`;
+  } else if (navigator.deviceMemory) {
+    ramMbText = `${navigator.deviceMemory} GB RAM`;
+    ramLimitText = 'Navegador Safari / WebKit';
+  }
 
-    let ramMbText = '-- MB';
-    let ramLimitText = 'Límite: -- MB';
-    let rawRamNum = 0;
-    if (window.performance && performance.memory) {
-      rawRamNum = Math.round(performance.memory.usedJSHeapSize / (1024 * 1024));
-      const totalMb = Math.round(performance.memory.totalJSHeapSize / (1024 * 1024));
-      const limitMb = Math.round(performance.memory.jsHeapSizeLimit / (1024 * 1024));
-      ramMbText = `${rawRamNum} MB`;
-      ramLimitText = `Total: ${totalMb} MB / Máx: ${limitMb} MB`;
-    } else if (navigator.deviceMemory) {
-      ramMbText = `${navigator.deviceMemory} GB RAM`;
-      ramLimitText = 'Navegador Safari / WebKit';
-    }
+  let connText = 'Red: 4G / 5G / WiFi';
+  if (navigator.connection) {
+    const conn = navigator.connection;
+    const type = conn.effectiveType ? conn.effectiveType.toUpperCase() : 'WIFI';
+    const rtt = conn.rtt ? `${conn.rtt}ms RTT` : '';
+    connText = `Red: ${type} ${rtt}`.trim();
+  }
 
-    let connText = 'Red: 4G / 5G / WiFi';
-    if (navigator.connection) {
-      const conn = navigator.connection;
-      const type = conn.effectiveType ? conn.effectiveType.toUpperCase() : 'WIFI';
-      const rtt = conn.rtt ? `${conn.rtt}ms RTT` : '';
-      connText = `Red: ${type} ${rtt}`.trim();
-    }
+  const hudFps = document.getElementById('hud-fps');
+  const hudDropped = document.getElementById('hud-dropped-frames');
+  const hudBuffer = document.getElementById('hud-buffer');
+  const hudBufferFill = document.getElementById('hud-buffer-bar-fill');
+  const hudSpeed = document.getElementById('hud-speed');
+  const hudLatency = document.getElementById('hud-latency');
+  const hudLiveDelay = document.getElementById('hud-live-delay');
+  const hudRes = document.getElementById('hud-resolution');
+  const hudRam = document.getElementById('hud-ram');
+  const hudRamLimit = document.getElementById('hud-ram-limit');
+  const hudConnType = document.getElementById('hud-connection-type');
+  const hudCdnStatus = document.getElementById('hud-cdn-status');
 
-    const hudFps = document.getElementById('hud-fps');
-    const hudDropped = document.getElementById('hud-dropped-frames');
-    const hudBuffer = document.getElementById('hud-buffer');
-    const hudBufferFill = document.getElementById('hud-buffer-bar-fill');
-    const hudSpeed = document.getElementById('hud-speed');
-    const hudLatency = document.getElementById('hud-latency');
-    const hudLiveDelay = document.getElementById('hud-live-delay');
-    const hudRes = document.getElementById('hud-resolution');
-    const hudRam = document.getElementById('hud-ram');
-    const hudRamLimit = document.getElementById('hud-ram-limit');
-    const hudConnType = document.getElementById('hud-connection-type');
+  if (hudFps) {
+    hudFps.textContent = `${telemetryState.currentFps} FPS`;
+    hudFps.className = 'telemetry-val ' + (telemetryState.currentFps >= 50 ? 'good' : telemetryState.currentFps >= 25 ? 'warn' : 'bad');
+  }
+  if (hudDropped) hudDropped.textContent = `${telemetryState.droppedFrames} cuadros perdidos`;
+  if (hudBuffer) {
+    hudBuffer.textContent = activeOvenPlayer ? 'WebRTC Realtime' : `${telemetryState.bufferSeconds} s`;
+    hudBuffer.className = 'telemetry-val good';
+  }
+  if (hudBufferFill) {
+    const pct = activeOvenPlayer ? 100 : Math.min(100, Math.round((telemetryState.bufferSeconds / 10) * 100));
+    hudBufferFill.style.width = `${pct}%`;
+    hudBufferFill.style.backgroundColor = '#53fc18';
+  }
+  if (hudRam) {
+    hudRam.textContent = ramMbText;
+    hudRam.className = 'telemetry-val ' + (rawRamNum > 0 && rawRamNum < 45 ? 'good' : rawRamNum < 100 ? 'warn' : 'bad');
+  }
+  if (hudRamLimit) hudRamLimit.textContent = ramLimitText;
+  if (hudSpeed) hudSpeed.textContent = activeOvenPlayer ? 'WebRTC Direct' : (telemetryState.downloadSpeedMbps ? `${telemetryState.downloadSpeedMbps} Mbps` : '-- Mbps');
+  if (hudLatency) hudLatency.textContent = activeOvenPlayer ? 'Latencia: < 400ms' : `Descarga: ${telemetryState.downloadLatencyMs} ms`;
+  if (hudLiveDelay) hudLiveDelay.textContent = `${telemetryState.liveDelaySec} s`;
+  if (hudRes) hudRes.textContent = `Resolución: ${telemetryState.resolution}`;
+  if (hudConnType) hudConnType.textContent = connText;
+  if (hudCdnStatus) {
+    hudCdnStatus.textContent = activeOvenPlayer ? 'OvenMedia WebRTC (UDP Edge)' : 'HLS / CDN Edge';
+    hudCdnStatus.style.color = '#53fc18';
+  }
+};
 
-    if (hudFps) {
-      hudFps.textContent = `${telemetryState.currentFps} FPS`;
-      hudFps.className = 'telemetry-val ' + (telemetryState.currentFps >= 50 ? 'good' : telemetryState.currentFps >= 25 ? 'warn' : 'bad');
-    }
-    if (hudDropped) hudDropped.textContent = `${telemetryState.droppedFrames} cuadros perdidos`;
-    if (hudBuffer) {
-      hudBuffer.textContent = `${telemetryState.bufferSeconds} s`;
-      hudBuffer.className = 'telemetry-val ' + (telemetryState.bufferSeconds >= 3.0 ? 'good' : telemetryState.bufferSeconds >= 1.0 ? 'warn' : 'bad');
-    }
-    if (hudBufferFill) {
-      const pct = Math.min(100, Math.round((telemetryState.bufferSeconds / 10) * 100));
-      hudBufferFill.style.width = `${pct}%`;
-      hudBufferFill.style.backgroundColor = telemetryState.bufferSeconds >= 3.0 ? '#53fc18' : telemetryState.bufferSeconds >= 1.0 ? '#f59e0b' : '#ef4444';
-    }
-    if (hudRam) {
-      hudRam.textContent = ramMbText;
-      hudRam.className = 'telemetry-val ' + (rawRamNum > 0 && rawRamNum < 45 ? 'good' : rawRamNum < 100 ? 'warn' : 'bad');
-    }
-    if (hudRamLimit) hudRamLimit.textContent = ramLimitText;
-    if (hudSpeed) hudSpeed.textContent = telemetryState.downloadSpeedMbps ? `${telemetryState.downloadSpeedMbps} Mbps` : '-- Mbps';
-    if (hudLatency) hudLatency.textContent = `Descarga: ${telemetryState.downloadLatencyMs} ms`;
-    if (hudLiveDelay) hudLiveDelay.textContent = `${telemetryState.liveDelaySec} s`;
-    if (hudRes) hudRes.textContent = `Resolución: ${telemetryState.resolution}`;
-    if (hudConnType) hudConnType.textContent = connText;
-  };
-
+if (typeof window !== 'undefined') {
   setInterval(updateTelemetryHud, 1000);
+}
 
   const btnStats = document.getElementById('btn-stats-movie');
   const btnHudClose = document.getElementById('btn-telemetry-close');
