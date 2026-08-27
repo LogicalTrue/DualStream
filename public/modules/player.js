@@ -320,12 +320,7 @@ export function renderOvenPlayer(url) {
   activeOvenPlayer = OvenPlayer.create('ovenplayer-target', {
     sources: [
       {
-        label: 'WebRTC (Ultra Baja Latencia 0.3s)',
-        type: 'webrtc',
-        file: webrtcUrl
-      },
-      {
-        label: 'LL-HLS (Baja Latencia 1.5s)',
+        label: 'LL-HLS CDN (Ultra Estable)',
         type: 'llhls',
         file: llhlsUrl
       },
@@ -340,15 +335,11 @@ export function renderOvenPlayer(url) {
     mute: true,
     controls: false,
     showBigPlayButton: false,
-    webrtcConfig: {
-      timeout: 4000,
-      connectionTimeout: 4000
-    },
     hlsConfig: {
       enableWorker: true,
       lowLatencyMode: true,
-      liveSyncDurationCount: 2,
-      liveMaxLatencyDurationCount: 4,
+      liveSyncDurationCount: 3,
+      liveMaxLatencyDurationCount: 5,
       maxBufferLength: 4,
       maxMaxBufferLength: 8
     }
@@ -529,23 +520,23 @@ export function renderNativeVideo(url, initialSyncState = null) {
 
       hls = new Hls({
         enableWorker: true,
-        lowLatencyMode: true, // Modo LL-HLS Puro Activo
+        lowLatencyMode: true,
         progressive: true,
-        backBufferLength: 5,
-        maxBufferSize: 20 * 1024 * 1024,
-        maxBufferLength: 2,
-        maxMaxBufferLength: 4,
-        liveSyncDurationCount: 2,
-        liveMaxLatencyDurationCount: 3,
+        backBufferLength: 10,
+        maxBufferSize: 30 * 1024 * 1024,
+        maxBufferLength: 4,
+        maxMaxBufferLength: 8,
+        liveSyncDurationCount: 3,
+        liveMaxLatencyDurationCount: 5,
         maxLiveSyncPlaybackRate: 1.15,
         liveDurationInfinity: true,
-        highBufferWatchdogPeriod: 1,
+        highBufferWatchdogPeriod: 2,
         manifestLoadingMaxRetry: 10,
-        manifestLoadingRetryDelay: 300,
+        manifestLoadingRetryDelay: 500,
         levelLoadingMaxRetry: 10,
-        levelLoadingRetryDelay: 300,
+        levelLoadingRetryDelay: 500,
         fragLoadingMaxRetry: 10,
-        fragLoadingRetryDelay: 300,
+        fragLoadingRetryDelay: 500,
       });
 
       activeHlsInstance = hls;
