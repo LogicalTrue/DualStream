@@ -322,8 +322,9 @@ export function renderOvenPlayer(url) {
     ],
     autoStart: true,
     autoFallback: true,
-    mute: false,
+    mute: true,
     controls: false,
+    showBigPlayButton: false,
     webrtcConfig: {
       timeout: 5000,
       connectionTimeout: 5000
@@ -355,6 +356,13 @@ export function renderOvenPlayer(url) {
 if (typeof window !== 'undefined' && !window._soundInteractionRegistered) {
   window._soundInteractionRegistered = true;
   const onFirstInteraction = () => {
+    if (activeOvenPlayer) {
+      try {
+        activeOvenPlayer.setMute(false);
+        activeOvenPlayer.setVolume(100);
+        activeOvenPlayer.play();
+      } catch (e) {}
+    }
     const v = document.getElementById('main-theater-video');
     if (v) {
       v.muted = false;
@@ -797,6 +805,14 @@ export function unlockViewerMobileAudio(latestSyncState) {
       } else {
         ytPlayerInstance.playVideo();
       }
+    } catch (e) {}
+  }
+
+  if (activeOvenPlayer) {
+    try {
+      activeOvenPlayer.setMute(false);
+      activeOvenPlayer.setVolume(100);
+      activeOvenPlayer.play();
     } catch (e) {}
   }
 
