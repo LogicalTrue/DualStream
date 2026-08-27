@@ -311,16 +311,10 @@ export function renderOvenPlayer(url) {
     return;
   }
 
-  const webrtcUrl = url.replace('https://', 'wss://').replace('http://', 'ws://').replace('/llhls.m3u8', '').replace('/playlist.m3u8', '');
-  const llhlsUrl = url.replace('wss://', 'https://').replace('ws://', 'http://').replace(/\/app\/stream\/?$/, '/app/stream/llhls.m3u8');
+  const llhlsUrl = url.includes('.m3u8') ? url : url.replace(/\/app\/stream\/?$/, '/app/stream/llhls.m3u8');
 
   activeOvenPlayer = OvenPlayer.create('ovenplayer-target', {
     sources: [
-      {
-        label: 'WebRTC (Ultra Baja Latencia 0.3s)',
-        type: 'webrtc',
-        file: webrtcUrl
-      },
       {
         label: 'LL-HLS (Baja Latencia)',
         type: 'llhls',
@@ -332,16 +326,13 @@ export function renderOvenPlayer(url) {
     mute: true,
     controls: false,
     showBigPlayButton: false,
-    webrtcConfig: {
-      timeout: 4000,
-      connectionTimeout: 4000
-    },
     hlsConfig: {
       enableWorker: true,
       lowLatencyMode: true,
       liveSyncDurationCount: 3,
       liveMaxLatencyDurationCount: 6,
-      maxBufferLength: 6
+      maxBufferLength: 6,
+      maxMaxBufferLength: 12
     }
   });
 
