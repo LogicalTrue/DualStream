@@ -530,21 +530,21 @@ export function renderNativeVideo(url, initialSyncState = null) {
         enableWorker: true,
         lowLatencyMode: true,
         progressive: true,
-        backBufferLength: 5,
-        maxBufferSize: 30 * 1024 * 1024,
-        maxBufferLength: 3,
-        maxMaxBufferLength: 6,
-        liveSyncDurationCount: 2,
-        liveMaxLatencyDurationCount: 3.5,
-        maxLiveSyncPlaybackRate: 1.25,
+        backBufferLength: 4,
+        maxBufferSize: 20 * 1024 * 1024,
+        maxBufferLength: 2,
+        maxMaxBufferLength: 4,
+        liveSyncDuration: 2.0,            // Target Latency oficial: 2.0 segundos
+        liveMaxLatencyDuration: 3.5,      // Latencia máxima permitida: 3.5 segundos
+        maxLiveSyncPlaybackRate: 1.25,     // Aceleración suave para pegarse al vivo
         liveDurationInfinity: true,
         highBufferWatchdogPeriod: 1,
         manifestLoadingMaxRetry: 10,
-        manifestLoadingRetryDelay: 300,
+        manifestLoadingRetryDelay: 200,
         levelLoadingMaxRetry: 10,
-        levelLoadingRetryDelay: 300,
+        levelLoadingRetryDelay: 200,
         fragLoadingMaxRetry: 10,
-        fragLoadingRetryDelay: 300,
+        fragLoadingRetryDelay: 200,
       });
 
       activeHlsInstance = hls;
