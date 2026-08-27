@@ -216,26 +216,26 @@ export const updateTelemetryHud = () => {
   }
   if (hudDropped) hudDropped.textContent = `${telemetryState.droppedFrames} cuadros perdidos`;
   if (hudBuffer) {
-    hudBuffer.textContent = activeOvenPlayer ? 'WebRTC Realtime' : `${telemetryState.bufferSeconds} s`;
-    hudBuffer.className = 'telemetry-val good';
+    hudBuffer.textContent = `${telemetryState.bufferSeconds} s`;
+    hudBuffer.className = 'telemetry-val ' + (telemetryState.bufferSeconds >= 2.0 ? 'good' : telemetryState.bufferSeconds >= 1.0 ? 'warn' : 'bad');
   }
   if (hudBufferFill) {
-    const pct = activeOvenPlayer ? 100 : Math.min(100, Math.round((telemetryState.bufferSeconds / 10) * 100));
+    const pct = Math.min(100, Math.round((telemetryState.bufferSeconds / 6) * 100));
     hudBufferFill.style.width = `${pct}%`;
-    hudBufferFill.style.backgroundColor = '#53fc18';
+    hudBufferFill.style.backgroundColor = telemetryState.bufferSeconds >= 2.0 ? '#53fc18' : '#f59e0b';
   }
   if (hudRam) {
     hudRam.textContent = ramMbText;
     hudRam.className = 'telemetry-val ' + (rawRamNum > 0 && rawRamNum < 45 ? 'good' : rawRamNum < 100 ? 'warn' : 'bad');
   }
   if (hudRamLimit) hudRamLimit.textContent = ramLimitText;
-  if (hudSpeed) hudSpeed.textContent = activeOvenPlayer ? 'WebRTC Direct' : (telemetryState.downloadSpeedMbps ? `${telemetryState.downloadSpeedMbps} Mbps` : '-- Mbps');
-  if (hudLatency) hudLatency.textContent = activeOvenPlayer ? 'Latencia: < 400ms' : `Descarga: ${telemetryState.downloadLatencyMs} ms`;
+  if (hudSpeed) hudSpeed.textContent = telemetryState.downloadSpeedMbps ? `${telemetryState.downloadSpeedMbps} Mbps` : '-- Mbps';
+  if (hudLatency) hudLatency.textContent = `Descarga: ${telemetryState.downloadLatencyMs} ms`;
   if (hudLiveDelay) hudLiveDelay.textContent = `${telemetryState.liveDelaySec} s`;
   if (hudRes) hudRes.textContent = `Resolución: ${telemetryState.resolution}`;
   if (hudConnType) hudConnType.textContent = connText;
   if (hudCdnStatus) {
-    hudCdnStatus.textContent = activeOvenPlayer ? 'OvenMedia WebRTC (UDP Edge)' : 'HLS / CDN Edge';
+    hudCdnStatus.textContent = 'BunnyCDN Global Edge (LL-HLS)';
     hudCdnStatus.style.color = '#53fc18';
   }
 };
