@@ -2,7 +2,7 @@ import { DOM } from './dom.js';
 import { AppState } from './state.js';
 import { STREAM_CONFIG } from '../stream-config.js';
 import { fetchLatestCloudState } from './api.js';
-import { loadVideoSource, isHlsStream, hlsRetryFn, activeNativeVideo } from './player.js';
+import { loadVideoSource, isHlsStream, isOvenStream, hlsRetryFn, activeNativeVideo } from './player.js';
 
 export let latestSyncPlaybackState = null;
 
@@ -27,7 +27,7 @@ export function updateTheaterStandbyScreens() {
   if (DOM.offlineStreamerName) DOM.offlineStreamerName.textContent = currentName;
   if (DOM.onlineStreamerName) DOM.onlineStreamerName.textContent = currentName;
 
-  if (isHlsStream(AppState.videoUrl)) {
+  if (isHlsStream(AppState.videoUrl) || isOvenStream(AppState.videoUrl)) {
     return;
   }
 

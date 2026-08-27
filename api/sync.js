@@ -140,7 +140,7 @@ module.exports = async (req, res) => {
   const requestedUrl = req.query && req.query.url ? decodeURIComponent(req.query.url) : null;
   const targetVideoUrl = requestedUrl || DEFAULT_STREAM_URL;
 
-  let isStreamOnline = false;
+  let isStreamOnline = true;
   if (targetVideoUrl.includes('.m3u8')) {
     isStreamOnline = await probeStreamOnline(targetVideoUrl);
   }
