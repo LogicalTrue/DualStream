@@ -320,23 +320,13 @@ export function renderOvenPlayer(url) {
   activeOvenPlayer = OvenPlayer.create('ovenplayer-target', {
     sources: [
       {
-        label: 'WebRTC (Ultra Baja Latencia 0.3s)',
-        type: 'webrtc',
-        file: webrtcUrl
-      },
-      {
-        label: 'LL-HLS (Baja Latencia 1.5s)',
+        label: 'LL-HLS Puro (Baja Latencia)',
         type: 'llhls',
         file: llhlsUrl
-      },
-      {
-        label: 'HLS Estándar',
-        type: 'hls',
-        file: hlsUrl
       }
     ],
     autoStart: true,
-    autoFallback: true,
+    autoFallback: false,
     mute: true,
     controls: false,
     showBigPlayButton: false,
