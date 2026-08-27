@@ -257,10 +257,10 @@ if (typeof window !== 'undefined') {
     if (activeVideo && !activeVideo.paused) {
       if (activeHlsInstance && activeHlsInstance.liveSyncPosition) {
         const liveGap = activeHlsInstance.liveSyncPosition - activeVideo.currentTime;
-        if (liveGap > 2.2) {
-          activeVideo.playbackRate = 1.20; // Acelera un 20% suavemente para alcanzar el borde en vivo
-        } else if (liveGap <= 1.4) {
-          activeVideo.playbackRate = 1.0; // Vuelve a velocidad normal al llegar al vivo
+        if (liveGap > 4.5) {
+          activeVideo.playbackRate = 1.15; // Acelera suavemente un 15% para volver al rango de 3s
+        } else if (liveGap <= 3.0) {
+          activeVideo.playbackRate = 1.0; // Velocidad normal
         }
       }
     }
@@ -530,29 +530,26 @@ export function renderNativeVideo(url, initialSyncState = null) {
         enableWorker: true,
         lowLatencyMode: true,
         progressive: true,
-        backBufferLength: 4,
-        maxBufferSize: 20 * 1024 * 1024,
-        maxBufferLength: 2,
-        maxMaxBufferLength: 4,
-        liveSyncDuration: 2.0,            // Target Latency oficial: 2.0 segundos
-        liveMaxLatencyDuration: 3.5,      // Latencia máxima permitida: 3.5 segundos
-        maxLiveSyncPlaybackRate: 1.25,     // Aceleración suave para pegarse al vivo
+        backBufferLength: 10,
+        maxBufferSize: 30 * 1024 * 1024,
+        maxBufferLength: 4,
+        maxMaxBufferLength: 8,
+        liveSyncDuration: 3.0,            // 🎯 Punto dulce: 3.0s de latencia con buffer estable
+        liveMaxLatencyDuration: 5.0,      // Si el lag supera 5s, activa aceleración progresiva
+        maxLiveSyncPlaybackRate: 1.15,    // Aceleración suave del 15% (imperceptible, sin corte de audio)
         liveDurationInfinity: true,
-        highBufferWatchdogPeriod: 1,
+        highBufferWatchdogPeriod: 2,
         manifestLoadingMaxRetry: 10,
-        manifestLoadingRetryDelay: 200,
+        manifestLoadingRetryDelay: 400,
         levelLoadingMaxRetry: 10,
-        levelLoadingRetryDelay: 200,
+        levelLoadingRetryDelay: 400,
         fragLoadingMaxRetry: 10,
-        fragLoadingRetryDelay: 200,
+        fragLoadingRetryDelay: 400,
       });
 
       activeHlsInstance = hls;
 
       hls.on(Hls.Events.MANIFEST_PARSED, () => {
-        if (hls.liveSyncPosition) {
-          try { videoElem.currentTime = hls.liveSyncPosition; } catch(e) {}
-        }
         videoElem.play().catch(() => {});
       });
 
@@ -561,18 +558,12 @@ export function renderNativeVideo(url, initialSyncState = null) {
           isPlayingLive = true;
           setPlayerOnline();
         }
-        if (hls.liveSyncPosition && (hls.liveSyncPosition - videoElem.currentTime) > 2.0) {
-          try { videoElem.currentTime = hls.liveSyncPosition; } catch(e) {}
-        }
       });
 
       hls.on(Hls.Events.FRAG_LOADED, (ev, data) => {
         if (!isPlayingLive) {
           isPlayingLive = true;
           setPlayerOnline();
-        }
-        if (hls.liveSyncPosition && (hls.liveSyncPosition - videoElem.currentTime) > 2.5) {
-          try { videoElem.currentTime = hls.liveSyncPosition; } catch(e) {}
         }
         const durationSec = data.frag.duration || 1;
         const loadTimeMs = Math.round(data.stats.loading.end - data.stats.loading.start);
@@ -587,9 +578,6 @@ export function renderNativeVideo(url, initialSyncState = null) {
       hls.on(Hls.Events.ERROR, (event, data) => {
         if (data.details === Hls.ErrorDetails.BUFFER_STALLED_ERROR) {
           try {
-            if (hls.liveSyncPosition && Math.abs(hls.liveSyncPosition - videoElem.currentTime) > 1.5) {
-              videoElem.currentTime = hls.liveSyncPosition;
-            }
             hls.startLoad();
             videoElem.play().catch(() => {});
           } catch (e) {}
@@ -598,7 +586,7 @@ export function renderNativeVideo(url, initialSyncState = null) {
 
         if (data.details === Hls.ErrorDetails.BUFFER_FULL_ERROR) {
           try {
-            hls.cleanBuffer(0, Math.max(0, videoElem.currentTime - 1));
+            hls.cleanBuffer(0, Math.max(0, videoElem.currentTime - 2));
           } catch (e) {}
           return;
         }
