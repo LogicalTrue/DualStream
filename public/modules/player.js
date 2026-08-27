@@ -74,15 +74,16 @@ export function isOvenStream(url) {
   const cleanUrl = url.toLowerCase().split('?')[0];
   return cleanUrl.startsWith('ws://') || 
          cleanUrl.startsWith('wss://') || 
-         cleanUrl.includes('/app/') ||
-         cleanUrl.includes('llhls.m3u8') ||
          cleanUrl.endsWith('/webrtc');
 }
 
 export function isHlsStream(url) {
   if (!url) return false;
   const cleanUrl = url.toLowerCase().split('?')[0];
-  return (cleanUrl.endsWith('.m3u8') || cleanUrl.includes('.m3u8?')) && !isOvenStream(url);
+  return cleanUrl.endsWith('.m3u8') || 
+         cleanUrl.includes('.m3u8?') || 
+         cleanUrl.includes('llhls.m3u8') ||
+         cleanUrl.includes('playlist.m3u8');
 }
 
 export function isDirectVideoFile(url) {
