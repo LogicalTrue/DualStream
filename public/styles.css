@@ -2245,18 +2245,21 @@ body.chat-is-hidden .chat-collapsed-trigger {
     left: 0 !important;
     width: 100vw !important;
     height: calc(100dvh - 44px) !important;
+    display: flex !important;
+    flex-direction: column !important;
     overflow: hidden !important;
     background: #000000 !important;
   }
 
-  /* Video Stage FIJO ELEVADO PARA DEJAR ESPACIO AL CHAT Y NUNCA TAPAR EL POSTER */
+  /* Video Stage ELEVADO AL TOPE MÓVIL (Como Kick y Twitch) */
   .stage-section {
-    position: absolute !important;
-    top: calc(50% - 24px) !important;
+    position: relative !important;
+    top: 0 !important;
     left: 0 !important;
-    transform: translateY(-50%) !important;
+    transform: none !important;
     width: 100% !important;
     aspect-ratio: 16 / 9 !important;
+    flex: 0 0 auto !important;
     z-index: 10 !important;
     background: #000000 !important;
     margin: 0 !important;
@@ -2296,12 +2299,13 @@ body.chat-is-hidden .chat-collapsed-trigger {
     background-repeat: no-repeat !important;
   }
 
-  /* Chat: Ocupa la franja inferior con separación limpia para no tapar el reproductor */
+  /* Chat: Ocupa todo el espacio inferior de forma fluida */
   .chat-section {
-    position: absolute !important;
-    top: calc(50% - 24px + (100vw * 9 / 32) + 6px) !important;
-    bottom: 0 !important;
-    left: 0 !important;
+    position: relative !important;
+    top: auto !important;
+    bottom: auto !important;
+    left: auto !important;
+    flex: 1 1 0% !important;
     width: 100% !important;
     max-width: 100% !important;
     height: auto !important;
@@ -2313,6 +2317,7 @@ body.chat-is-hidden .chat-collapsed-trigger {
     border-left: none !important;
     border-top: 1px solid var(--border-subtle) !important;
     background: var(--bg-surface) !important;
+    overflow: hidden !important;
   }
 
   body.chat-is-closed .chat-section,
