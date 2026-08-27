@@ -298,26 +298,20 @@ export function renderOvenPlayer(url) {
     return;
   }
 
-  const webrtcUrl = url.replace('https://', 'wss://').replace('http://', 'ws://').replace('/llhls.m3u8', '').replace('/playlist.m3u8', '');
-  const llhlsUrl = url.replace('wss://', 'https://').replace('ws://', 'http://').replace(/\/app\/stream\/?$/, '/app/stream/llhls.m3u8');
-  const hlsUrl = url.replace('wss://', 'https://').replace('ws://', 'http://').replace(/\/app\/stream\/?$/, '/app/stream/playlist.m3u8');
+  const bunnyLlhlsUrl = url.includes('.b-cdn.net') ? url : 'https://stream-blackozu.b-cdn.net/app/stream/llhls.m3u8';
+  const bunnyHlsUrl = bunnyLlhlsUrl.replace('llhls.m3u8', 'playlist.m3u8');
 
   activeOvenPlayer = OvenPlayer.create('ovenplayer-target', {
     sources: [
       {
-        label: 'WebRTC (Ultra Baja Latencia 0.3s)',
-        type: 'webrtc',
-        file: webrtcUrl
-      },
-      {
-        label: 'LL-HLS (Baja Latencia 1.5s)',
+        label: 'BunnyCDN LL-HLS (Baja Latencia)',
         type: 'llhls',
-        file: llhlsUrl
+        file: bunnyLlhlsUrl
       },
       {
-        label: 'HLS Estándar',
+        label: 'BunnyCDN HLS (Respaldo)',
         type: 'hls',
-        file: hlsUrl
+        file: bunnyHlsUrl
       }
     ],
     autoStart: true,
@@ -325,14 +319,13 @@ export function renderOvenPlayer(url) {
     mute: true,
     controls: false,
     showBigPlayButton: false,
-    webrtcConfig: {
-      timeout: 5000,
-      connectionTimeout: 5000
-    },
     hlsConfig: {
       enableWorker: true,
+      lowLatencyMode: true,
       liveSyncDurationCount: 2,
-      maxBufferLength: 6
+      liveMaxLatencyDurationCount: 4,
+      maxBufferLength: 4,
+      maxMaxBufferLength: 8
     }
   });
 
