@@ -305,14 +305,14 @@ export function renderOvenPlayer(url) {
   activeOvenPlayer = OvenPlayer.create('ovenplayer-target', {
     sources: [
       {
-        label: 'LL-HLS (Baja Latencia 1.5s)',
-        type: 'llhls',
-        file: llhlsUrl
-      },
-      {
         label: 'WebRTC (Ultra Baja Latencia 0.3s)',
         type: 'webrtc',
         file: webrtcUrl
+      },
+      {
+        label: 'LL-HLS (Baja Latencia 1.5s)',
+        type: 'llhls',
+        file: llhlsUrl
       },
       {
         label: 'HLS Estándar',
@@ -325,8 +325,8 @@ export function renderOvenPlayer(url) {
     mute: false,
     controls: false,
     webrtcConfig: {
-      timeout: 8000,
-      connectionTimeout: 8000
+      timeout: 5000,
+      connectionTimeout: 5000
     },
     hlsConfig: {
       enableWorker: true,
