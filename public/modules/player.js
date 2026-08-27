@@ -298,18 +298,24 @@ export function renderOvenPlayer(url) {
     return;
   }
 
-  const llhlsUrl = url.includes('.m3u8') ? url : url.replace(/\/app\/stream\/?$/, '/app/stream/llhls.m3u8');
-  const hlsUrl = url.includes('.m3u8') ? url.replace('llhls.m3u8', 'playlist.m3u8') : url.replace(/\/app\/stream\/?$/, '/app/stream/playlist.m3u8');
+  const webrtcUrl = url.replace('https://', 'wss://').replace('http://', 'ws://').replace('/llhls.m3u8', '').replace('/playlist.m3u8', '');
+  const llhlsUrl = url.replace('wss://', 'https://').replace('ws://', 'http://').replace(/\/app\/stream\/?$/, '/app/stream/llhls.m3u8');
+  const hlsUrl = url.replace('wss://', 'https://').replace('ws://', 'http://').replace(/\/app\/stream\/?$/, '/app/stream/playlist.m3u8');
 
   activeOvenPlayer = OvenPlayer.create('ovenplayer-target', {
     sources: [
       {
-        label: 'LL-HLS Puro (Baja Latencia)',
+        label: 'WebRTC (Ultra Baja Latencia 0.3s)',
+        type: 'webrtc',
+        file: webrtcUrl
+      },
+      {
+        label: 'LL-HLS (Baja Latencia 1.5s)',
         type: 'llhls',
         file: llhlsUrl
       },
       {
-        label: 'HLS Respaldo',
+        label: 'HLS Estándar',
         type: 'hls',
         file: hlsUrl
       }
@@ -319,13 +325,14 @@ export function renderOvenPlayer(url) {
     mute: true,
     controls: false,
     showBigPlayButton: false,
+    webrtcConfig: {
+      timeout: 5000,
+      connectionTimeout: 5000
+    },
     hlsConfig: {
       enableWorker: true,
-      lowLatencyMode: true,
       liveSyncDurationCount: 2,
-      liveMaxLatencyDurationCount: 4,
-      maxBufferLength: 4,
-      maxMaxBufferLength: 8
+      maxBufferLength: 6
     }
   });
 
