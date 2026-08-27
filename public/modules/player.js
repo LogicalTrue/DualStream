@@ -241,7 +241,22 @@ export const updateTelemetryHud = () => {
 };
 
 if (typeof window !== 'undefined') {
-  setInterval(updateTelemetryHud, 1000);
+  setInterval(() => {
+    updateTelemetryHud();
+
+    // Motor de aceleración inteligente LiveSync (estilo MiluLive)
+    const activeVideo = document.querySelector('#ovenplayer-target video') || document.getElementById('main-theater-video') || activeNativeVideo;
+    if (activeVideo && !activeVideo.paused && !activeOvenPlayer) {
+      if (activeHlsInstance && activeHlsInstance.liveSyncPosition) {
+        const liveGap = activeHlsInstance.liveSyncPosition - activeVideo.currentTime;
+        if (liveGap > 3.0) {
+          activeVideo.playbackRate = 1.15; // Acelera un 15% para alcanzar el vivo
+        } else if (liveGap <= 1.5) {
+          activeVideo.playbackRate = 1.0; // Vuelve a velocidad normal al llegar al vivo
+        }
+      }
+    }
+  }, 1000);
 }
 
 export let ovenRetryTimer = null;
@@ -510,21 +525,22 @@ export function renderNativeVideo(url, initialSyncState = null) {
 
       hls = new Hls({
         enableWorker: true,
-        backBufferLength: 10,
-        maxBufferSize: 60 * 1024 * 1024,
-        maxBufferLength: 10,
-        maxMaxBufferLength: 20,
+        backBufferLength: 5,
+        maxBufferSize: 30 * 1024 * 1024,
+        maxBufferLength: 4,
+        maxMaxBufferLength: 8,
         liveSyncDurationCount: 3,
         liveMaxLatencyDurationCount: 6,
+        maxLiveSyncPlaybackRate: 1.15,
         liveDurationInfinity: true,
         lowLatencyMode: false,
-        highBufferWatchdogPeriod: 2,
+        highBufferWatchdogPeriod: 1,
         manifestLoadingMaxRetry: 10,
-        manifestLoadingRetryDelay: 500,
+        manifestLoadingRetryDelay: 400,
         levelLoadingMaxRetry: 10,
-        levelLoadingRetryDelay: 500,
+        levelLoadingRetryDelay: 400,
         fragLoadingMaxRetry: 10,
-        fragLoadingRetryDelay: 500,
+        fragLoadingRetryDelay: 400,
       });
 
       activeHlsInstance = hls;
