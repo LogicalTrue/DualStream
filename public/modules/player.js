@@ -251,19 +251,6 @@ export const updateTelemetryHud = () => {
 if (typeof window !== 'undefined') {
   setInterval(() => {
     updateTelemetryHud();
-
-    // Motor de aceleración inteligente LiveSync (estilo MiluLive)
-    const activeVideo = document.querySelector('#ovenplayer-target video') || document.getElementById('main-theater-video') || activeNativeVideo;
-    if (activeVideo && !activeVideo.paused) {
-      if (activeHlsInstance && activeHlsInstance.liveSyncPosition) {
-        const liveGap = activeHlsInstance.liveSyncPosition - activeVideo.currentTime;
-        if (liveGap > 4.5) {
-          activeVideo.playbackRate = 1.15; // Acelera suavemente un 15% para volver al rango de 3s
-        } else if (liveGap <= 3.0) {
-          activeVideo.playbackRate = 1.0; // Velocidad normal
-        }
-      }
-    }
   }, 1000);
 }
 
@@ -528,23 +515,22 @@ export function renderNativeVideo(url, initialSyncState = null) {
 
       hls = new Hls({
         enableWorker: true,
-        lowLatencyMode: true,
-        progressive: true,
-        backBufferLength: 10,
-        maxBufferSize: 30 * 1024 * 1024,
-        maxBufferLength: 4,
-        maxMaxBufferLength: 8,
-        liveSyncDuration: 3.0,            // 🎯 Punto dulce: 3.0s de latencia con buffer estable
-        liveMaxLatencyDuration: 5.0,      // Si el lag supera 5s, activa aceleración progresiva
-        maxLiveSyncPlaybackRate: 1.15,    // Aceleración suave del 15% (imperceptible, sin corte de audio)
+        lowLatencyMode: false,
+        backBufferLength: 15,
+        maxBufferSize: 60 * 1024 * 1024,
+        maxBufferLength: 8,
+        maxMaxBufferLength: 16,
+        liveSyncDurationCount: 3,
+        liveMaxLatencyDurationCount: 6,
+        maxLiveSyncPlaybackRate: 1.1,
         liveDurationInfinity: true,
         highBufferWatchdogPeriod: 2,
         manifestLoadingMaxRetry: 10,
-        manifestLoadingRetryDelay: 400,
+        manifestLoadingRetryDelay: 500,
         levelLoadingMaxRetry: 10,
-        levelLoadingRetryDelay: 400,
+        levelLoadingRetryDelay: 500,
         fragLoadingMaxRetry: 10,
-        fragLoadingRetryDelay: 400,
+        fragLoadingRetryDelay: 500,
       });
 
       activeHlsInstance = hls;
