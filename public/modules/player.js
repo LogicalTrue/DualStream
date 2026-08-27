@@ -313,20 +313,26 @@ export function renderOvenPlayer(url) {
     return;
   }
 
-  const bunnyLlhlsUrl = url.includes('.b-cdn.net') ? url : 'https://stream-blackozu.b-cdn.net/app/stream/llhls.m3u8';
-  const bunnyHlsUrl = bunnyLlhlsUrl.replace('llhls.m3u8', 'playlist.m3u8');
+  const webrtcUrl = url.replace('https://', 'wss://').replace('http://', 'ws://').replace('/llhls.m3u8', '').replace('/playlist.m3u8', '');
+  const llhlsUrl = url.replace('wss://', 'https://').replace('ws://', 'http://').replace(/\/app\/stream\/?$/, '/app/stream/llhls.m3u8');
+  const hlsUrl = url.replace('wss://', 'https://').replace('ws://', 'http://').replace(/\/app\/stream\/?$/, '/app/stream/playlist.m3u8');
 
   activeOvenPlayer = OvenPlayer.create('ovenplayer-target', {
     sources: [
       {
-        label: 'BunnyCDN LL-HLS (Ultra Baja Latencia)',
-        type: 'llhls',
-        file: bunnyLlhlsUrl
+        label: 'WebRTC (Ultra Baja Latencia 0.3s)',
+        type: 'webrtc',
+        file: webrtcUrl
       },
       {
-        label: 'BunnyCDN HLS (Respaldo)',
+        label: 'LL-HLS (Baja Latencia 1.5s)',
+        type: 'llhls',
+        file: llhlsUrl
+      },
+      {
+        label: 'HLS Estándar',
         type: 'hls',
-        file: bunnyHlsUrl
+        file: hlsUrl
       }
     ],
     autoStart: true,
@@ -334,19 +340,17 @@ export function renderOvenPlayer(url) {
     mute: true,
     controls: false,
     showBigPlayButton: false,
+    webrtcConfig: {
+      timeout: 4000,
+      connectionTimeout: 4000
+    },
     hlsConfig: {
       enableWorker: true,
       lowLatencyMode: true,
-      backBufferLength: 2,
-      liveSyncDurationCount: 1,
-      liveMaxLatencyDurationCount: 2,
-      maxBufferLength: 2,
-      maxMaxBufferLength: 4,
-      highBufferWatchdogPeriod: 1,
-      manifestLoadingMaxRetry: 10,
-      manifestLoadingRetryDelay: 300,
-      fragLoadingMaxRetry: 10,
-      fragLoadingRetryDelay: 300
+      liveSyncDurationCount: 2,
+      liveMaxLatencyDurationCount: 4,
+      maxBufferLength: 4,
+      maxMaxBufferLength: 8
     }
   });
 
