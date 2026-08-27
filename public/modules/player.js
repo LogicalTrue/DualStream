@@ -330,9 +330,15 @@ export function renderOvenPlayer(url) {
       enableWorker: true,
       lowLatencyMode: true,
       liveSyncDurationCount: 3,
-      liveMaxLatencyDurationCount: 6,
+      liveMaxLatencyDurationCount: 8,
+      maxLiveSyncPlaybackRate: 1.12,
       maxBufferLength: 6,
-      maxMaxBufferLength: 12
+      maxMaxBufferLength: 12,
+      backBufferLength: 6,
+      manifestLoadingMaxRetry: 10,
+      manifestLoadingRetryDelay: 500,
+      fragLoadingMaxRetry: 10,
+      fragLoadingRetryDelay: 500
     }
   });
 
