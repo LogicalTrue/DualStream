@@ -1,11 +1,8 @@
-/**
- * DualStream Cloud Sync API
- * Persistencia en tiempo real mediante Upstash Redis / Vercel KV REST API
- */
+const DEFAULT_STREAM_URL = 'https://livepeercdn.studio/hls/4197gut82w5c44pd/index.m3u8';
 
 let memoryStateStore = {
   streamer: 'BlackozuTR',
-  videoUrl: 'https://stream.blackozulive.com/live/stream/index.m3u8',
+  videoUrl: DEFAULT_STREAM_URL,
   camX: 2,
   camY: 3,
   camW: 26,
@@ -16,7 +13,6 @@ let memoryStateStore = {
   updatedAt: Date.now()
 };
 
-// Resuelve cualquier combinación de nombres de variables inyectadas por Vercel / Upstash
 const KV_URL = 
   process.env.KV_REST_API_URL || 
   process.env.UPSTASH_REDIS_REST_URL ||
@@ -50,9 +46,7 @@ async function getFromRedis() {
         return typeof data.result === 'string' ? JSON.parse(data.result) : data.result;
       }
     }
-  } catch (err) {
-    console.error('Error leyendo de Upstash Redis:', err);
-  }
+  } catch (err) {}
   return null;
 }
 
@@ -72,12 +66,10 @@ async function saveToRedis(state) {
     });
     return res.ok;
   } catch (err) {
-    console.error('Error guardando en Upstash Redis:', err);
     return false;
   }
 }
 
-// Cache del probe de origen: evita que cada viewer dispare su propio fetch al servidor de streaming.
 let originProbeCache = { url: null, isOnline: false, ts: 0 };
 const ORIGIN_PROBE_TTL_MS = 1500;
 
@@ -91,7 +83,7 @@ async function probeStreamOnline(targetVideoUrl) {
     const probeRes = await fetch(targetVideoUrl, {
       method: 'GET',
       cache: 'no-store',
-      signal: AbortSignal.timeout(800)
+      signal: AbortSignal.timeout(1200)
     });
     isOnline = probeRes.ok;
   } catch (e) {
@@ -112,15 +104,13 @@ module.exports = async (req, res) => {
     return res.status(200).end();
   }
 
-  // --- POST: Mutaciones protegidas estrictamente ---
   if (req.method === 'POST') {
-    // Seguridad estricta: Si ADMIN_SECRET no está definido en el servidor o el token no coincide, rechazar por defecto
     const authHeader = req.headers['authorization'] || '';
     const customHeader = req.headers['x-admin-secret'] || '';
     const token = authHeader.replace(/^Bearer\s+/i, '').trim() || customHeader;
 
     if (!EXPECTED_ADMIN_SECRET || !token || token !== EXPECTED_ADMIN_SECRET) {
-      return res.status(401).json({ error: 'No autorizado: Operación denegada por seguridad' });
+      return res.status(401).json({ error: 'No autorizado' });
     }
 
     try {
@@ -146,19 +136,11 @@ module.exports = async (req, res) => {
     }
   }
 
-  // --- GET: Consulta pública del estado del stream ---
   let currentState = (await getFromRedis()) || memoryStateStore;
+  const requestedUrl = req.query && req.query.url ? decodeURIComponent(req.query.url) : null;
+  const targetVideoUrl = requestedUrl || DEFAULT_STREAM_URL;
 
-  if (!currentState.videoUrl || currentState.videoUrl.includes('sslip.io')) {
-    currentState.videoUrl = 'https://stream.blackozulive.com/live/stream/index.m3u8';
-    currentState.updatedAt = Date.now();
-    memoryStateStore = currentState;
-    await saveToRedis(currentState);
-  }
-
-  const targetVideoUrl = currentState.videoUrl || 'https://stream.blackozulive.com/live/stream/index.m3u8';
   let isStreamOnline = false;
-
   if (targetVideoUrl.includes('.m3u8')) {
     isStreamOnline = await probeStreamOnline(targetVideoUrl);
   }
