@@ -75,13 +75,14 @@ export function isOvenStream(url) {
   return cleanUrl.startsWith('ws://') || 
          cleanUrl.startsWith('wss://') || 
          cleanUrl.includes('/app/') ||
+         cleanUrl.includes('llhls.m3u8') ||
          cleanUrl.endsWith('/webrtc');
 }
 
 export function isHlsStream(url) {
   if (!url) return false;
   const cleanUrl = url.toLowerCase().split('?')[0];
-  return cleanUrl.endsWith('.m3u8') || cleanUrl.includes('.m3u8?');
+  return (cleanUrl.endsWith('.m3u8') || cleanUrl.includes('.m3u8?')) && !isOvenStream(url);
 }
 
 export function isDirectVideoFile(url) {
@@ -297,14 +298,26 @@ export function renderOvenPlayer(url) {
     return;
   }
 
-  const wsUrl = url.startsWith('http') ? url.replace(/^http/, 'ws') : url;
+  const webrtcUrl = url.replace('https://', 'wss://').replace('http://', 'ws://').replace('/llhls.m3u8', '').replace('/playlist.m3u8', '');
+  const llhlsUrl = url.replace('wss://', 'https://').replace('ws://', 'http://').replace(/\/app\/stream\/?$/, '/app/stream/llhls.m3u8');
+  const hlsUrl = url.replace('wss://', 'https://').replace('ws://', 'http://').replace(/\/app\/stream\/?$/, '/app/stream/playlist.m3u8');
 
   activeOvenPlayer = OvenPlayer.create('ovenplayer-target', {
     sources: [
       {
-        label: 'WebRTC Ultra-Low Latency',
+        label: 'LL-HLS (Baja Latencia 1.5s)',
+        type: 'llhls',
+        file: llhlsUrl
+      },
+      {
+        label: 'WebRTC (Ultra Baja Latencia 0.3s)',
         type: 'webrtc',
-        file: wsUrl
+        file: webrtcUrl
+      },
+      {
+        label: 'HLS Estándar',
+        type: 'hls',
+        file: hlsUrl
       }
     ],
     autoStart: true,
@@ -312,8 +325,13 @@ export function renderOvenPlayer(url) {
     mute: false,
     controls: false,
     webrtcConfig: {
-      timeout: 10000,
-      connectionTimeout: 10000
+      timeout: 8000,
+      connectionTimeout: 8000
+    },
+    hlsConfig: {
+      enableWorker: true,
+      liveSyncDurationCount: 2,
+      maxBufferLength: 6
     }
   });
 
