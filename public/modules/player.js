@@ -304,7 +304,7 @@ export function renderOvenPlayer(url) {
   activeOvenPlayer = OvenPlayer.create('ovenplayer-target', {
     sources: [
       {
-        label: 'BunnyCDN LL-HLS (Baja Latencia)',
+        label: 'BunnyCDN LL-HLS (Ultra Baja Latencia)',
         type: 'llhls',
         file: bunnyLlhlsUrl
       },
@@ -322,10 +322,16 @@ export function renderOvenPlayer(url) {
     hlsConfig: {
       enableWorker: true,
       lowLatencyMode: true,
-      liveSyncDurationCount: 2,
-      liveMaxLatencyDurationCount: 4,
-      maxBufferLength: 4,
-      maxMaxBufferLength: 8
+      backBufferLength: 2,
+      liveSyncDurationCount: 1,
+      liveMaxLatencyDurationCount: 2,
+      maxBufferLength: 2,
+      maxMaxBufferLength: 4,
+      highBufferWatchdogPeriod: 1,
+      manifestLoadingMaxRetry: 10,
+      manifestLoadingRetryDelay: 300,
+      fragLoadingMaxRetry: 10,
+      fragLoadingRetryDelay: 300
     }
   });
 
