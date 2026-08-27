@@ -243,7 +243,14 @@ if (typeof window !== 'undefined') {
   setInterval(updateTelemetryHud, 1000);
 }
 
+export let ovenRetryTimer = null;
+
 export function renderOvenPlayer(url) {
+  if (ovenRetryTimer) {
+    clearTimeout(ovenRetryTimer);
+    ovenRetryTimer = null;
+  }
+
   if (activeOvenPlayer) {
     try { activeOvenPlayer.remove(); } catch(e) {}
     activeOvenPlayer = null;
@@ -263,9 +270,20 @@ export function renderOvenPlayer(url) {
     const mediaWrapper = document.getElementById('movie-media-wrapper');
     if (offlineScreen) offlineScreen.style.setProperty('display', 'flex', 'important');
     if (mediaWrapper) mediaWrapper.style.setProperty('display', 'none', 'important');
+
+    if (!ovenRetryTimer) {
+      ovenRetryTimer = setTimeout(() => {
+        ovenRetryTimer = null;
+        renderOvenPlayer(url);
+      }, 2500);
+    }
   };
 
   const setPlayerOnline = () => {
+    if (ovenRetryTimer) {
+      clearTimeout(ovenRetryTimer);
+      ovenRetryTimer = null;
+    }
     document.body.classList.remove('viewer-standby');
     const offlineScreen = document.getElementById('theater-offline-screen');
     const mediaWrapper = document.getElementById('movie-media-wrapper');
@@ -291,6 +309,7 @@ export function renderOvenPlayer(url) {
     ],
     autoStart: true,
     autoFallback: true,
+    mute: false,
     controls: false,
     webrtcConfig: {
       timeout: 10000,
