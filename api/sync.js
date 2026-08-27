@@ -1,4 +1,4 @@
-const DEFAULT_STREAM_URL = 'https://livepeercdn.studio/hls/4197gut82w5c44pd/index.m3u8';
+const DEFAULT_STREAM_URL = 'https://stream.blackozulive.com/live/stream/index.m3u8';
 
 let memoryStateStore = {
   streamer: 'BlackozuTR',

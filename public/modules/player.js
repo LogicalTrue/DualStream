@@ -554,10 +554,7 @@ export function renderNativeVideo(url, initialSyncState = null) {
     };
 
     hlsRetryFn = startHlsPlayback;
-
-    if (AppState.isOnline) {
-      startHlsPlayback();
-    }
+    startHlsPlayback();
   } else {
     videoElem.src = url;
   }
