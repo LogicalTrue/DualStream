@@ -579,14 +579,19 @@ export function renderNativeVideo(url, initialSyncState = null) {
         if (data.details === Hls.ErrorDetails.BUFFER_STALLED_ERROR) {
           try {
             hls.startLoad();
-            videoElem.play().catch(() => {});
+            if (videoElem.paused) {
+              videoElem.play().catch(() => {});
+            }
+            if (hls.liveSyncPosition && Math.abs(hls.liveSyncPosition - videoElem.currentTime) > 3.0) {
+              videoElem.currentTime = hls.liveSyncPosition - 1.5;
+            }
           } catch (e) {}
           return;
         }
 
         if (data.details === Hls.ErrorDetails.BUFFER_FULL_ERROR) {
           try {
-            hls.cleanBuffer(0, Math.max(0, videoElem.currentTime - 2));
+            hls.cleanBuffer(0, Math.max(0, videoElem.currentTime - 5));
           } catch (e) {}
           return;
         }
