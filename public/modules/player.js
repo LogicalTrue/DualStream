@@ -74,6 +74,9 @@ export function isOvenStream(url) {
   const cleanUrl = url.toLowerCase().split('?')[0];
   return cleanUrl.startsWith('ws://') || 
          cleanUrl.startsWith('wss://') || 
+         cleanUrl.includes('stream.blackozulive.com') ||
+         cleanUrl.includes('b-cdn.net') ||
+         cleanUrl.includes('llhls.m3u8') ||
          cleanUrl.endsWith('/webrtc');
 }
 
