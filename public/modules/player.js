@@ -424,20 +424,20 @@ export function renderNativeVideo(url, initialSyncState = null) {
 
       hls = new Hls({
         enableWorker: true,
-        backBufferLength: 0,
-        maxBufferSize: 10 * 1024 * 1024,
-        maxBufferLength: 2,
-        maxMaxBufferLength: 4,
-        liveSyncDurationCount: 1,
-        liveMaxLatencyDurationCount: 2,
+        backBufferLength: 2,
+        maxBufferSize: 20 * 1024 * 1024,
+        maxBufferLength: 4,
+        maxMaxBufferLength: 8,
+        liveSyncDurationCount: 2,
+        liveMaxLatencyDurationCount: 4,
         liveDurationInfinity: true,
         lowLatencyMode: true,
         highBufferWatchdogPeriod: 1,
-        manifestLoadingMaxRetry: 6,
+        manifestLoadingMaxRetry: 10,
         manifestLoadingRetryDelay: 500,
-        levelLoadingMaxRetry: 6,
+        levelLoadingMaxRetry: 10,
         levelLoadingRetryDelay: 500,
-        fragLoadingMaxRetry: 6,
+        fragLoadingMaxRetry: 10,
         fragLoadingRetryDelay: 400,
       });
 
@@ -455,23 +455,24 @@ export function renderNativeVideo(url, initialSyncState = null) {
           isPlayingLive = true;
           setPlayerOnline();
         }
-        const durationSec = data.frag.duration || 2;
+        const durationSec = data.frag.duration || 1;
         const loadTimeMs = Math.round(data.stats.loading.end - data.stats.loading.start);
         const bytes = data.stats.total || 0;
         const mbps = loadTimeMs > 0 ? parseFloat(((bytes * 8) / (loadTimeMs / 1000) / 1000000).toFixed(2)) : 0;
 
         telemetryState.downloadSpeedMbps = mbps;
         telemetryState.downloadLatencyMs = loadTimeMs;
-        addTelemetryLog(`Fragmento #${data.frag.sn} (${durationSec}s) cargado en ${loadTimeMs}ms (${mbps} Mbps)`, 'success');
+        addTelemetryLog(`Fragmento #${data.frag.sn} cargado en ${loadTimeMs}ms (${mbps} Mbps)`, 'success');
       });
 
       hls.on(Hls.Events.ERROR, (event, data) => {
         if (data.details === Hls.ErrorDetails.BUFFER_STALLED_ERROR) {
           try {
-            if (hls.liveSyncPosition && Math.abs(hls.liveSyncPosition - videoElem.currentTime) > 3) {
+            if (hls.liveSyncPosition && Math.abs(hls.liveSyncPosition - videoElem.currentTime) > 1.5) {
               videoElem.currentTime = hls.liveSyncPosition;
             }
             hls.startLoad();
+            videoElem.play().catch(() => {});
           } catch (e) {}
           return;
         }
