@@ -342,20 +342,26 @@ export function renderOvenPlayer(url) {
     }
   });
 
+  let consecutiveErrors = 0;
+
   activeOvenPlayer.on('ready', () => {
     try { activeOvenPlayer.play(); } catch(e) {}
   });
 
   activeOvenPlayer.on('stateChanged', (state) => {
     if (state.newstate === 'playing') {
+      consecutiveErrors = 0;
       setPlayerOnline();
-    } else if (state.newstate === 'error' || state.newstate === 'idle') {
+    } else if (state.newstate === 'idle') {
       setPlayerOffline();
     }
   });
 
-  activeOvenPlayer.on('error', () => {
-    setPlayerOffline();
+  activeOvenPlayer.on('error', (err) => {
+    consecutiveErrors++;
+    if (consecutiveErrors >= 5) {
+      setPlayerOffline();
+    }
   });
 }
 
