@@ -1,4 +1,4 @@
-const DEFAULT_STREAM_URL = 'https://stream.blackozulive.com/app/stream/llhls.m3u8';
+const DEFAULT_STREAM_URL = 'https://stream-blackozu.b-cdn.net/app/stream/llhls.m3u8';
 
 let memoryStateStore = {
   streamer: 'BlackozuTR',
