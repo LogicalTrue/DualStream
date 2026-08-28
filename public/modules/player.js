@@ -340,14 +340,28 @@ export function renderOvenPlayer(url) {
     ovenContainer.style.height = '100%';
     if (wrapper) wrapper.appendChild(ovenContainer);
 
+    const originFallbackUrl = llhlsUrl.includes('b-cdn.net')
+      ? llhlsUrl.replace('stream-blackozu.b-cdn.net', 'stream.blackozulive.com')
+      : null;
+
+    const sources = [
+      {
+        label: 'CDN Primario (Ultra Rápido)',
+        type: 'llhls',
+        file: llhlsUrl
+      }
+    ];
+
+    if (originFallbackUrl) {
+      sources.push({
+        label: 'Origen Respaldo',
+        type: 'llhls',
+        file: originFallbackUrl
+      });
+    }
+
     activeOvenPlayer = OvenPlayer.create('ovenplayer-target', {
-      sources: [
-        {
-          label: 'LL-HLS (Baja Latencia)',
-          type: 'llhls',
-          file: llhlsUrl
-        }
-      ],
+      sources: sources,
       autoStart: true,
       autoFallback: true,
       mute: true,
@@ -362,10 +376,10 @@ export function renderOvenPlayer(url) {
         maxBufferLength: 6,
         maxMaxBufferLength: 12,
         backBufferLength: 6,
-        manifestLoadingMaxRetry: 5,
-        manifestLoadingRetryDelay: 800,
-        fragLoadingMaxRetry: 5,
-        fragLoadingRetryDelay: 800
+        manifestLoadingMaxRetry: 10,
+        manifestLoadingRetryDelay: 500,
+        fragLoadingMaxRetry: 10,
+        fragLoadingRetryDelay: 500
       }
     });
 
@@ -380,14 +394,27 @@ export function renderOvenPlayer(url) {
         consecutiveErrors = 0;
         setPlayerOnline();
       } else if (state.newstate === 'idle') {
-        setPlayerOffline();
+        checkStreamAvailable(llhlsUrl).then((isLive) => {
+          if (!isLive) setPlayerOffline();
+        });
       }
     });
 
-    activeOvenPlayer.on('error', () => {
+    activeOvenPlayer.on('error', async () => {
       consecutiveErrors++;
-      if (consecutiveErrors >= 4) {
-        setPlayerOffline();
+      if (consecutiveErrors >= 3) {
+        // Excepción de seguridad: verificar si el stream sigue vivo antes de ponerlo offline
+        const stillLive = await checkStreamAvailable(llhlsUrl);
+        if (stillLive) {
+          consecutiveErrors = 0;
+          try {
+            activeOvenPlayer.play();
+          } catch(e) {
+            mountPlayer();
+          }
+        } else {
+          setPlayerOffline();
+        }
       }
     });
   };
