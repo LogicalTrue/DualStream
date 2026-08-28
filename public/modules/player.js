@@ -258,6 +258,16 @@ if (typeof window !== 'undefined') {
 }
 
 export let ovenRetryTimer = null;
+let isProbingStream = false;
+
+async function checkStreamAvailable(url) {
+  try {
+    const res = await fetch(url, { method: 'GET', cache: 'no-store' });
+    return res.ok;
+  } catch (e) {
+    return false;
+  }
+}
 
 export function renderOvenPlayer(url) {
   if (ovenRetryTimer) {
@@ -265,18 +275,7 @@ export function renderOvenPlayer(url) {
     ovenRetryTimer = null;
   }
 
-  if (activeOvenPlayer) {
-    try { activeOvenPlayer.remove(); } catch(e) {}
-    activeOvenPlayer = null;
-  }
-  const wrapper = document.getElementById('movie-media-wrapper') || DOM.movieMediaWrapper;
-  if (wrapper) wrapper.innerHTML = '';
-
-  const ovenContainer = document.createElement('div');
-  ovenContainer.id = 'ovenplayer-target';
-  ovenContainer.style.width = '100%';
-  ovenContainer.style.height = '100%';
-  if (wrapper) wrapper.appendChild(ovenContainer);
+  const llhlsUrl = url.includes('.m3u8') ? url : url.replace(/\/app\/stream\/?$/, '/app/stream/llhls.m3u8');
 
   const setPlayerOffline = () => {
     document.body.classList.add('viewer-standby');
@@ -285,12 +284,12 @@ export function renderOvenPlayer(url) {
     if (offlineScreen) offlineScreen.style.setProperty('display', 'flex', 'important');
     if (mediaWrapper) mediaWrapper.style.setProperty('display', 'none', 'important');
 
-    if (!ovenRetryTimer) {
-      ovenRetryTimer = setTimeout(() => {
-        ovenRetryTimer = null;
-        renderOvenPlayer(url);
-      }, 2500);
+    if (activeOvenPlayer) {
+      try { activeOvenPlayer.remove(); } catch(e) {}
+      activeOvenPlayer = null;
     }
+
+    startSilentProbe();
   };
 
   const setPlayerOnline = () => {
@@ -298,6 +297,7 @@ export function renderOvenPlayer(url) {
       clearTimeout(ovenRetryTimer);
       ovenRetryTimer = null;
     }
+    isProbingStream = false;
     document.body.classList.remove('viewer-standby');
     const offlineScreen = document.getElementById('theater-offline-screen');
     const mediaWrapper = document.getElementById('movie-media-wrapper');
@@ -305,61 +305,98 @@ export function renderOvenPlayer(url) {
     if (mediaWrapper) mediaWrapper.style.setProperty('display', 'block', 'important');
   };
 
-  setPlayerOffline();
+  const startSilentProbe = () => {
+    if (isProbingStream) return;
+    isProbingStream = true;
 
-  if (typeof window.OvenPlayer === 'undefined') {
-    return;
-  }
-
-  const llhlsUrl = url.includes('.m3u8') ? url : url.replace(/\/app\/stream\/?$/, '/app/stream/llhls.m3u8');
-
-  activeOvenPlayer = OvenPlayer.create('ovenplayer-target', {
-    sources: [
-      {
-        label: 'LL-HLS (Baja Latencia)',
-        type: 'llhls',
-        file: llhlsUrl
+    const probe = async () => {
+      if (!isProbingStream) return;
+      const isAvailable = await checkStreamAvailable(llhlsUrl);
+      if (isAvailable) {
+        isProbingStream = false;
+        mountPlayer();
+      } else {
+        ovenRetryTimer = setTimeout(probe, 3000);
       }
-    ],
-    autoStart: true,
-    autoFallback: true,
-    mute: true,
-    controls: false,
-    showBigPlayButton: false,
-    hlsConfig: {
-      enableWorker: true,
-      lowLatencyMode: true,
-      liveSyncDurationCount: 3,
-      liveMaxLatencyDurationCount: 8,
-      maxLiveSyncPlaybackRate: 1.12,
-      maxBufferLength: 6,
-      maxMaxBufferLength: 12,
-      backBufferLength: 6,
-      manifestLoadingMaxRetry: 10,
-      manifestLoadingRetryDelay: 500,
-      fragLoadingMaxRetry: 10,
-      fragLoadingRetryDelay: 500
+    };
+
+    ovenRetryTimer = setTimeout(probe, 2500);
+  };
+
+  const mountPlayer = () => {
+    if (typeof window.OvenPlayer === 'undefined') return;
+
+    if (activeOvenPlayer) {
+      try { activeOvenPlayer.remove(); } catch(e) {}
+      activeOvenPlayer = null;
     }
-  });
 
-  let consecutiveErrors = 0;
+    const wrapper = document.getElementById('movie-media-wrapper') || DOM.movieMediaWrapper;
+    if (wrapper) wrapper.innerHTML = '';
 
-  activeOvenPlayer.on('ready', () => {
-    try { activeOvenPlayer.play(); } catch(e) {}
-  });
+    const ovenContainer = document.createElement('div');
+    ovenContainer.id = 'ovenplayer-target';
+    ovenContainer.style.width = '100%';
+    ovenContainer.style.height = '100%';
+    if (wrapper) wrapper.appendChild(ovenContainer);
 
-  activeOvenPlayer.on('stateChanged', (state) => {
-    if (state.newstate === 'playing') {
-      consecutiveErrors = 0;
-      setPlayerOnline();
-    } else if (state.newstate === 'idle') {
-      setPlayerOffline();
-    }
-  });
+    activeOvenPlayer = OvenPlayer.create('ovenplayer-target', {
+      sources: [
+        {
+          label: 'LL-HLS (Baja Latencia)',
+          type: 'llhls',
+          file: llhlsUrl
+        }
+      ],
+      autoStart: true,
+      autoFallback: true,
+      mute: true,
+      controls: false,
+      showBigPlayButton: false,
+      hlsConfig: {
+        enableWorker: true,
+        lowLatencyMode: true,
+        liveSyncDurationCount: 3,
+        liveMaxLatencyDurationCount: 8,
+        maxLiveSyncPlaybackRate: 1.12,
+        maxBufferLength: 6,
+        maxMaxBufferLength: 12,
+        backBufferLength: 6,
+        manifestLoadingMaxRetry: 5,
+        manifestLoadingRetryDelay: 800,
+        fragLoadingMaxRetry: 5,
+        fragLoadingRetryDelay: 800
+      }
+    });
 
-  activeOvenPlayer.on('error', (err) => {
-    consecutiveErrors++;
-    if (consecutiveErrors >= 5) {
+    let consecutiveErrors = 0;
+
+    activeOvenPlayer.on('ready', () => {
+      try { activeOvenPlayer.play(); } catch(e) {}
+    });
+
+    activeOvenPlayer.on('stateChanged', (state) => {
+      if (state.newstate === 'playing') {
+        consecutiveErrors = 0;
+        setPlayerOnline();
+      } else if (state.newstate === 'idle') {
+        setPlayerOffline();
+      }
+    });
+
+    activeOvenPlayer.on('error', () => {
+      consecutiveErrors++;
+      if (consecutiveErrors >= 4) {
+        setPlayerOffline();
+      }
+    });
+  };
+
+  // Inicialización inteligente: chequear primero si el stream está online antes de instanciar
+  checkStreamAvailable(llhlsUrl).then((online) => {
+    if (online) {
+      mountPlayer();
+    } else {
       setPlayerOffline();
     }
   });
