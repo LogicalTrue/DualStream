@@ -2332,6 +2332,11 @@ body.chat-is-hidden .chat-collapsed-trigger {
   }
 }
 
+/* Botón de estadísticas oculto para una interfaz más limpia */
+#btn-stats-movie {
+  display: none !important;
+}
+
 /* ==========================================================================
    STREAM TELEMETRY & DIAGNOSTICS HUD (Stats for Nerds)
    ========================================================================== */
