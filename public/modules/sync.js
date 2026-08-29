@@ -82,6 +82,17 @@ export function applyIncomingConfig(config) {
 }
 
 export function initRealtimeSyncListener() {
+  if (STREAM_CONFIG && STREAM_CONFIG.videoUrl) {
+    // Si tenemos STREAM_CONFIG estático, aplicamos la configuración de inmediato sin gastar cuotas de Vercel/Upstash
+    applyIncomingConfig({
+      streamer: STREAM_CONFIG.kickChannel || 'BlackozuTR',
+      videoUrl: STREAM_CONFIG.videoUrl,
+      isOnline: true
+    });
+    return;
+  }
+
+  // Modo dinámico heredado (solo si no hay STREAM_CONFIG): sondeo suave cada 60s
   const fetchCloud = async () => {
     try {
       const res = await fetchLatestCloudState();
@@ -95,12 +106,5 @@ export function initRealtimeSyncListener() {
   };
 
   fetchCloud();
-  setInterval(fetchCloud, 1200);
-
-  document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'visible') {
-      fetchCloud();
-    }
-  });
-  window.addEventListener('focus', fetchCloud);
+  setInterval(fetchCloud, 60000);
 }

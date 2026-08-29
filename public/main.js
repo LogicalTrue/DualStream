@@ -163,16 +163,18 @@ async function init() {
 
   updateKickViews();
 
-  try {
-    const res = await fetchLatestCloudState();
-    if (res.ok) {
-      const cloudState = await res.json();
-      if (cloudState) {
-        if (cloudState.videoUrl) AppState.videoUrl = cloudState.videoUrl;
-        if (cloudState.isOnline !== undefined) AppState.isOnline = Boolean(cloudState.isOnline);
+  if (!STREAM_CONFIG || !STREAM_CONFIG.videoUrl) {
+    try {
+      const res = await fetchLatestCloudState();
+      if (res.ok) {
+        const cloudState = await res.json();
+        if (cloudState) {
+          if (cloudState.videoUrl) AppState.videoUrl = cloudState.videoUrl;
+          if (cloudState.isOnline !== undefined) AppState.isOnline = Boolean(cloudState.isOnline);
+        }
       }
-    }
-  } catch (e) {}
+    } catch (e) {}
+  }
 
   if (AppState.videoUrl && AppState.videoUrl.trim() !== '') {
     loadVideoSource(AppState.videoUrl);
