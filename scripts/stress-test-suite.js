@@ -77,9 +77,11 @@ async function simulateHlsViewer(viewerId, stopSignal) {
   const downloadedChunks = new Set();
   let masterChunklistUrl = null;
 
+  // Staggered startup
+  await new Promise(r => setTimeout(r, Math.random() * 2000));
+
   while (!stopSignal.stopped) {
     try {
-      // 1. Obtener Master Playlist si no se tiene
       if (!masterChunklistUrl) {
         const mRes = await fetchWithAgent(STREAM_URL);
         globalStats.totalRequests++;
@@ -101,54 +103,39 @@ async function simulateHlsViewer(viewerId, stopSignal) {
         }
       }
 
-      // 2. Obtener Chunklist en vivo
       const cRes = await fetchWithAgent(masterChunklistUrl);
       globalStats.totalRequests++;
       globalStats.bytesDownloaded += cRes.size;
       globalStats.latencies.push(cRes.duration);
 
       if (cRes.status === 200) {
-        // Init segment si es la primera vez
-        if (downloadedChunks.size === 0) {
-          const initMatch = cRes.body.match(/init_0_video_[^\s"]+\.m4s/);
-          if (initMatch) {
-            const initUrl = 'https://stream-blackozu.b-cdn.net/app/stream/' + initMatch[0];
-            const iRes = await fetchWithAgent(initUrl);
-            globalStats.totalRequests++;
-            globalStats.bytesDownloaded += iRes.size;
-            globalStats.latencies.push(iRes.duration);
-
-            const cache = (iRes.headers['cdn-cache'] || iRes.headers['x-cache'] || '').toUpperCase();
-            if (cache.includes('HIT')) globalStats.hits++;
-            else globalStats.misses++;
-          }
-        }
-
-        // Descargar el último fragmento disponible
         const segMatches = [...cRes.body.matchAll(/seg_[^\s"]+\.m4s/g)].map(m => m[0]);
-        const latestSeg = segMatches[segMatches.length - 1];
+        if (segMatches.length > 0) {
+          const latestSeg = segMatches[segMatches.length - 1];
+          if (!downloadedChunks.has(latestSeg)) {
+            downloadedChunks.add(latestSeg);
+            const segUrl = 'https://stream-blackozu.b-cdn.net/app/stream/' + latestSeg;
+            const sRes = await fetchWithAgent(segUrl);
+            globalStats.totalRequests++;
+            globalStats.bytesDownloaded += sRes.size;
+            globalStats.latencies.push(sRes.duration);
 
-        if (latestSeg && !downloadedChunks.has(latestSeg)) {
-          downloadedChunks.add(latestSeg);
-          const segUrl = 'https://stream-blackozu.b-cdn.net/app/stream/' + latestSeg;
-          const sRes = await fetchWithAgent(segUrl);
-          globalStats.totalRequests++;
-          globalStats.bytesDownloaded += sRes.size;
-          globalStats.latencies.push(sRes.duration);
-
-          const cache = (sRes.headers['cdn-cache'] || sRes.headers['x-cache'] || '').toUpperCase();
-          if (cache.includes('HIT')) globalStats.hits++;
-          else globalStats.misses++;
+            const cacheHeader = (sRes.headers['cdn-cache'] || sRes.headers['x-cache'] || '').toUpperCase();
+            if (cacheHeader.includes('HIT')) {
+              globalStats.hits++;
+            } else {
+              globalStats.misses++;
+            }
+          }
         }
       } else {
         globalStats.errors++;
       }
 
-      // Intervalo entre pedidos de video (emula reproductor HLS real)
-      await new Promise(r => setTimeout(r, 1000 + Math.random() * 500));
+      await new Promise(r => setTimeout(r, 2000 + Math.random() * 1000));
     } catch (e) {
       globalStats.errors++;
-      await new Promise(r => setTimeout(r, 1000));
+      await new Promise(r => setTimeout(r, 2000));
     }
   }
 }
