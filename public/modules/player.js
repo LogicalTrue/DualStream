@@ -373,6 +373,8 @@ export function renderOvenPlayer(url) {
       hlsConfig: {
         enableWorker: true,
         lowLatencyMode: true,
+        progressive: true,
+        maxBufferHole: 0.5,
         liveSyncDurationCount: 3,
         liveMaxLatencyDurationCount: 8,
         maxLiveSyncPlaybackRate: 1.12,
