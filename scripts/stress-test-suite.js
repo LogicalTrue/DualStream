@@ -32,6 +32,8 @@ let globalStats = {
   latencies: []
 };
 
+const zlib = require('zlib');
+
 function fetchWithAgent(url) {
   return new Promise((resolve, reject) => {
     const t0 = Date.now();
@@ -41,24 +43,42 @@ function fetchWithAgent(url) {
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36',
         'Accept': '*/*',
-        'Accept-Encoding': 'gzip, deflate, br',
+        'Accept-Encoding': 'gzip, deflate',
         'X-DualStream-Benchmark': 'Stress-Test-Authorized'
       }
     };
 
     const req = https.get(url, options, (res) => {
-      let data = [];
+      let chunks = [];
       let size = 0;
       res.on('data', chunk => {
-        data.push(chunk);
+        chunks.push(chunk);
         size += chunk.length;
       });
       res.on('end', () => {
         const dt = Date.now() - t0;
+        let buffer = Buffer.concat(chunks);
+        let bodyText = '';
+        const encoding = (res.headers['content-encoding'] || '').toLowerCase();
+
+        try {
+          if (encoding === 'gzip') {
+            bodyText = zlib.gunzipSync(buffer).toString('utf8');
+          } else if (encoding === 'deflate') {
+            bodyText = zlib.inflateSync(buffer).toString('utf8');
+          } else if (encoding === 'br') {
+            bodyText = zlib.brotliDecompressSync(buffer).toString('utf8');
+          } else {
+            bodyText = buffer.toString('utf8');
+          }
+        } catch (e) {
+          bodyText = buffer.toString('utf8');
+        }
+
         resolve({
           status: res.statusCode,
           headers: res.headers,
-          body: Buffer.concat(data).toString('utf8'),
+          body: bodyText,
           size,
           duration: dt
         });
