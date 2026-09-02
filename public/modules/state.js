@@ -2,7 +2,7 @@ import { STREAM_CONFIG } from '../stream-config.js';
 
 export const DEFAULT_CONFIG = {
   streamer: STREAM_CONFIG.kickChannel || 'BlackozuTR',
-  videoUrl: STREAM_CONFIG.videoUrl || 'https://stream.blackozulive.com/live/stream/index.m3u8',
+  videoUrl: STREAM_CONFIG.videoUrl || 'https://stream-blackozu.b-cdn.net/app/stream/llhls.m3u8',
   offlinePoster: STREAM_CONFIG.offlinePoster || 'https://i.imgur.com/WZFLjFB.jpeg',
   onlinePoster: STREAM_CONFIG.onlinePoster || ''
 };
