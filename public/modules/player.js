@@ -340,30 +340,16 @@ export function renderOvenPlayer(url) {
     ovenContainer.style.height = '100%';
     if (wrapper) wrapper.appendChild(ovenContainer);
 
-    const originFallbackUrl = llhlsUrl.includes('b-cdn.net')
-      ? llhlsUrl.replace('stream-blackozu.b-cdn.net', 'stream.blackozulive.com')
-      : null;
-
-    const sources = [
-      {
-        label: 'CDN Primario (Ultra Rápido)',
-        type: 'llhls',
-        file: llhlsUrl
-      }
-    ];
-
-    if (originFallbackUrl) {
-      sources.push({
-        label: 'Origen Respaldo',
-        type: 'llhls',
-        file: originFallbackUrl
-      });
-    }
-
     activeOvenPlayer = OvenPlayer.create('ovenplayer-target', {
-      sources: sources,
+      sources: [
+        {
+          label: 'LL-HLS (Ultra Rápido)',
+          type: 'llhls',
+          file: llhlsUrl
+        }
+      ],
       autoStart: true,
-      autoFallback: true,
+      autoFallback: false,
       mute: true,
       controls: false,
       showBigPlayButton: false,
