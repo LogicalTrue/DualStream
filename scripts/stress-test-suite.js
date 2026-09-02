@@ -131,22 +131,26 @@ async function simulateHlsViewer(viewerId, stopSignal) {
       globalStats.latencies.push(cRes.duration);
 
       if (cRes.status === 200) {
-        const segMatches = [...cRes.body.matchAll(/seg_[^\s"]+\.m4s/g)].map(m => m[0]);
+        // Capturar tanto segmentos completos como partes parciales LL-HLS
+        const segMatches = [...cRes.body.matchAll(/(?:seg|part)_[^\s"]+\.m4s/g)].map(m => m[0]);
         if (segMatches.length > 0) {
-          const latestSeg = segMatches[segMatches.length - 1];
-          if (!downloadedChunks.has(latestSeg)) {
-            downloadedChunks.add(latestSeg);
-            const segUrl = 'https://stream-blackozu.b-cdn.net/app/stream/' + latestSeg;
-            const sRes = await fetchWithAgent(segUrl);
-            globalStats.totalRequests++;
-            globalStats.bytesDownloaded += sRes.size;
-            globalStats.latencies.push(sRes.duration);
+          // Descargar los 2 fragmentos mas recientes
+          const recentSegs = segMatches.slice(-2);
+          for (const s of recentSegs) {
+            if (!downloadedChunks.has(s)) {
+              downloadedChunks.add(s);
+              const segUrl = 'https://stream-blackozu.b-cdn.net/app/stream/' + s;
+              const sRes = await fetchWithAgent(segUrl);
+              globalStats.totalRequests++;
+              globalStats.bytesDownloaded += sRes.size;
+              globalStats.latencies.push(sRes.duration);
 
-            const cacheHeader = (sRes.headers['cdn-cache'] || sRes.headers['x-cache'] || '').toUpperCase();
-            if (cacheHeader.includes('HIT')) {
-              globalStats.hits++;
-            } else {
-              globalStats.misses++;
+              const cacheHeader = (sRes.headers['cdn-cache'] || sRes.headers['x-cache'] || '').toUpperCase();
+              if (cacheHeader.includes('HIT')) {
+                globalStats.hits++;
+              } else {
+                globalStats.misses++;
+              }
             }
           }
         }
@@ -154,10 +158,10 @@ async function simulateHlsViewer(viewerId, stopSignal) {
         globalStats.errors++;
       }
 
-      await new Promise(r => setTimeout(r, 2000 + Math.random() * 1000));
+      await new Promise(r => setTimeout(r, 1000 + Math.random() * 500));
     } catch (e) {
       globalStats.errors++;
-      await new Promise(r => setTimeout(r, 2000));
+      await new Promise(r => setTimeout(r, 1000));
     }
   }
 }
