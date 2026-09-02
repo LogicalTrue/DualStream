@@ -720,6 +720,14 @@ body.mode-viewer.viewer-standby #floating-video-controls {
   display: none !important;
 }
 
+/* Ocultar popups y cajas de error grises nativas de OvenPlayer */
+.op-message-box,
+.op-error-box,
+.op-toast-box,
+.op-prompt {
+  display: none !important;
+}
+
 /* Media Element Containers */
 .media-container,
 .media-frame,

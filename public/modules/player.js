@@ -262,7 +262,14 @@ let isProbingStream = false;
 
 async function checkStreamAvailable(url) {
   try {
-    const res = await fetch(url, { method: 'GET', cache: 'no-store' });
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 3000);
+    const res = await fetch(url, { 
+      method: 'GET', 
+      cache: 'no-store',
+      signal: controller.signal 
+    });
+    clearTimeout(timeout);
     return res.ok;
   } catch (e) {
     return false;
@@ -305,18 +312,28 @@ export function renderOvenPlayer(url) {
     if (mediaWrapper) mediaWrapper.style.setProperty('display', 'block', 'important');
   };
 
+  let probeAttempts = 0;
   const startSilentProbe = () => {
     if (isProbingStream) return;
     isProbingStream = true;
+    probeAttempts = 0;
 
     const probe = async () => {
       if (!isProbingStream) return;
       const isAvailable = await checkStreamAvailable(llhlsUrl);
       if (isAvailable) {
         isProbingStream = false;
+        probeAttempts = 0;
         mountPlayer();
       } else {
-        ovenRetryTimer = setTimeout(probe, 3000);
+        probeAttempts++;
+        // Prospección inteligente sin saturar BunnyCDN ni el origen:
+        // Intentos 1 a 3: cada 4-5 segundos
+        // Intentos 4 en adelante: cada 10-15 segundos con variación aleatoria (jitter)
+        const delay = probeAttempts <= 3 
+          ? (4000 + Math.random() * 1500) 
+          : (10000 + Math.random() * 5000);
+        ovenRetryTimer = setTimeout(probe, delay);
       }
     };
 
@@ -375,34 +392,51 @@ export function renderOvenPlayer(url) {
       try { activeOvenPlayer.play(); } catch(e) {}
     });
 
-    activeOvenPlayer.on('stateChanged', (state) => {
+    activeOvenPlayer.on('stateChanged', async (state) => {
       if (state.newstate === 'playing') {
         consecutiveErrors = 0;
         setPlayerOnline();
-      } else if (state.newstate === 'idle') {
-        checkStreamAvailable(llhlsUrl).then((isLive) => {
-          if (!isLive) setPlayerOffline();
-        });
+      } else if (state.newstate === 'idle' || state.newstate === 'error' || state.newstate === 'stalled') {
+        const isLive = await checkStreamAvailable(llhlsUrl);
+        if (!isLive) {
+          setPlayerOffline();
+        }
       }
     });
 
-    activeOvenPlayer.on('error', async () => {
-      consecutiveErrors++;
-      if (consecutiveErrors >= 3) {
-        // Excepción de seguridad: verificar si el stream sigue vivo antes de ponerlo offline
-        const stillLive = await checkStreamAvailable(llhlsUrl);
-        if (stillLive) {
+    activeOvenPlayer.on('error', async (err) => {
+      console.warn('[Player] Notificación de error en reproducción:', err);
+      // Chequeo estricto e instantáneo contra BunnyCDN (100% aislado del origen)
+      const stillLive = await checkStreamAvailable(llhlsUrl);
+      if (!stillLive) {
+        // Stream finalizado en OBS: remover reproductor y mostrar pantalla standby inmediatamente
+        setPlayerOffline();
+      } else {
+        consecutiveErrors++;
+        if (consecutiveErrors >= 2) {
           consecutiveErrors = 0;
           try {
             activeOvenPlayer.play();
           } catch(e) {
             mountPlayer();
           }
-        } else {
-          setPlayerOffline();
         }
       }
     });
+
+    // Monitoreo del elemento video nativo para corte suave sin recarga
+    setTimeout(() => {
+      const v = ovenContainer.querySelector('video');
+      if (v) {
+        const onHalt = async () => {
+          if (!activeOvenPlayer) return;
+          const isLive = await checkStreamAvailable(llhlsUrl);
+          if (!isLive) setPlayerOffline();
+        };
+        v.addEventListener('ended', onHalt, { once: true });
+        v.addEventListener('error', onHalt, { once: true });
+      }
+    }, 600);
   };
 
   // Inicialización inteligente: chequear primero si el stream está online antes de instanciar
