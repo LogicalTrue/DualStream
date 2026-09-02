@@ -5,11 +5,11 @@
 
 const https = require('https');
 
-// Pool de conexiones de alto rendimiento optimizado
+// Pool de conexiones de ultra alto rendimiento con reuso de sockets
 const keepAliveAgent = new https.Agent({
   keepAlive: true,
-  maxSockets: Infinity,
-  maxFreeSockets: 256,
+  maxSockets: 10000,
+  maxFreeSockets: 2000,
   timeout: 10000
 });
 
@@ -17,10 +17,10 @@ const STREAM_URL = process.env.TEST_STREAM_URL || 'https://stream-blackozu.b-cdn
 
 // Configuración de etapas escalonadas
 const STAGES = [
-  { name: 'Etapa 1 (Calentamiento)', viewers: 500, durationSec: 20 },
-  { name: 'Etapa 2 (Carga Media)', viewers: 1500, durationSec: 20 },
-  { name: 'Etapa 3 (Carga Alta)', viewers: 3000, durationSec: 25 },
-  { name: 'Etapa 4 (Pico Masivo 5k)', viewers: 5000, durationSec: 30 }
+  { name: 'Etapa 1 (Calentamiento)', viewers: 500, durationSec: 25 },
+  { name: 'Etapa 2 (Carga Media)', viewers: 1500, durationSec: 30 },
+  { name: 'Etapa 3 (Carga Alta)', viewers: 3000, durationSec: 35 },
+  { name: 'Etapa 4 (Pico Masivo 5k)', viewers: 5000, durationSec: 40 }
 ];
 
 let globalStats = {
@@ -37,7 +37,7 @@ function fetchWithAgent(url) {
     const t0 = Date.now();
     const options = {
       agent: keepAliveAgent,
-      timeout: 5000,
+      timeout: 8000,
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36',
         'Accept': '*/*',
@@ -65,7 +65,9 @@ function fetchWithAgent(url) {
       });
     });
 
-    req.on('error', reject);
+    req.on('error', (err) => {
+      reject(err);
+    });
     req.on('timeout', () => {
       req.destroy();
       reject(new Error('Timeout'));
@@ -77,8 +79,8 @@ async function simulateHlsViewer(viewerId, stopSignal) {
   const downloadedChunks = new Set();
   let masterChunklistUrl = null;
 
-  // Staggered startup
-  await new Promise(r => setTimeout(r, Math.random() * 2000));
+  // Staggering inicial para no saturar sockets de golpe
+  await new Promise(r => setTimeout(r, Math.random() * 5000));
 
   while (!stopSignal.stopped) {
     try {
@@ -90,7 +92,7 @@ async function simulateHlsViewer(viewerId, stopSignal) {
 
         if (mRes.status !== 200) {
           globalStats.errors++;
-          await new Promise(r => setTimeout(r, 1000));
+          await new Promise(r => setTimeout(r, 1500));
           continue;
         }
 
@@ -98,7 +100,7 @@ async function simulateHlsViewer(viewerId, stopSignal) {
         if (match) {
           masterChunklistUrl = 'https://stream-blackozu.b-cdn.net' + match[0];
         } else {
-          await new Promise(r => setTimeout(r, 1000));
+          await new Promise(r => setTimeout(r, 1500));
           continue;
         }
       }
@@ -150,11 +152,12 @@ async function runStage(stage) {
   const stopSignal = { stopped: false };
   const workers = [];
 
-  // Spawn de espectadores con ráfaga escalonada suave
+  // Spawn suave con control de concurrencia
+  const batchSize = 100;
   for (let i = 1; i <= stage.viewers; i++) {
     workers.push(simulateHlsViewer(i, stopSignal));
-    if (i % 200 === 0) {
-      await new Promise(r => setTimeout(r, 100)); // Staggering
+    if (i % batchSize === 0) {
+      await new Promise(r => setTimeout(r, 50));
     }
   }
 
