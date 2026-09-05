@@ -285,6 +285,7 @@ export function renderOvenPlayer(url) {
   const llhlsUrl = url.includes('.m3u8') ? url : url.replace(/\/app\/stream\/?$/, '/app/stream/llhls.m3u8');
 
   const setPlayerOffline = () => {
+    hideUnmuteOverlay();
     document.body.classList.add('viewer-standby');
     const offlineScreen = document.getElementById('theater-offline-screen');
     const mediaWrapper = document.getElementById('movie-media-wrapper');
@@ -396,6 +397,7 @@ export function renderOvenPlayer(url) {
       if (state.newstate === 'playing') {
         consecutiveErrors = 0;
         setPlayerOnline();
+        checkAndShowUnmuteBadge();
       } else if (state.newstate === 'idle' || state.newstate === 'error' || state.newstate === 'stalled') {
         const isLive = await checkStreamAvailable(llhlsUrl);
         if (!isLive) {
@@ -449,26 +451,83 @@ export function renderOvenPlayer(url) {
   });
 }
 
-if (typeof window !== 'undefined' && !window._soundInteractionRegistered) {
-  window._soundInteractionRegistered = true;
-  const onFirstInteraction = () => {
-    if (activeOvenPlayer) {
-      try {
+export function showUnmuteOverlay() {
+  const overlay = document.getElementById('unmute-floating-overlay');
+  if (overlay) {
+    overlay.classList.remove('fade-out');
+    overlay.style.display = 'flex';
+  }
+}
+
+export function hideUnmuteOverlay() {
+  const overlay = document.getElementById('unmute-floating-overlay');
+  if (overlay && overlay.style.display !== 'none') {
+    overlay.classList.add('fade-out');
+    setTimeout(() => {
+      overlay.style.display = 'none';
+      overlay.classList.remove('fade-out');
+    }, 260);
+  }
+}
+
+export function checkAndShowUnmuteBadge() {
+  let isMuted = false;
+  if (activeOvenPlayer && typeof activeOvenPlayer.getMute === 'function') {
+    try { isMuted = activeOvenPlayer.getMute(); } catch (e) {}
+  } else {
+    const v = DOM.movieMediaWrapper ? DOM.movieMediaWrapper.querySelector('video') : activeNativeVideo;
+    if (v) isMuted = v.muted || v.volume === 0;
+  }
+
+  if (isMuted) {
+    showUnmuteOverlay();
+    const iconVolHigh = document.getElementById('icon-vol-high');
+    const iconVolMute = document.getElementById('icon-vol-mute');
+    if (iconVolHigh) iconVolHigh.classList.add('hidden');
+    if (iconVolMute) iconVolMute.classList.remove('hidden');
+  } else {
+    hideUnmuteOverlay();
+  }
+}
+
+export function unmuteStream() {
+  let changed = false;
+  if (activeOvenPlayer) {
+    try {
+      if (activeOvenPlayer.getMute()) {
         activeOvenPlayer.setMute(false);
         activeOvenPlayer.setVolume(100);
-        activeOvenPlayer.play();
-      } catch (e) {}
+        changed = true;
+      }
+    } catch (e) {}
+  }
+  const v = DOM.movieMediaWrapper ? DOM.movieMediaWrapper.querySelector('video') : activeNativeVideo;
+  if (v && (v.muted || v.volume === 0)) {
+    v.muted = false;
+    v.volume = 1.0;
+    v.play().catch(() => {});
+    changed = true;
+  }
+  updateVideoVolume(100);
+  hideUnmuteOverlay();
+  if (changed) {
+    showToast('🔊 Sonido activado', 'success');
+  }
+}
+
+if (typeof window !== 'undefined' && !window._soundInteractionRegistered) {
+  window._soundInteractionRegistered = true;
+  const onGlobalUnmuteClick = (e) => {
+    if (e && e.target && e.target.closest && (e.target.closest('#floating-video-controls') || e.target.closest('.control-badge-btn') || e.target.closest('.chat-section') || e.target.closest('#app-header'))) {
+      return;
     }
-    const v = document.getElementById('main-theater-video');
-    if (v) {
-      v.muted = false;
-      v.volume = 1.0;
-      updateVideoVolume(100);
-      v.play().catch(() => {});
+    const overlay = document.getElementById('unmute-floating-overlay');
+    if (overlay && overlay.style.display !== 'none' && !overlay.classList.contains('fade-out')) {
+      unmuteStream();
     }
   };
-  document.addEventListener('click', onFirstInteraction, { once: true });
-  document.addEventListener('touchstart', onFirstInteraction, { once: true });
+  document.addEventListener('click', onGlobalUnmuteClick);
+  document.addEventListener('touchstart', onGlobalUnmuteClick, { passive: true });
 }
 
 export function renderNativeVideo(url, initialSyncState = null) {
@@ -529,6 +588,7 @@ export function renderNativeVideo(url, initialSyncState = null) {
   }
 
   const setPlayerOffline = () => {
+    hideUnmuteOverlay();
     videoElem.dataset.offline = 'true';
     document.body.classList.add('viewer-standby');
     try { 
@@ -564,9 +624,13 @@ export function renderNativeVideo(url, initialSyncState = null) {
 
     const playPromise = videoElem.play();
     if (playPromise !== undefined) {
-      playPromise.then(() => {}).catch(() => {
+      playPromise.then(() => {
+        checkAndShowUnmuteBadge();
+      }).catch(() => {
         videoElem.muted = true;
-        videoElem.play().catch(() => {});
+        videoElem.play().then(() => {
+          checkAndShowUnmuteBadge();
+        }).catch(() => {});
       });
     }
   };
@@ -977,12 +1041,18 @@ export function updateVideoVolume(val) {
     } catch (e) {}
   }
 
+  const sliderVideoVolume = document.getElementById('slider-video-volume');
+  if (sliderVideoVolume && parseInt(sliderVideoVolume.value, 10) !== vol) {
+    sliderVideoVolume.value = vol;
+  }
+
   if (vol === 0) {
     if (iconVolHigh) iconVolHigh.classList.add('hidden');
     if (iconVolMute) iconVolMute.classList.remove('hidden');
   } else {
     if (iconVolHigh) iconVolHigh.classList.remove('hidden');
     if (iconVolMute) iconVolMute.classList.add('hidden');
+    hideUnmuteOverlay();
   }
 }
 

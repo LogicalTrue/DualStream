@@ -710,13 +710,17 @@ body.viewer-standby #theater-offline-screen {
   display: flex;
 }
 
-/* Ocultar la webcam y controles flotantes si el espectador ve las pantallas de espera (desconectado o previo a conectar) */
+/* Ocultar la webcam, controles flotantes y badge de sonido si el espectador ve las pantallas de espera */
 body.mode-viewer:has(#theater-offline-screen[style*="display: flex"]) #webcam-card,
 body.mode-viewer:has(#theater-online-screen[style*="display: flex"]) #webcam-card,
 body.mode-viewer:has(#theater-offline-screen[style*="display: flex"]) #floating-video-controls,
 body.mode-viewer:has(#theater-online-screen[style*="display: flex"]) #floating-video-controls,
+body.mode-viewer:has(#theater-offline-screen[style*="display: flex"]) #unmute-floating-overlay,
+body.mode-viewer:has(#theater-online-screen[style*="display: flex"]) #unmute-floating-overlay,
 body.mode-viewer.viewer-standby #webcam-card,
-body.mode-viewer.viewer-standby #floating-video-controls {
+body.mode-viewer.viewer-standby #floating-video-controls,
+body.mode-viewer.viewer-standby #unmute-floating-overlay,
+body.viewer-standby #unmute-floating-overlay {
   display: none !important;
 }
 
@@ -849,6 +853,102 @@ body.mode-viewer.viewer-standby #floating-video-controls {
   background: var(--kick-green);
   cursor: pointer;
   box-shadow: 0 0 8px rgba(83, 252, 24, 0.6);
+}
+
+/* ==========================================================================
+   UNMUTE FLOATING OVERLAY (PROFESSIONAL CALL TO ACTION)
+   ========================================================================== */
+.unmute-floating-overlay {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 35;
+  cursor: pointer;
+  pointer-events: auto;
+  user-select: none;
+  -webkit-user-select: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: opacity 0.25s cubic-bezier(0.16, 1, 0.3, 1), transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  animation: unmute-badge-appear 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.unmute-badge-pill {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: rgba(12, 14, 19, 0.88);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid rgba(83, 252, 24, 0.45);
+  border-radius: 9999px;
+  padding: 12px 22px;
+  color: #ffffff;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.25px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.75), 0 0 20px rgba(83, 252, 24, 0.2);
+  transition: transform 0.18s ease, background 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
+  animation: unmute-pulse 2.4s infinite ease-in-out;
+}
+
+.unmute-floating-overlay:hover .unmute-badge-pill,
+.unmute-floating-overlay:focus .unmute-badge-pill {
+  background: rgba(18, 22, 30, 0.96);
+  border-color: var(--kick-green);
+  box-shadow: 0 12px 35px rgba(0, 0, 0, 0.85), 0 0 28px rgba(83, 252, 24, 0.4);
+  transform: scale(1.05);
+}
+
+.unmute-badge-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--kick-green);
+  filter: drop-shadow(0 0 6px rgba(83, 252, 24, 0.6));
+}
+
+.unmute-badge-text {
+  white-space: nowrap;
+}
+
+@keyframes unmute-pulse {
+  0%, 100% {
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.75), 0 0 15px rgba(83, 252, 24, 0.18);
+    transform: scale(1);
+  }
+  50% {
+    box-shadow: 0 12px 35px rgba(0, 0, 0, 0.85), 0 0 25px rgba(83, 252, 24, 0.38);
+    transform: scale(1.03);
+  }
+}
+
+@keyframes unmute-badge-appear {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -42%) scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+}
+
+.unmute-floating-overlay.fade-out {
+  opacity: 0 !important;
+  transform: translate(-50%, -55%) scale(0.92) !important;
+  pointer-events: none !important;
+}
+
+@media (max-width: 768px) {
+  .unmute-badge-pill {
+    padding: 10px 18px;
+    font-size: 13px;
+    gap: 8px;
+  }
 }
 
 .hidden {

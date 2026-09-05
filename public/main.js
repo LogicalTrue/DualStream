@@ -8,6 +8,7 @@ import {
   unloadVideo,
   unlockViewerMobileAudio,
   updateVideoVolume,
+  unmuteStream,
   toggleFullscreen,
   reloadMoviePlayer,
   ytPlayerInstance,
@@ -29,6 +30,20 @@ import {
 } from './modules/sync.js';
 
 function initEventListeners() {
+  const unmuteOverlay = document.getElementById('unmute-floating-overlay');
+  if (unmuteOverlay) {
+    unmuteOverlay.addEventListener('click', (e) => {
+      e.stopPropagation();
+      unmuteStream();
+    });
+    unmuteOverlay.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        unmuteStream();
+      }
+    });
+  }
+
   const btnToggleVideoMute = document.getElementById('btn-toggle-video-mute');
   const sliderVideoVolume = document.getElementById('slider-video-volume');
   const btnReloadMovie = document.getElementById('btn-reload-movie');
@@ -139,9 +154,13 @@ async function init() {
   parseUrlParams();
   initEventListeners();
 
+  const searchParams = new URLSearchParams(window.location.search);
+  const hasCustomVideo = searchParams.has('video') && searchParams.get('video').trim() !== '';
+  const hasCustomStreamer = searchParams.has('streamer') && searchParams.get('streamer').trim() !== '';
+
   if (STREAM_CONFIG) {
-    if (STREAM_CONFIG.kickChannel) AppState.streamer = STREAM_CONFIG.kickChannel;
-    if (STREAM_CONFIG.videoUrl) AppState.videoUrl = STREAM_CONFIG.videoUrl;
+    if (STREAM_CONFIG.kickChannel && !hasCustomStreamer) AppState.streamer = STREAM_CONFIG.kickChannel;
+    if (STREAM_CONFIG.videoUrl && !hasCustomVideo) AppState.videoUrl = STREAM_CONFIG.videoUrl;
     if (STREAM_CONFIG.offlinePoster) AppState.offlineImg = STREAM_CONFIG.offlinePoster;
     if (STREAM_CONFIG.onlinePoster) AppState.onlineImg = STREAM_CONFIG.onlinePoster;
 
