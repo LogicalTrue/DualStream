@@ -32,13 +32,35 @@ import {
 function initEventListeners() {
   const unmuteOverlay = document.getElementById('unmute-floating-overlay');
   if (unmuteOverlay) {
-    unmuteOverlay.addEventListener('click', (e) => {
-      e.stopPropagation();
+    const handleOverlayTap = (e) => {
+      if (e) {
+        if (e.cancelable) e.preventDefault();
+        e.stopPropagation();
+      }
       unmuteStream();
-    });
+    };
+
+    unmuteOverlay.addEventListener('click', handleOverlayTap);
+    unmuteOverlay.addEventListener('touchend', handleOverlayTap);
     unmuteOverlay.addEventListener('keydown', (e) => {
       if (e.key === 'Enter' || e.key === ' ') {
         e.preventDefault();
+        unmuteStream();
+      }
+    });
+  }
+
+  const moviePlayerBox = document.getElementById('movie-player-box');
+  if (moviePlayerBox) {
+    moviePlayerBox.addEventListener('click', (e) => {
+      if (e && e.target && e.target.closest && (
+        e.target.closest('#floating-video-controls') || 
+        e.target.closest('.control-badge-btn')
+      )) {
+        return;
+      }
+      const overlay = document.getElementById('unmute-floating-overlay');
+      if (overlay && overlay.style.display !== 'none' && !overlay.classList.contains('fade-out')) {
         unmuteStream();
       }
     });

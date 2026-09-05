@@ -868,6 +868,8 @@ body.viewer-standby #unmute-floating-overlay {
   pointer-events: auto;
   user-select: none;
   -webkit-user-select: none;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
   display: flex;
   align-items: center;
   justify-content: center;

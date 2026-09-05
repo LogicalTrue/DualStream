@@ -492,24 +492,67 @@ export function checkAndShowUnmuteBadge() {
 
 export function unmuteStream() {
   let changed = false;
+
+  // 1. Despertar AudioContext global en Safari/iOS para desbloquear sesión de audio por hardware
+  try {
+    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+    if (AudioContextClass) {
+      if (!window._sharedAudioCtx) {
+        window._sharedAudioCtx = new AudioContextClass();
+      }
+      if (window._sharedAudioCtx.state === 'suspended') {
+        window._sharedAudioCtx.resume();
+      }
+    }
+  } catch (e) {}
+
+  // 2. Desmutear OvenPlayer y su <video> interno
   if (activeOvenPlayer) {
     try {
-      if (activeOvenPlayer.getMute()) {
-        activeOvenPlayer.setMute(false);
-        activeOvenPlayer.setVolume(100);
+      activeOvenPlayer.setMute(false);
+      activeOvenPlayer.setVolume(100);
+      activeOvenPlayer.play();
+      changed = true;
+    } catch (e) {}
+    try {
+      const ovenVid = document.querySelector('#ovenplayer-target video');
+      if (ovenVid) {
+        ovenVid.muted = false;
+        ovenVid.defaultMuted = false;
+        ovenVid.removeAttribute('muted');
+        try { ovenVid.volume = 1.0; } catch (e) {}
+        const p = ovenVid.play();
+        if (p !== undefined) p.catch(() => {});
         changed = true;
       }
     } catch (e) {}
   }
+
+  // 3. Desmutear Video Nativo HTML5 (HLS / MP4)
   const v = DOM.movieMediaWrapper ? DOM.movieMediaWrapper.querySelector('video') : activeNativeVideo;
-  if (v && (v.muted || v.volume === 0)) {
+  if (v) {
     v.muted = false;
-    v.volume = 1.0;
-    v.play().catch(() => {});
+    v.defaultMuted = false;
+    v.removeAttribute('muted');
+    try { v.volume = 1.0; } catch (e) {}
+    const p = v.play();
+    if (p !== undefined) p.catch(() => {});
     changed = true;
   }
+
+  // 4. Desmutear YouTube Player si está activo
+  if (ytPlayerInstance && typeof ytPlayerInstance.unMute === 'function') {
+    try {
+      ytPlayerInstance.unMute();
+      ytPlayerInstance.setVolume(100);
+      ytPlayerInstance.playVideo();
+      changed = true;
+    } catch (e) {}
+  }
+
   updateVideoVolume(100);
   hideUnmuteOverlay();
+
   if (changed) {
     showToast('🔊 Sonido activado', 'success');
   }
@@ -518,7 +561,12 @@ export function unmuteStream() {
 if (typeof window !== 'undefined' && !window._soundInteractionRegistered) {
   window._soundInteractionRegistered = true;
   const onGlobalUnmuteClick = (e) => {
-    if (e && e.target && e.target.closest && (e.target.closest('#floating-video-controls') || e.target.closest('.control-badge-btn') || e.target.closest('.chat-section') || e.target.closest('#app-header'))) {
+    if (e && e.target && e.target.closest && (
+      e.target.closest('#floating-video-controls') || 
+      e.target.closest('.control-badge-btn') || 
+      e.target.closest('.chat-section') || 
+      e.target.closest('#app-header')
+    )) {
       return;
     }
     const overlay = document.getElementById('unmute-floating-overlay');
@@ -527,7 +575,6 @@ if (typeof window !== 'undefined' && !window._soundInteractionRegistered) {
     }
   };
   document.addEventListener('click', onGlobalUnmuteClick);
-  document.addEventListener('touchstart', onGlobalUnmuteClick, { passive: true });
 }
 
 export function renderNativeVideo(url, initialSyncState = null) {
@@ -561,11 +608,14 @@ export function renderNativeVideo(url, initialSyncState = null) {
 
   videoElem.controls = false;
   videoElem.autoplay = true;
+  videoElem.muted = true;
+  videoElem.defaultMuted = true;
+  videoElem.setAttribute('muted', '');
   videoElem.playsInline = true;
-  videoElem.setAttribute('playsinline', 'true');
-  videoElem.setAttribute('webkit-playsinline', 'true');
+  videoElem.setAttribute('playsinline', '');
+  videoElem.setAttribute('webkit-playsinline', '');
   videoElem.preload = 'auto';
-  videoElem.volume = 1.0;
+  try { videoElem.volume = 1.0; } catch (e) {}
   videoElem.dataset.url = url;
   
   videoElem.addEventListener('webkitbeginfullscreen', () => {
@@ -628,6 +678,8 @@ export function renderNativeVideo(url, initialSyncState = null) {
         checkAndShowUnmuteBadge();
       }).catch(() => {
         videoElem.muted = true;
+        videoElem.defaultMuted = true;
+        videoElem.setAttribute('muted', '');
         videoElem.play().then(() => {
           checkAndShowUnmuteBadge();
         }).catch(() => {});
@@ -812,6 +864,7 @@ export function renderNativeVideo(url, initialSyncState = null) {
     startHlsPlayback();
   } else {
     videoElem.src = url;
+    setPlayerOnline();
   }
 
   let initialSynced = false;
@@ -1004,10 +1057,14 @@ export function updateVideoVolume(val) {
   if (nativeVid) {
     if (vol > 0) {
       nativeVid.muted = false;
-      nativeVid.volume = vol / 100;
+      nativeVid.defaultMuted = false;
+      nativeVid.removeAttribute('muted');
+      try { nativeVid.volume = vol / 100; } catch (e) {}
     } else {
       nativeVid.muted = true;
-      nativeVid.volume = 0;
+      nativeVid.defaultMuted = true;
+      nativeVid.setAttribute('muted', '');
+      try { nativeVid.volume = 0; } catch (e) {}
     }
   }
 
@@ -1029,6 +1086,21 @@ export function updateVideoVolume(val) {
         activeOvenPlayer.setMute(true);
       } else {
         activeOvenPlayer.setMute(false);
+      }
+    } catch (e) {}
+    try {
+      const ovenVid = document.querySelector('#ovenplayer-target video');
+      if (ovenVid) {
+        if (vol > 0) {
+          ovenVid.muted = false;
+          ovenVid.defaultMuted = false;
+          ovenVid.removeAttribute('muted');
+          try { ovenVid.volume = vol / 100; } catch (e) {}
+        } else {
+          ovenVid.muted = true;
+          ovenVid.defaultMuted = true;
+          ovenVid.setAttribute('muted', '');
+        }
       }
     } catch (e) {}
   }
